@@ -19,3 +19,7 @@ ground:
 
 beam:
   sampling: mwss
+  file: eigsep_bowtie_v000_mwss.npz
+
+horizon:
+  file: horizon_mwss.npz
