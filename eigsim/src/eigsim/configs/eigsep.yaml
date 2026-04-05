@@ -1,0 +1,21 @@
+# EIGSEP experiment configuration
+# Single source of truth for experiment-specific parameters.
+# Override individual fields by passing a custom YAML to load_config().
+
+world: earth
+
+location:
+  lon: -113.4033
+  lat: 39.2477
+  alt: 0.0    # meters
+
+frequencies:
+  min: 50.0   # MHz
+  max: 250.0  # MHz
+  n: 201       # number of channels
+
+ground:
+  temperature: 300.0  # K
+
+beam:
+  sampling: mwss
