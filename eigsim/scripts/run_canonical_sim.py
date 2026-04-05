@@ -43,9 +43,16 @@ OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 # Load beam and horizon
 # ---------------------------------------------------------------------------
 print("Loading beam and horizon data...")
-freqs_hz, beam_data, lmax = eigsim.load_beam()
-freqs_mhz = freqs_hz / 1e6
+beam_freqs_hz, beam_data, lmax = eigsim.load_beam()
 horizon, _ = eigsim.load_horizon()
+
+# Config frequencies are the source of truth — select matching channels.
+freqs_mhz = np.array(cfg["frequencies"])
+freqs_hz = freqs_mhz * 1e6
+beam_freqs_mhz = beam_freqs_hz / 1e6
+freq_idx = np.isin(beam_freqs_mhz, freqs_mhz)
+beam_data = beam_data[freq_idx]
+print(f"  Selected {beam_data.shape[0]}/{len(beam_freqs_mhz)} beam channels")
 
 # ---------------------------------------------------------------------------
 # Generate sky model
@@ -107,8 +114,7 @@ print(f"  t_sys shape: {t_sys.shape}, dtype: {t_sys.dtype}")
 # Add radiometer noise
 # ---------------------------------------------------------------------------
 print("Adding radiometer noise...")
-freq_cfg = cfg["frequencies"]
-delta_freq_hz = (freq_cfg["max"] - freq_cfg["min"]) / (freq_cfg["n"] - 1) * 1e6
+delta_freq_hz = np.median(np.diff(freqs_hz))
 delta_time_s = SIDEREAL_DAY_S / N_TIMES
 rng = np.random.default_rng(RNG_SEED)
 noise = eigsim.radiometer_noise(np.asarray(t_sys), delta_freq_hz, delta_time_s, rng=rng)

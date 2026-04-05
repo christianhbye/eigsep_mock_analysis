@@ -11,10 +11,7 @@ location:
   lat: 39.2477
   alt: 0.0    # meters
 
-frequencies:
-  min: 50.0   # MHz
-  max: 250.0  # MHz
-  n: 201       # number of channels
+frequencies: {start: 50.0, stop: 251.0, step: 1.0}  # MHz
 
 ground:
   temperature: 300.0  # K
@@ -35,77 +32,5 @@ sky:
   include_cmb: true
 
 orientations:
-  elevations:   # degrees
-    - 0
-    - 10
-    - 20
-    - 30
-    - 40
-    - 50
-    - 60
-    - 70
-    - 80
-    - 90
-    - 100
-    - 110
-    - 120
-    - 130
-    - 140
-    - 150
-    - 160
-    - 170
-    - 180
-    - 190
-    - 200
-    - 210
-    - 220
-    - 230
-    - 240
-    - 250
-    - 260
-    - 270
-    - 280
-    - 290
-    - 300
-    - 310
-    - 320
-    - 330
-    - 340
-    - 350
-  azimuths:     # degrees
-    - 0
-    - 10
-    - 20
-    - 30
-    - 40
-    - 50
-    - 60
-    - 70
-    - 80
-    - 90
-    - 100
-    - 110
-    - 120
-    - 130
-    - 140
-    - 150
-    - 160
-    - 170
-    - 180
-    - 190
-    - 200
-    - 210
-    - 220
-    - 230
-    - 240
-    - 250
-    - 260
-    - 270
-    - 280
-    - 290
-    - 300
-    - 310
-    - 320
-    - 330
-    - 340
-    - 350
+  elevations: {start: 0, stop: 360, step: 10}   # degrees
+  azimuths:   {start: 0, stop: 360, step: 10}   # degrees
