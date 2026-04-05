@@ -15,6 +15,7 @@ dev = [
     "eigsim",
     "jupyter",
     "matplotlib",
+    "pre-commit",
     "pytest",
     "ruff",
 ]
