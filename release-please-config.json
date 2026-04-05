@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    "eigsim": {
+      "release-type": "python",
+      "component": "eigsim",
+      "package-name": "eigsim",
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        "src/eigsim/__init__.py"
+      ]
+    }
+  }
+}

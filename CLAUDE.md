@@ -16,7 +16,9 @@ Monorepo for EIGSEP simulation and analysis code.
 - **Package manager:** uv (workspace mode)
 - **Linting:** ruff
 - **Testing:** pytest
-- **CI:** GitHub Actions (lint + test on push/PR to main)
+- **Pre-commit:** ruff via pre-commit hooks
+- **CI:** GitHub Actions (shared lint + per-package tests + release-please)
+- **Releases:** release-please in manifest mode (per-package versioning)
 
 ## Commands
 
@@ -33,3 +35,5 @@ uv run ruff format .   # Format
 - Each package has its own pyproject.toml
 - Data files (*.npz, *.npy, *.fits, *.hdf5) are gitignored — do not commit large data
 - Notebooks should not import from local paths outside the installed packages
+- Use conventional commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, etc.)
+- New packages get their own test workflow (`.github/workflows/<pkg>-test.yml`) with path filters
