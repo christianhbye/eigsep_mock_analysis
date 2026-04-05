@@ -81,6 +81,14 @@ def simulate(
 
     For each ``(elevation, azimuth)`` pair the beam is rotated, a
     ``croissant.Simulator`` is constructed, and ``sim()`` is called.
+    The receiver temperature from the config is added to the antenna
+    temperature produced by the simulator, giving the total system
+    temperature.
+
+    The returned array is a JAX array suitable for automatic
+    differentiation.  To add radiometer noise, use
+    :func:`eigsim.noise.radiometer_noise` on the result.
+
     Simulator parameters are read from the EIGSEP config YAML and can
     be overridden via *sim_kw*.
 
@@ -109,8 +117,8 @@ def simulate(
 
     Returns
     -------
-    visibilities : jax.Array
-        Simulated antenna temperatures, shape
+    t_sys : jax.Array
+        Noiseless system temperature (antenna + receiver), shape
         ``(N_orientations, N_times, N_freqs)``.
 
     """
@@ -128,6 +136,8 @@ def simulate(
     )
     defaults.update(sim_kw)
 
+    t_rcvr = cfg["receiver"]["temperature"]
+
     results = []
     for elev, az in zip(elevations, azimuths):
         beam = make_beam(
@@ -141,4 +151,5 @@ def simulate(
         sim = cro.Simulator(beam, sky, times_jd, freqs, **defaults)
         results.append(sim.sim())
 
-    return jnp.stack(results)
+    t_ant = jnp.stack(results)
+    return t_ant + t_rcvr

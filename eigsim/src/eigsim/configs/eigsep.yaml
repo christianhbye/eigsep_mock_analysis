@@ -17,6 +17,9 @@ frequencies:
 ground:
   temperature: 300.0  # K
 
+receiver:
+  temperature: 50.0   # K
+
 beam:
   sampling: mwss
   file: eigsep_bowtie_v000_mwss.npz
