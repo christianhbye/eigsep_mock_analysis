@@ -1,6 +1,6 @@
 # EIGSEP Mock Analysis
 
-Simulation and analysis workspace for the [EIGSEP](https://github.com/eigsep) experiment — a 21 cm cosmology instrument targeting the Dark Ages signal.
+Simulation and analysis workspace for the [EIGSEP](https://github.com/eigsep) experiment — a 21 cm cosmology instrument targeting the Cosmic Dawn signal.
 
 ## Repository structure
 
