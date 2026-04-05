@@ -70,6 +70,104 @@ def drive_rotation_matrix(elevation_deg, azimuth_deg):
 # ── beam-data rotation ───────────────────────────────────────────────
 
 
+def beam_to_alm(data, lmax, sampling, nside=None, niter=0):
+    """Forward SHT of beam data (vectorised over frequencies).
+
+    Parameters
+    ----------
+    data : array_like
+        Beam power pattern.  Shape ``(N_freqs, N_theta, N_phi)`` for
+        non-healpix samplings, or ``(N_freqs, N_pix)`` for healpix.
+    lmax : int
+        Maximum spherical harmonic degree of the data.
+    sampling : str
+        Sampling scheme (``"mwss"``, ``"healpix"``, etc.).
+    nside : int or None
+        HEALPix nside.  Required when ``sampling="healpix"``.
+    niter : int
+        Number of SHT iterations (passed to ``s2fft``).
+
+    Returns
+    -------
+    alm : jax.Array
+        Spherical harmonic coefficients, shape
+        ``(N_freqs, lmax+1, 2*lmax+1)``.
+
+    """
+    L = lmax + 1
+    data = jnp.asarray(data)
+    fwd = partial(
+        s2fft.forward,
+        L=L,
+        spin=0,
+        nside=nside,
+        sampling=sampling,
+        method="jax",
+        reality=True,
+        iter=niter,
+    )
+    return jax.vmap(fwd)(data)
+
+
+def rotate_alm_to_beam(
+    alm,
+    lmax,
+    sampling,
+    elevation_deg,
+    azimuth_deg,
+    nside=None,
+):
+    """Wigner-D rotation of alm followed by inverse SHT.
+
+    Parameters
+    ----------
+    alm : jax.Array
+        Spherical harmonic coefficients from :func:`beam_to_alm`.
+    lmax : int
+        Maximum spherical harmonic degree.
+    sampling : str
+        Sampling scheme for the inverse SHT.
+    elevation_deg : float
+        Elevation drive angle in degrees.
+    azimuth_deg : float
+        Turntable angle in degrees.
+    nside : int or None
+        HEALPix nside.  Required when ``sampling="healpix"``.
+
+    Returns
+    -------
+    rotated : jax.Array
+        Rotated beam data in pixel space.
+
+    """
+    L = lmax + 1
+
+    # Wigner-D rotation
+    R = drive_rotation_matrix(elevation_deg, azimuth_deg)
+    euler = rotmat_to_eulerZYZ(R)
+    dl_array = s2fft.generate_rotate_dls(L, euler[1])
+
+    rot = partial(
+        s2fft.utils.rotation.rotate_flms,
+        L=L,
+        rotation=euler,
+        dl_array=dl_array,
+    )
+    alm_rot = jax.vmap(rot)(alm)
+
+    # inverse SHT back to pixel space
+    inv = partial(
+        s2fft.inverse,
+        L=L,
+        spin=0,
+        nside=nside,
+        sampling=sampling,
+        method="jax",
+        reality=True,
+    )
+    return jax.vmap(inv)(alm_rot)
+
+
 def rotate_beam_data(
     data,
     lmax,
@@ -81,10 +179,11 @@ def rotate_beam_data(
 ):
     """Rotate beam data for a given drive configuration.
 
-    The rotation is carried out in spherical-harmonic space:
-    forward SHT -> Wigner-D rotation -> inverse SHT.  The returned
-    array has the same shape and sampling as the input and can be
-    passed directly to ``croissant.Beam``.
+    Convenience wrapper that calls :func:`beam_to_alm` followed by
+    :func:`rotate_alm_to_beam`.  When calling this for many
+    orientations of the same beam, prefer computing the alm once with
+    :func:`beam_to_alm` and then calling :func:`rotate_alm_to_beam`
+    per orientation.
 
     Parameters
     ----------
@@ -113,45 +212,7 @@ def rotate_beam_data(
     if np.isclose(elevation_deg, 0.0) and np.isclose(azimuth_deg, 0.0):
         return jnp.asarray(data)
 
-    L = lmax + 1
-    data = jnp.asarray(data)
-
-    # forward SHT (vectorised over frequency axis)
-    fwd = partial(
-        s2fft.forward,
-        L=L,
-        spin=0,
-        nside=nside,
-        sampling=sampling,
-        method="jax",
-        reality=True,
-        iter=niter,
+    alm = beam_to_alm(data, lmax, sampling, nside=nside, niter=niter)
+    return rotate_alm_to_beam(
+        alm, lmax, sampling, elevation_deg, azimuth_deg, nside=nside
     )
-    alm = jax.vmap(fwd)(data)
-
-    # Wigner-D rotation
-    R = drive_rotation_matrix(elevation_deg, azimuth_deg)
-    euler = rotmat_to_eulerZYZ(R)
-    dl_array = s2fft.generate_rotate_dls(L, euler[1])
-
-    rot = partial(
-        s2fft.utils.rotation.rotate_flms,
-        L=L,
-        rotation=euler,
-        dl_array=dl_array,
-    )
-    alm_rot = jax.vmap(rot)(alm)
-
-    # inverse SHT back to pixel space
-    inv = partial(
-        s2fft.inverse,
-        L=L,
-        spin=0,
-        nside=nside,
-        sampling=sampling,
-        method="jax",
-        reality=True,
-    )
-    rotated = jax.vmap(inv)(alm_rot)
-
-    return rotated

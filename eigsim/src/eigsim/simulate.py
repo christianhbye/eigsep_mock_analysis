@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from .config import load_config
-from .rotations import rotate_beam_data
+from .rotations import beam_to_alm, rotate_alm_to_beam, rotate_beam_data
 
 
 def make_beam(
@@ -24,10 +24,17 @@ def make_beam(
     (e.g. *horizon*).  Do **not** pass ``beam_rot`` here — the full
     rotation is handled by the EIGSEP drive model.
 
+    *data* may be either a pixel-space array **or** pre-computed
+    spherical-harmonic coefficients (a *jax.Array* returned by
+    :func:`~eigsim.rotations.beam_to_alm`).  When alm are passed the
+    forward SHT is skipped, which is faster when rotating the same
+    beam to many orientations.
+
     Parameters
     ----------
     data : array_like
-        Unrotated beam power pattern.
+        Unrotated beam power pattern **or** pre-computed alm from
+        :func:`~eigsim.rotations.beam_to_alm`.
     freqs : array_like
         Frequencies in MHz.
     sampling : str
@@ -138,16 +145,23 @@ def simulate(
 
     t_rcvr = cfg["receiver"]["temperature"]
 
+    # Pre-compute the forward SHT of the unrotated beam once.
+    beam_data = np.asarray(beam_data)
+    lmax = cro.utils.lmax_from_ntheta(beam_data.shape[1], sampling)
+    nside = None
+    if sampling == "healpix":
+        nside = cro.utils.hp_npix2nside(beam_data.shape[1])
+    alm = beam_to_alm(beam_data, lmax, sampling, nside=nside)
+
     results = []
     for elev, az in zip(elevations, azimuths):
-        beam = make_beam(
-            beam_data,
-            freqs,
-            sampling=sampling,
-            elevation_deg=float(elev),
-            azimuth_deg=float(az),
-            **beam_kw,
-        )
+        if np.isclose(float(elev), 0.0) and np.isclose(float(az), 0.0):
+            rotated = beam_data
+        else:
+            rotated = rotate_alm_to_beam(
+                alm, lmax, sampling, float(elev), float(az), nside=nside
+            )
+        beam = cro.Beam(rotated, freqs, sampling=sampling, niter=0, **beam_kw)
         sim = cro.Simulator(beam, sky, times_jd, freqs, **defaults)
         results.append(sim.sim())
 
