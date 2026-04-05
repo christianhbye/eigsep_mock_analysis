@@ -1,0 +1,30 @@
+[project]
+name = "eigsep-mock-analysis"
+version = "0.0.0"
+description = "Simulation and analysis workspace for the EIGSEP experiment"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = ["eigsim"]
+
+[tool.uv.sources]
+eigsim = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "eigsim",
+    "jupyter",
+    "matplotlib",
+    "pytest",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 88
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["eigsim/tests"]

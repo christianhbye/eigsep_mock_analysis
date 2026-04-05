@@ -1,4 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+*.so
+
+# Virtual environments
 .venv/
+
+# Jupyter
 .ipynb_checkpoints/
+
+# Data files
 *.npz
 *.npy
+*.fits
+*.hdf5
+*.h5
+
+# Tooling
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
