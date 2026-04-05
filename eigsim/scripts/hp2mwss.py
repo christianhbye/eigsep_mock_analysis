@@ -20,6 +20,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import s2fft
+import s2fft.sampling.s2_samples as s2
 
 jax.config.update("jax_enable_x64", True)
 
@@ -87,26 +88,33 @@ def convert_beam(niter):
     print(f"  Saved {dst.name}: bm shape {bm_mwss.shape}, lmax={lmax}")
 
 
-def convert_horizon(niter):
-    """Convert the horizon model from HEALPix to MWSS."""
+def convert_horizon():
+    """Convert the horizon model from HEALPix to MWSS.
+
+    Uses nearest-neighbor interpolation instead of SHT because the
+    horizon has a sharp NaN/finite boundary that causes Gibbs ringing.
+    """
     src = DATA_DIR / "horizon.npz"
     dst = DATA_DIR / "horizon_mwss.npz"
-    print(f"Converting horizon: {src.name} -> {dst.name} (niter={niter})")
+    print(f"Converting horizon: {src.name} -> {dst.name} (nearest-neighbor)")
 
     d = np.load(src)
     horizon, nside = d["horizon"], int(d["nside"])
     center, height = d["center"], d["height"]
 
-    # Replace NaN (sky) with 0 for the SHT; transform a binary mask
-    # alongside so we can restore NaN in the MWSS output.
-    mask = np.isfinite(horizon).astype(np.float64)
-    horizon_filled = np.where(np.isfinite(horizon), horizon.astype(np.float64), 0.0)
-
-    horizon_mwss = np.array(_hp2mwss(horizon_filled, nside, niter))
-    mask_mwss = np.asarray(_hp2mwss(mask, nside, niter))
-    horizon_mwss[mask_mwss < 0.5] = np.nan
-
     lmax = 2 * nside
+    L = lmax + 1
+
+    thetas = s2.thetas(L, sampling="mwss")
+    phis = s2.phis_equiang(L, sampling="mwss")
+
+    # Map each MWSS pixel to its nearest HEALPix pixel
+    horizon_mwss = np.empty((len(thetas), len(phis)), dtype=np.float64)
+    for i, theta in enumerate(thetas):
+        for j, phi in enumerate(phis):
+            ipix = s2.hp_ang2pix(nside, float(theta), float(phi))
+            horizon_mwss[i, j] = horizon[ipix]
+
     np.savez(dst, horizon=horizon_mwss, center=center, height=height, lmax=lmax)
     print(f"  Saved {dst.name}: horizon shape {horizon_mwss.shape}, lmax={lmax}")
 
@@ -125,7 +133,7 @@ def main():
 
     t0 = time.time()
     convert_beam(args.niter)
-    convert_horizon(args.niter)
+    convert_horizon()
     print(f"Done in {time.time() - t0:.1f}s")
 
 
