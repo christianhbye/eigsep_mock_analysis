@@ -17,6 +17,7 @@ dev = [
     "matplotlib",
     "pre-commit",
     "pytest",
+    "pytest-cov",
     "ruff",
 ]
 
