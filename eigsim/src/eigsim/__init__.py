@@ -16,7 +16,7 @@ from .rotations import (
     rotate_alm_to_beam,
     rotate_beam_data,
 )
-from .simulate import make_beam, simulate
+from .simulate import make_beam, precompute_sky_alm, simulate
 
 __all__ = [
     "beam_to_alm",
@@ -25,6 +25,7 @@ __all__ = [
     "load_config",
     "load_horizon",
     "make_beam",
+    "precompute_sky_alm",
     "radiometer_noise",
     "rotate_alm_to_beam",
     "rotate_beam_data",

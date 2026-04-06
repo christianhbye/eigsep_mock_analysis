@@ -96,6 +96,12 @@ delta_time_s = SIDEREAL_DAY_S / N_TIMES
 rng = np.random.default_rng(RNG_SEED)
 
 # ---------------------------------------------------------------------------
+# Pre-compute sky ALM once (reused across all batches)
+# ---------------------------------------------------------------------------
+print("Pre-computing sky ALM...")
+sky_alm = eigsim.precompute_sky_alm(sky)
+
+# ---------------------------------------------------------------------------
 # Run simulation in batches
 # ---------------------------------------------------------------------------
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -121,7 +127,7 @@ for b in range(n_batches):
         print(f"  Batch {b + 1}/{n_batches} [{i0}:{i1}] — found on disk, skipping")
         continue
 
-    print(f"  Batch {b + 1}/{n_batches} [{i0}:{i1}] ...", end=" ", flush=True)
+    print(f"  Batch {b + 1}/{n_batches} [{i0}:{i1}]")
     t0 = time.time()
 
     t_sys = eigsim.simulate(
@@ -132,6 +138,8 @@ for b in range(n_batches):
         elevations[i0:i1],
         azimuths[i0:i1],
         beam_kw={"horizon": horizon},
+        sky_alm=sky_alm,
+        verbose=True,
     )
     t_sys = np.asarray(t_sys)
     noise = eigsim.radiometer_noise(t_sys, delta_freq_hz, delta_time_s, rng=rng)
@@ -139,7 +147,7 @@ for b in range(n_batches):
 
     np.savez(batch_file, t_obs=t_obs_batch)
     dt = time.time() - t0
-    print(f"done in {dt:.0f}s")
+    print(f"  Batch {b + 1}/{n_batches} done in {dt:.0f}s")
 
 wall_elapsed = time.time() - wall_start
 print(f"All batches complete in {wall_elapsed / 3600:.1f} hours")

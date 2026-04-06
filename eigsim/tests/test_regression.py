@@ -12,7 +12,7 @@ import s2fft  # noqa: E402
 from astropy.time import Time  # noqa: E402
 from eigsim.config import load_config  # noqa: E402
 from eigsim.rotations import beam_to_alm, rotate_alm_to_beam  # noqa: E402
-from eigsim.simulate import make_beam, simulate  # noqa: E402
+from eigsim.simulate import make_beam, precompute_sky_alm, simulate  # noqa: E402
 
 # ── constants ────────────────────────────────────────────────────────────
 
@@ -340,3 +340,43 @@ class TestSimulateOutput:
 
         result = simulate(beam_data, FREQS_MHZ, sky, times, [0.0], [0.0], **defaults)
         assert isinstance(result, jax.Array)
+
+
+# ── Test 7: sky ALM reuse ─────────────────────────────────────────────
+
+
+class TestSkyAlmReuse:
+    """Pre-computed sky ALM must give identical results."""
+
+    def test_matches_default(self):
+        beam_data = _dipole_beam()
+        sky = _make_sky()
+        times = _single_time()
+        defaults = _sim_defaults()
+
+        ref = simulate(
+            beam_data, FREQS_MHZ, sky, times, [0.0, 10.0], [0.0, 0.0], **defaults
+        )
+
+        sky_alm = precompute_sky_alm(sky)
+        opt = simulate(
+            beam_data,
+            FREQS_MHZ,
+            sky,
+            times,
+            [0.0, 10.0],
+            [0.0, 0.0],
+            sky_alm=sky_alm,
+            **defaults,
+        )
+
+        np.testing.assert_allclose(np.asarray(opt), np.asarray(ref), atol=1e-10)
+
+    def test_precompute_sky_alm_shape(self):
+        sky = _make_sky()
+        sky_alm = precompute_sky_alm(sky)
+
+        assert sky_alm.ndim == 3
+        assert sky_alm.shape[0] == len(FREQS_MHZ)
+        # lmax+1 for ell axis
+        assert sky_alm.shape[1] == sky_alm.shape[2] // 2 + 1
