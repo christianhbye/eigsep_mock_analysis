@@ -4,36 +4,38 @@ Loads beam, horizon, and sky model from the default config, runs the
 simulation over the full orientation grid, adds radiometer noise, and
 saves the result to ``output/canonical_sim.npz``.
 
+Orientations are processed in batches to keep memory usage bounded.
+Intermediate batches are saved to ``output/batch_*.npz`` and merged
+at the end.  If the script is interrupted, completed batches on disk
+are reused on the next run.
+
 Usage
 -----
 uv run python scripts/run_canonical_sim.py
 """
 
+import os
 import time
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Configuration — enable JAX x64 before other imports (SHTs need float64)
-# ---------------------------------------------------------------------------
-import jax  # noqa: E402
+os.environ.setdefault("JAX_ENABLE_X64", "1")
+
+import croissant as cro
+import numpy as np
+from astropy import units as u
+from astropy.time import Time
+from pygdsm import GlobalSkyModel16
 
 import eigsim
 
-jax.config.update("jax_enable_x64", True)
-
 cfg = eigsim.load_config()
-
-import croissant as cro  # noqa: E402
-import numpy as np  # noqa: E402
-from astropy import units as u  # noqa: E402
-from astropy.time import Time  # noqa: E402
-from pygdsm import GlobalSkyModel16  # noqa: E402
 
 # Observation start: July 1, 2026 00:00 local time (Mountain Time, UTC-6)
 T_START = "2026-07-01 06:00:00"  # UTC
 SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
 N_TIMES = 1436  # ~1 minute cadence
 RNG_SEED = 20260701
+BATCH_SIZE = 100  # orientations per batch
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 
 # ---------------------------------------------------------------------------
@@ -87,40 +89,68 @@ n_ori = len(elevations)
 print(f"Orientation grid: {len(elev_vals)} x {len(az_vals)} = {n_ori} orientations")
 
 # ---------------------------------------------------------------------------
-# Run simulation
+# Noise parameters
 # ---------------------------------------------------------------------------
-print(
-    f"Running simulation "
-    f"({n_ori} orientations x {N_TIMES} times x {len(freqs_mhz)} freqs)..."
-)
-wall_start = time.time()
-t_sys = eigsim.simulate(
-    beam_data,
-    freqs_mhz,
-    sky,
-    times_jd,
-    elevations,
-    azimuths,
-    beam_kw={"horizon": horizon},
-)
-wall_elapsed = time.time() - wall_start
-print(f"Simulation complete in {wall_elapsed / 3600:.1f} hours")
-print(f"  t_sys shape: {t_sys.shape}, dtype: {t_sys.dtype}")
-
-# ---------------------------------------------------------------------------
-# Add radiometer noise
-# ---------------------------------------------------------------------------
-print("Adding radiometer noise...")
 delta_freq_hz = np.median(np.diff(freqs_hz))
 delta_time_s = SIDEREAL_DAY_S / N_TIMES
 rng = np.random.default_rng(RNG_SEED)
-noise = eigsim.radiometer_noise(np.asarray(t_sys), delta_freq_hz, delta_time_s, rng=rng)
-t_obs = np.asarray(t_sys) + noise
 
 # ---------------------------------------------------------------------------
-# Save output
+# Run simulation in batches
 # ---------------------------------------------------------------------------
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+n_batches = int(np.ceil(n_ori / BATCH_SIZE))
+print(
+    f"Running simulation "
+    f"({n_ori} orientations x {N_TIMES} times x {len(freqs_mhz)} freqs) "
+    f"in {n_batches} batches of {BATCH_SIZE}..."
+)
+
+wall_start = time.time()
+batch_files = []
+
+for b in range(n_batches):
+    i0 = b * BATCH_SIZE
+    i1 = min(i0 + BATCH_SIZE, n_ori)
+    batch_file = OUTPUT_DIR / f"batch_{b:04d}.npz"
+    batch_files.append(batch_file)
+
+    if batch_file.exists():
+        # Advance the RNG state to stay consistent with a fresh run.
+        rng.normal(size=(i1 - i0, N_TIMES, len(freqs_mhz)))
+        print(f"  Batch {b + 1}/{n_batches} [{i0}:{i1}] — found on disk, skipping")
+        continue
+
+    print(f"  Batch {b + 1}/{n_batches} [{i0}:{i1}] ...", end=" ", flush=True)
+    t0 = time.time()
+
+    t_sys = eigsim.simulate(
+        beam_data,
+        freqs_mhz,
+        sky,
+        times_jd,
+        elevations[i0:i1],
+        azimuths[i0:i1],
+        beam_kw={"horizon": horizon},
+    )
+    t_sys = np.asarray(t_sys)
+    noise = eigsim.radiometer_noise(t_sys, delta_freq_hz, delta_time_s, rng=rng)
+    t_obs_batch = t_sys + noise
+
+    np.savez(batch_file, t_obs=t_obs_batch)
+    dt = time.time() - t0
+    print(f"done in {dt:.0f}s")
+
+wall_elapsed = time.time() - wall_start
+print(f"All batches complete in {wall_elapsed / 3600:.1f} hours")
+
+# ---------------------------------------------------------------------------
+# Merge batches into final output
+# ---------------------------------------------------------------------------
+print("Merging batches...")
+t_obs = np.concatenate([np.load(f)["t_obs"] for f in batch_files], axis=0)
+assert t_obs.shape == (n_ori, N_TIMES, len(freqs_mhz))
+
 outfile = OUTPUT_DIR / "canonical_sim.npz"
 print(f"Saving to {outfile}...")
 np.savez_compressed(
@@ -153,3 +183,8 @@ np.savez_compressed(
 )
 size_mb = outfile.stat().st_size / 1e6
 print(f"Done. Output size: {size_mb:.0f} MB")
+
+# Clean up batch files
+for f in batch_files:
+    f.unlink(missing_ok=True)
+print("Batch files cleaned up.")
