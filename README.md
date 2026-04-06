@@ -1,5 +1,7 @@
 # EIGSEP Mock Analysis
 
+[![eigsim](https://codecov.io/gh/christianhbye/eigsep_mock_analysis/branch/main/graph/badge.svg?flag=eigsim)](https://codecov.io/gh/christianhbye/eigsep_mock_analysis?flags[0]=eigsim)
+
 Simulation and analysis workspace for the [EIGSEP](https://github.com/eigsep) experiment — a 21 cm cosmology instrument targeting the Cosmic Dawn signal.
 
 ## Repository structure
