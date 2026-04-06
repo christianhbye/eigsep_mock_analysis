@@ -5,6 +5,7 @@ Monorepo for EIGSEP simulation and analysis code.
 ## Structure
 
 - `eigsim/` — Simulation package (own pyproject.toml, src layout)
+- `rotis/` — Inference package for joint beam/sky recovery (own pyproject.toml, src layout)
 - `notebooks/` — Jupyter notebooks organized by project
   - `data_challenges/` — Data challenge analysis
   - `spatial_filter/` — Spatial filtering studies
@@ -37,3 +38,4 @@ uv run ruff format .   # Format
 - Notebooks should not import from local paths outside the installed packages
 - Use conventional commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, etc.)
 - New packages get their own test workflow (`.github/workflows/<pkg>-test.yml`) with path filters
+- Never use `python -c "..."` for multiline scripts. Write to a temp file and run that instead.

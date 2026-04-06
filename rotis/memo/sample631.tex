@@ -1,0 +1,1222 @@
+\documentclass{aastex631}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage{enumerate}
+
+\newcommand{\blm}{b_{\ell m}}
+\newcommand{\alm}{a_{\ell m}}
+\newcommand{\Hlm}{H_{\ell m}}
+\newcommand{\Dlm}{D^\ell_{mm'}}
+\newcommand{\Tgnd}{T_\mathrm{gnd}}
+\newcommand{\lmax}{\ell_\mathrm{max}}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+\newtheorem{condition}{Condition}
+
+% -------------------------------------------------------------------
+\begin{document}
+
+\title{Joint Fitting of Beam and Sky Using Rotations}
+
+\correspondingauthor{Christian H. Bye}
+\email{chbye@berkeley.edu}
+
+\author{Christian H. Bye}
+\author{Aaron R. Parsons}
+\affiliation{Department of Astronomy, University of California Berkeley,
+  Berkeley, CA 94720, USA}
+\affiliation{Radio Astronomy Laboratory, University of California Berkeley,
+  Berkeley, CA 94720, USA}
+
+\begin{abstract}
+We assess the theoretical basis for simultaneously recovering both the
+antenna beam pattern $b_{\ell m}$ and the sky brightness temperature
+$a_{\ell m}$ from a single rotating dipole antenna, without prior
+knowledge of the beam.
+The measurement equation is bilinear in $(b_{\ell m}, a_{\ell m})$,
+so a single linear estimator cannot solve the stacked system.
+Working in the spherical harmonic domain, we prove an identifiability
+theorem: under full SO(3) rotation coverage, a known horizon profile,
+and a known ground temperature $\Tgnd$, the beam and sky are uniquely
+recoverable for all $\ell \geq 0$ via a constructive three-step
+estimator --- Wigner projection, rank-1 SVD, and a linear system for
+the per-$\ell$ amplitude scales.
+The proof is constructive and doubles as the estimation algorithm.
+We then analyze the four conditions of the theorem in detail as they
+apply to the experiment.
+The most important is incomplete SO(3) coverage: at geographic latitude
+$L$ the three available rotation axes (mechanical tilt, turntable, and
+Earth rotation) generate but do not uniformly sample SO(3), producing
+cross-$\ell$ leakage whose magnitude and structure can be computed
+analytically from the known rotation coverage.
+We show that incomplete coverage calls for data-weighted Wigner
+projections that optimally trade leakage against noise, and that
+the weighting depends on LST in a non-trivial way.
+The ground temperature condition is addressed by switched-load
+absolute calibration (as implemented in EIGSEP), under the assumption
+of spatially uniform ground emission.
+Horizon profile errors propagate linearly into beam errors via a
+known transfer matrix, providing a direct systematic budget.
+We identify which horizon geometries guarantee a full-rank constraint
+system, a question of independent theoretical interest.
+\end{abstract}
+
+% -------------------------------------------------------------------
+\section{Experiment Setup} \label{sec:setup}
+
+\subsection{Measurement Equation}
+
+The baseline measurement equation for a single dipole is
+\begin{equation} \label{eq:linear}
+  \mathbf{y} = A\mathbf{x} + \mathbf{n},
+\end{equation}
+where $\mathbf{y}$ is the data vector (measured brightness temperature
+as a function of time), $A$ is the design matrix encoding the antenna
+beam pattern, pointing, and horizon profile, $\mathbf{x}$ is the sky
+vector (brightness temperature as a function of pixel or SH
+coefficient), and $\mathbf{n}$ is noise following the radiometer
+equation.
+With perfect knowledge of $A$, Equation~\ref{eq:linear} is solved
+optimally by a Wiener filter.
+
+\subsection{Mechanical Rotation Setup}
+
+The antenna is mounted on a box with two mechanical rotation axes:
+\begin{itemize}
+  \item \textbf{X-axis (suspension/tilt axis):} tilts the antenna,
+    sweeping the horizon cut across the beam pattern.
+    Range $[0, \pi]$ sufficient for physical coverage.
+  \item \textbf{Z$'$-axis (body-fixed turntable):} rotates the antenna
+    in azimuth relative to the box. Range $[0, 2\pi]$.
+\end{itemize}
+Earth rotation provides a continuous third rotation over a 24-hour
+sidereal day.
+At geographic latitude $L$, the celestial pole in the local horizontal
+frame sits at
+\begin{equation}
+  \hat{n}_\mathrm{pole} = \cos(L)\,\hat{n}_\mathrm{N} + \sin(L)\,\hat{z},
+\end{equation}
+where $\hat{z}$ is the local zenith and $\hat{n}_\mathrm{N}$ is
+horizontal north; Earth rotation is around $\hat{n}_\mathrm{pole}$,
+not around $\hat{z}$.
+The three axes are summarized in Table~\ref{tab:axes}.
+
+\begin{table}
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Rotation} & \textbf{Axis (local frame)} & \textbf{Range} \\
+    \midrule
+    X-tilt (mechanical)
+      & $\hat{x}$ (horizontal)
+      & $[0, \pi]$ \\
+    Z$'$-turntable (mechanical)
+      & $\hat{z}$ (zenith)
+      & $[0, 2\pi]$ \\
+    Earth/LST
+      & $\cos(L)\,\hat{n}_\mathrm{N} + \sin(L)\,\hat{z}$
+      & $[0, 2\pi]$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{The three rotation axes in the local horizontal frame.
+    The Earth rotation axis coincides with the zenith only at the pole
+    ($L=90^\circ$) and is purely horizontal at the equator ($L=0^\circ$),
+    where it becomes parallel to the turntable and provides no
+    independent coverage.
+    Coverage quality is maximized at intermediate latitudes.}
+  \label{tab:axes}
+\end{table}
+
+% -------------------------------------------------------------------
+\section{The Problem is Bilinear} \label{sec:bilinear}
+
+In the spherical harmonic (SH) domain, beam and sky expand as
+\begin{equation}
+  B(\hat{n}) = \sum_{\ell m} \blm\, Y_{\ell m}(\hat{n}), \qquad
+  T(\hat{n}) = \sum_{\ell m} \alm\, Y_{\ell m}(\hat{n}).
+\end{equation}
+A rotation $R$ acts on the beam via Wigner $D$-matrices, giving the
+full measurement
+\begin{equation} \label{eq:SH}
+  y(R) = \underbrace{\sum_\ell \sum_{m,m'} \blm\, \Dlm(R)\, a_{\ell m'}}_{\text{sky term, bilinear in }(b,a)}
+        + \underbrace{\Tgnd \sum_{\ell m} \blm\, \Hlm(R)}_{\text{ground term, linear in }b}
+        + n,
+\end{equation}
+where $\Dlm(R)$ is fully determined by the known rotation angle,
+\begin{equation}
+  \Hlm(R) = \int_{\hat{n}\,\in\,\mathrm{gnd}(R)} Y_{\ell m}(\hat{n})\, d\Omega
+\end{equation}
+is the integral of $Y_{\ell m}$ over the lower hemisphere at tilt $R$
+(analytically computable from the horizon profile), and the ground term
+is \emph{linear in $b$ only} because the horizon mask is entirely
+determined by the known rotation and horizon profile.
+
+Stacking observations at $N_R$ rotations gives
+\begin{equation}
+  \tilde{\mathbf{y}} = \tilde{A}(\mathbf{b})\,\mathbf{a} + \tilde{\mathbf{n}},
+\end{equation}
+which is \textbf{bilinear} in $(\mathbf{b}, \mathbf{a})$.
+A single Wiener filter cannot solve it.
+The question is whether, with sufficient rotation diversity and a known
+horizon, the system is nevertheless \emph{identifiable} --- and if so,
+what the explicit estimator is.
+
+% -------------------------------------------------------------------
+\section{Identifiability Theorem} \label{sec:theorem}
+
+\subsection{Intuition: The Wigner Projection as an SO(3) Fourier Transform}
+
+Before stating the theorem, we develop the key tool --- the Wigner
+projection --- by analogy with the Fourier transform on a circle.
+
+\textbf{Fourier analogy on SO(2).}
+Suppose you observe $y(\phi) = f(\phi) \cdot g(\phi)$ on a circle,
+where $f$ and $g$ are unknown functions of the rotation angle $\phi$.
+A single measurement cannot separate them.
+But if you rotate by many angles $\phi_i$ and form the weighted sum
+\begin{equation}
+  \sum_i w_i\, e^{-im\phi_i}\, y(\phi_i) \approx \hat{f}_m \cdot \hat{g}_0,
+\end{equation}
+the Fourier orthogonality $\sum_i w_i e^{i(m-m')\phi_i} = \delta_{mm'}$
+projects out the single product $\hat{f}_m \cdot \hat{g}_0$.
+By varying $m$, you recover all Fourier coefficients of $f$ (up to the
+overall scale set by $\hat{g}_0$), and the full outer product
+$\hat{f}_m \hat{g}_{m'}$ by varying the rotation axis.
+
+\textbf{Lifting to SO(3).}
+On the sphere, the rotation group is SO(3) and the role of $e^{im\phi}$
+is played by the \emph{Wigner D-matrices} $D^\ell_{mm'}(R)$.
+For a rotation $R$ with ZYZ Euler angles $(\alpha, \beta, \gamma)$:
+\begin{equation}
+  D^\ell_{mm'}(\alpha, \beta, \gamma)
+  = e^{-im\alpha}\, d^\ell_{mm'}(\beta)\, e^{-im'\gamma},
+\end{equation}
+where $d^\ell_{mm'}(\beta)$ is a real matrix (the Wigner small-$d$
+matrix) whose entries are polynomials in $\cos(\beta/2)$ and
+$\sin(\beta/2)$.
+For $\ell=1$ these are simply the standard rotation matrix elements.
+
+The SO(3) analogue of Fourier orthogonality is the Wigner
+orthogonality relation (Equation~\ref{eq:wigner_ortho}):
+\begin{equation*}
+  \sum_i w_i\, \overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,
+  D^\ell_{mm'}(R_i)
+  \approx \frac{8\pi^2}{2\ell+1}\,
+  \delta_{\ell\ell_0}\,\delta_{mm_0}\,\delta_{m'm'_0}.
+\end{equation*}
+Multiplying the data $y(R_i)$ by $\overline{D^{\ell_0}_{m_0 m'_0}(R_i)}$
+and summing over rotations therefore projects out the single product
+$b_{\ell_0 m_0} \cdot a_{\ell_0 m'_0}$ from the bilinear sum.
+This is the \textbf{Wigner projection}: the SO(3) analogue of taking
+a Fourier coefficient.
+
+\textbf{The resulting matrix.}
+Performing the Wigner projection for all $(m_0, m'_0)$ at a fixed $\ell_0$
+assembles the $(2\ell_0+1)\times(2\ell_0+1)$ matrix:
+\begin{equation}
+  [\hat{X}_{\ell_0}]_{m_0,\,m'_0}
+  = \frac{2\ell_0+1}{8\pi^2}
+    \sum_i w_i\,\overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,y(R_i)
+  \approx b_{\ell_0 m_0}\, a_{\ell_0 m'_0}.
+\end{equation}
+The right-hand side is the outer product
+$\mathbf{b}_{\ell_0}\mathbf{a}_{\ell_0}^T$ --- a rank-1 matrix whose
+SVD immediately yields the beam and sky mode vectors.
+The Wigner projection converts the bilinear estimation problem into a
+rank-1 matrix recovery problem, one $\ell$-block at a time.
+
+\subsection{Theorem Statement and Proof}
+
+We state and prove identifiability constructively.
+The proof yields the estimation algorithm directly.
+
+\begin{theorem}[Joint beam--sky identifiability]
+Consider the measurement model~\ref{eq:SH}.
+Under the following five conditions:
+\begin{enumerate}
+  \item[\textbf{C1.}] \textbf{SO(3) coverage:} rotations $\{R_i\}$ with
+    quadrature weights $\{w_i\}$ approximate the Haar integral on SO(3),
+  \item[\textbf{C2.}] \textbf{Known $\Tgnd$:} the ground emission
+    temperature is known absolutely,
+  \item[\textbf{C3.}] \textbf{Known horizon:} the horizon profile is
+    known, so $\Hlm(R)$ is computable,
+  \item[\textbf{C4.}] \textbf{Full-rank $C$-matrix:} the operator
+    $C_{\ell_0 m_0 m'_0;\,\ell m}$ defined in Equation~\ref{eq:Cmat}
+    is full rank,
+  \item[\textbf{C5.}] \textbf{Non-degenerate signals:}
+    $b_{\ell m} \neq 0$ and $a_{\ell m'} \neq 0$ for modes of interest,
+  \item[\textbf{C6.}] \textbf{Sky asymmetry:} the sky has nonzero
+    $m' \neq 0$ power at each multipole order $\ell$ of interest,
+    i.e., the sky is not perfectly axisymmetric at any $\ell$,
+\end{enumerate}
+the beam $\blm$ and sky $\alm$ are \textbf{uniquely identifiable}
+for all $\ell \geq 0$.
+\end{theorem}
+
+\begin{proof}
+The proof is constructive in three steps.
+We first address a subtlety in Step 1 that the theorem statement
+glosses over: the raw data $y(R_i)$ contains both the sky term and
+the ground term, so the Wigner projection of $y$ does not directly
+give $X_{\ell_0}$.
+We describe the practical procedure for isolating the sky term.
+
+\textbf{Step 1: Extracting $X_\ell = \mathbf{b}_\ell
+\mathbf{a}_\ell^T$ from the raw data.}
+
+Applying the Wigner projection to the full raw data $y(R_i)$ gives
+\begin{equation} \label{eq:proj_raw}
+  \hat{Y}_{\ell_0;\,m_0 m'_0}
+  \equiv \frac{2\ell_0+1}{8\pi^2}
+  \sum_i w_i\, \overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\, y(R_i)
+  = b_{\ell_0 m_0}\, a_{\ell_0 m'_0}
+  + \Tgnd \sum_{\ell m} b_{\ell m}\, G^{\ell_0}_{m_0 m'_0;\,\ell m}
+  + \tilde{n},
+\end{equation}
+where
+\begin{equation}
+  G^{\ell_0}_{m_0 m'_0;\,\ell m}
+  \equiv \frac{2\ell_0+1}{8\pi^2}
+  \sum_i w_i\,\overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,\Hlm(R_i)
+\end{equation}
+is the Wigner projection of the ground term --- a known matrix under
+C1 and C3, but a contaminant in the recovery of $X_{\ell_0}$.
+The ground term must be removed before the SVD of Step 1 is valid.
+We exploit the fact that the ground term is constant in LST
+(the horizon is fixed in the local frame) while the sky term varies.
+
+\textit{Sub-step 1a: Recover $m'_0 \neq 0$ columns of $X_{\ell_0}$
+from the LST residual.}
+Define the LST-varying residual
+\begin{equation} \label{eq:resid}
+  \delta y(R_\mathrm{mech}, t)
+  \equiv y(R_\mathrm{mech}, t) - \bar{y}(R_\mathrm{mech}),
+\end{equation}
+where the overbar denotes the mean over LST samples at fixed
+mechanical rotation $R_\mathrm{mech}$.
+The ground term, being constant in LST, cancels exactly:
+\begin{equation}
+  \delta y(R_\mathrm{mech}, t)
+  = \delta f_\mathrm{sky}(R_\mathrm{mech}, t) + \delta n(t).
+\end{equation}
+The Wigner projection of $\delta y$ using the full rotation
+$R_i = R_\mathrm{mech} \cdot R_\mathrm{LST}(t)$ gives
+\begin{equation} \label{eq:substep1a}
+  \frac{2\ell_0+1}{8\pi^2}
+  \sum_i w_i\,\overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,\delta y(R_i)
+  = b_{\ell_0 m_0}\, a_{\ell_0 m'_0}
+  + \underbrace{\sum_{\ell \neq \ell_0}\sum_{mm'}
+      b_{\ell m} a_{\ell m'}\,\epsilon^{(\ell_0\ell)}_{m_0 m'_0;\,mm'}
+    }_{\text{(i) cross-}\ell\text{ leakage}}
+  + \underbrace{\sum_{\ell m} b_{\ell m}\,\eta^{(\ell)}_{m m'_0}\,
+      a_{\ell 0}
+    }_{\text{(ii) LST sampling}}
+  + \underbrace{\tilde{n}_{\ell_0;\,m_0 m'_0}
+    }_{\text{(iii) noise}}
+  \quad \text{for } m'_0 \neq 0,
+\end{equation}
+where the three error terms are:
+\begin{enumerate}[(i)]
+  \item \textbf{Cross-$\ell$ leakage:}
+    $\epsilon^{(\ell_0\ell)}_{m_0 m'_0;\,mm'} \equiv
+    \frac{2\ell_0+1}{8\pi^2}\sum_i w_i\,
+    \overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,D^\ell_{mm'}(R_i)
+    - \delta_{\ell\ell_0}\delta_{mm_0}\delta_{m'm'_0}$
+    is the deviation of the discrete quadrature from Haar measure ---
+    exactly the coverage kernel $K^{\ell_0\ell} - \delta_{\ell\ell_0}\mathbf{I}$.
+    It is a \emph{known bias}, computable from the rotation grid
+    alone before any data are taken, and is zero for an exact
+    SO(3) $t$-design with $t \geq 2\lmax$.
+
+  \item \textbf{LST sampling error:}
+    $\eta^{(\ell)}_{mm'} \equiv
+    \frac{1}{N_t}\sum_j D^\ell_{mm'}(R_\mathrm{LST}(t_j))
+    - d^\ell_{m0}\,\delta_{m'0}$
+    is the deviation of the discrete LST average from the
+    complete sidereal average.
+    For $N_t$ uniformly spaced LST samples it is
+    $\mathcal{O}(1/N_t)$ for $\ell \lesssim N_t/2$ and grows for
+    higher $\ell$.
+    It re-introduces a small $m'=0$ sky contamination into
+    $\delta y$ and is also a \emph{known bias} given the LST
+    sampling schedule.
+
+  \item \textbf{Noise:}
+    $\tilde{n}_{\ell_0;\,m_0 m'_0}$ has zero mean and variance
+    $\sigma_n^2 / N_\mathrm{obs}$ (for uniform weights and
+    Haar-distributed rotations), where
+    $\sigma_n^2 = T_\mathrm{sys}^2/(\Delta\nu\,\tau)$.
+    It is the only \emph{random} error term; errors (i) and (ii)
+    are deterministic biases.
+\end{enumerate}
+Both bias terms (i) and (ii) can be corrected using the known
+rotation and LST grids, at the cost of some noise amplification.
+Uncorrected, they bias the SVD of $\hat{X}_{\ell_0}$ and hence
+the beam and sky shape estimates.
+This recovers the $m'_0 \neq 0$ columns of $X_{\ell_0}$
+without ground contamination.
+The $m'_0 = 0$ column is absent because the LST average removes
+the axisymmetric ($m'=0$) sky modes along with the ground term.
+
+\textit{Sub-step 1b: Recover the $m'_0 = 0$ column iteratively.}
+A preliminary beam shape estimate $\hat{\mathbf{b}}^{(0)}_{\ell_0}$
+is obtained from the partial SVD of the $m'_0 \neq 0$ block of
+$X_{\ell_0}$ recovered in Sub-step 1a.
+The $m'_0 = 0$ column of $X_{\ell_0}$ is then recovered from the
+raw-data projection~\ref{eq:proj_raw} by subtracting the known
+ground contamination:
+\begin{equation} \label{eq:m0col}
+  \hat{X}_{\ell_0;\,m_0, 0}
+  = \hat{Y}_{\ell_0;\,m_0, 0}
+  - \Tgnd \sum_{\ell m} \hat{b}^{(0)}_{\ell m}\,
+    G^{\ell_0}_{m_0, 0;\,\ell m}.
+\end{equation}
+With the full $X_{\ell_0}$ matrix now assembled, its SVD gives
+refined estimates $\hat{\mathbf{b}}^{(1)}_{\ell_0}$ and
+$\hat{\mathbf{a}}^{(1)}_{\ell_0}$.
+Substituting $\hat{\mathbf{b}}^{(1)}$ back into
+Equation~\ref{eq:m0col} and repeating gives a convergent iteration.
+
+The convergence condition is \emph{not} that $\Tgnd \ll T_\mathrm{sky}$
+--- which would fail at $\nu \gtrsim 150$\,MHz where the ground
+dominates.
+The actual requirement is that the beam shape
+$\hat{\mathbf{b}}^{(0)}_{\ell_0}$, estimated from the $m'_0 \neq 0$
+block in Sub-step 1a, is accurate enough to predict the ground
+contamination in Equation~\ref{eq:m0col}.
+
+The $m'_0 \neq 0$ block of $X_{\ell_0}$ is
+\begin{equation}
+  X_{\ell_0}[\,:\,,\, m' \neq 0]
+  = \mathbf{b}_{\ell_0}\, [a_{\ell_0 m'}]_{m'\neq 0}^T,
+\end{equation}
+which is rank-1 with left singular vector $\mathbf{b}_{\ell_0}$
+\emph{if and only if the sky has nonzero $m' \neq 0$ power at order
+$\ell_0$}.
+This is a condition on the sky (condition C6 below), not on the
+count of entries: the rank-1 structure means the $m' \neq 0$ block
+contains only $4\ell_0$ independent numbers regardless of its size,
+and a single nonzero column already determines $\mathbf{b}_{\ell_0}$
+up to the overall $\alpha_{\ell_0}$ scale.
+Multiple nonzero columns improve noise resistance but do not add
+identifiability.
+
+The quality of $\hat{\mathbf{b}}^{(0)}_{\ell_0}$ --- and hence the
+accuracy of the Sub-step 1b correction --- scales with the SNR of the
+$m' \neq 0$ entries:
+\begin{equation}
+  \mathrm{SNR}_{\hat{b}_{\ell_0}}
+  \sim
+  \frac{\|\mathbf{b}_{\ell_0}\|\,\|[a_{\ell_0 m'}]_{m'\neq 0}\|}
+       {\sigma_\mathrm{noise}}.
+\end{equation}
+This degrades at high $\ell_0$ (faint small-scale sky modes) and
+at high frequency (faint sky overall), setting a practical frequency
+ceiling on the method for a given noise level.
+
+\begin{remark}
+At high frequencies ($\nu \gtrsim 150$\,MHz), $\Tgnd \gg T_\mathrm{sky}$
+and the LST residual $\delta y$ is small in absolute amplitude but
+remains a clean, uncontaminated sky signal.
+The ground term is large and nearly constant in LST, so it is
+precisely measured --- favorable for Step 2.
+The binding constraint at high frequency is the SNR of the $m' \neq 0$
+sky modes in $\delta y$, which determines beam shape quality
+in Sub-step 1a.
+The optimal Wigner projection weights are frequency-dependent and
+distinct for the sky and ground projections: sky weights should
+up-weight LST samples with maximal Galactic plane contribution,
+while ground weights are nearly uniform in LST.
+Both sets are computable analytically from the known rotation grid
+and sky/ground SNR at each frequency.
+\end{remark}
+
+\textit{Summary of Step 1 output.}
+The result is the rank-1 matrix
+\begin{equation}
+  X_{\ell_0} = \mathbf{b}_{\ell_0}\,\mathbf{a}_{\ell_0}^T
+  \;\in\; \mathbb{C}^{(2\ell_0+1)\times(2\ell_0+1)},
+\end{equation}
+whose SVD gives the \emph{shapes} $\hat{\mathbf{b}}_{\ell_0}$ and
+$\hat{\mathbf{a}}_{\ell_0}$ up to an unknown positive scale
+$\alpha_{\ell_0}$:
+$\mathbf{b}_{\ell_0} = \alpha_{\ell_0}\hat{\mathbf{b}}_{\ell_0}$,
+$\mathbf{a}_{\ell_0} = \alpha_{\ell_0}^{-1}\hat{\mathbf{a}}_{\ell_0}$.
+There is one such unknown per $\ell_0$, exactly
+$\mathcal{G}_\mathrm{sky} \cong (\mathbb{R}^+)^{\lmax}$.
+
+\textbf{Step 2: Ground term linear system solves for $\alpha_\ell$.}
+Apply the Wigner projection to the ground term alone (i.e., to
+$\hat{Y}_{\ell_0}$ minus the sky projection recovered in Step 1):
+\begin{equation}
+  \frac{2\ell_0+1}{8\pi^2}
+  \sum_i w_i\, \overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\, g(R_i)
+  = \Tgnd \sum_{\ell m} b_{\ell m}\, C_{\ell_0 m_0 m'_0;\,\ell m},
+\end{equation}
+where
+\begin{equation} \label{eq:Cmat}
+  C_{\ell_0 m_0 m'_0;\,\ell m}
+  \equiv \frac{2\ell_0+1}{8\pi^2}
+  \sum_i w_i\,
+  \overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,\Hlm(R_i)
+\end{equation}
+is a \emph{known matrix} computable from the horizon geometry and
+rotation coverage alone (conditions C1, C3).
+Substituting $b_{\ell m} = \alpha_\ell\,\hat{b}_{\ell m}$ from Step 1
+gives a \emph{linear system in $\{\alpha_\ell\}$}:
+\begin{equation} \label{eq:alphasystem}
+  \sum_\ell \alpha_\ell \underbrace{\left(
+    \Tgnd \sum_m \hat{b}_{\ell m}\,
+    C_{\ell_0 m_0 m'_0;\,\ell m}
+  \right)}_{M_{\ell_0 m_0 m'_0;\,\ell}}
+  = \text{measured ground projection}.
+\end{equation}
+Under condition C4, $M$ is full rank and $\boldsymbol{\alpha}$ is
+uniquely determined.
+
+\textbf{Step 3: Monopole recovery.}
+At $\ell_0 = 0$, $D^0_{00}(R) = 1$ for all $R$, so the Wigner
+projection is simply the mean over all observations.
+Sub-step 1a gives $b_{00}\,a_{00}$ from the mean sky term.
+The ground projection at $\ell_0 = 0$ gives
+$\Tgnd\,b_{00}\,H_{00} + \Tgnd\sum_{\ell>0} b_{\ell 0}\,H_{\ell 0}$,
+where the second sum is known from Step 2.
+This pins $b_{00}$ (since $H_{00}$ and $\Tgnd$ are known under C2,
+C3), and the product $b_{00}\,a_{00}$ from Sub-step 1a then gives
+$a_{00}$.
+\end{proof}
+
+\begin{remark}
+This is a stronger result than it might appear.
+The sky monopole $a_{00}$ --- the global mean brightness temperature,
+which carries the 21-cm cosmological signal --- \emph{is} recoverable,
+without an absolute load calibrator, \emph{provided} $\Tgnd$
+is known absolutely (C2) and the horizon is known (C3).
+An absolute calibrator is needed only to the extent that C2 is
+imperfectly satisfied.
+\end{remark}
+
+% -------------------------------------------------------------------
+\section{Analysis of the Theorem Conditions} \label{sec:conditions}
+
+Each condition C1--C5 can fail in practice.
+We analyze each in turn, with emphasis on C1 (SO(3) coverage) as the
+most important for experimental design, and C2--C3 as the primary
+systematic uncertainties.
+
+% -------------------------------------------------------------------
+\subsection{C1: SO(3) Coverage and the Cost of Incompleteness}
+\label{sec:so3}
+
+This is the most important condition for experimental design and
+deserves detailed treatment.
+
+\subsubsection{Coverage structure at latitude $L$}
+
+The three rotation axes (Table~\ref{tab:axes}) span $\mathbb{R}^3$
+for $0 < L < 90^\circ$ and any mount orientation not aligned
+north--south, so they \emph{generate} all of SO(3).
+However, generation is not the same as uniform sampling.
+At the equator ($L=0^\circ$) the polar axis is horizontal and parallel
+to the turntable, leaving only two independent axes.
+At the pole ($L=90^\circ$) the polar axis coincides with the zenith
+and again collapses to two axes.
+Coverage is best at intermediate latitudes; at Berkeley
+($L\approx38^\circ$), $\cos L \approx 0.79$ and Earth rotation sweeps
+a large, independent arc.
+
+\subsubsection{Leakage from incomplete coverage}
+
+Under non-Haar sampling, the Wigner projection~\ref{eq:proj} acquires
+cross-$\ell$ leakage.
+Define the \emph{coverage kernel}
+\begin{equation}
+  K^{\ell_0 \ell}_{\,m_0 m'_0;\,m m'}
+  \equiv \frac{2\ell_0+1}{8\pi^2}
+  \sum_i w_i\,
+  \overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,
+  D^\ell_{mm'}(R_i),
+\end{equation}
+so that the projected measurement is
+\begin{equation} \label{eq:leaky}
+  \hat{X}_{\ell_0;\,m_0 m'_0}
+  = \sum_{\ell mm'} K^{\ell_0\ell}_{\,m_0 m'_0;\,mm'}\,
+    b_{\ell m}\, a_{\ell m'}.
+\end{equation}
+Under Haar measure, $K^{\ell_0\ell} = \delta_{\ell\ell_0}$
+(no leakage).
+For a finite, non-uniform grid, $K^{\ell_0\ell}$ is a known matrix
+that can be computed analytically from the rotation grid
+$\{R_i, w_i\}$.
+The leakage terms ($\ell \neq \ell_0$) in Equation~\ref{eq:leaky}
+act as a known additive systematic in each projected measurement.
+
+\subsubsection{Optimal data weighting and LST dependence}
+\label{sec:weighting}
+
+Since the coverage kernel $K$ is fully computable, the leakage
+is not a fundamental limitation --- it is a \emph{known bias} that
+can be corrected.
+The natural approach is to choose weights $\{w_i\}$ to simultaneously
+minimize leakage and noise amplification.
+Crucially, the sky and ground Wigner projections require
+\emph{different} optimal weights, and both sets are
+frequency-dependent.
+
+\textbf{Sky projection weights.}
+The sky term is accessed via the LST residual $\delta y(R,t)$
+(Sub-step 1a of the proof), whose SNR is set by
+$T_\mathrm{sky}/T_\mathrm{noise}$ — a ratio that falls with
+frequency as $\nu^{-2.5}$.
+The sky weights should up-weight LST samples where the Galactic
+plane contributes maximally to $\delta y$ (high-$\ell$ sky modes)
+and down-weight featureless sky samples.
+The optimization is
+\begin{equation} \label{eq:optweights_sky}
+  \min_{\{w^{\rm sky}_i\}} \left[
+    \lambda \sum_{\ell \neq \ell_0} \|K^{\ell_0\ell}\|_F^2
+    + (1-\lambda) \sum_i \frac{(w^{\rm sky}_i)^2}{\mathrm{SNR}^2_{\delta y,\,i}}
+  \right]
+\end{equation}
+subject to $K^{\ell_0\ell_0} = \mathbf{I}$.
+
+\textbf{Ground projection weights.}
+The ground term is accessed via the LST mean $\bar{y}(R)$
+(or equivalently via $\hat{Y} - X$ after Step 1), whose SNR
+is set by $T_\mathrm{gnd}/T_\mathrm{noise}$ — spectrally flat and
+large at all frequencies.
+At high frequency ($\nu \gtrsim 150$\,MHz), $T_\mathrm{gnd}$ dominates
+$y(R)$ and the ground projection SNR is very high; the ground weights
+can be nearly uniform.
+The same optimization applies with $\mathrm{SNR}^2_{\delta y}$
+replaced by $\mathrm{SNR}^2_{\bar{y}}$.
+
+\textbf{Joint weighting.}
+In practice, a single set of weights is used for the full observation
+$y(R_i)$, but the sky and ground projections are formed from
+different linear combinations of those observations ($\delta y$ and
+$\bar{y}$ respectively) and so effectively use different weights.
+The key point is that the LST structure matters:
+at low frequency the Galactic plane transit is the dominant
+feature and LST sampling near the transit should be dense;
+at high frequency the ground term is the dominant signal and
+LST uniformity matters more for the sky term but less overall.
+
+\begin{remark}
+At the limit of complete SO(3) coverage, both weight sets converge
+to the Haar measure and the distinction vanishes --- the sky and
+ground terms decouple exactly and both are recovered simultaneously
+at any single LST instant.
+With incomplete coverage, the two weight sets diverge, and
+optimizing them independently squeezes the most information
+from the available rotation grid at each frequency.
+\end{remark}
+
+% -------------------------------------------------------------------
+\subsection{C2: Known Ground Temperature}
+\label{sec:tgnd}
+
+The identifiability theorem requires $\Tgnd$ to be known absolutely,
+since it sets the scale of the linear ground-term constraints.
+An error $\varepsilon$ in $\Tgnd$ propagates into an error in
+$\boldsymbol{\alpha}$ via the linear system~\ref{eq:alphasystem}, and
+thence into errors in both beam and sky.
+
+EIGSEP implements switched-load absolute calibration to address this, using a
+switched noise source and ambient temperature load to establish an
+absolute receiver temperature scale.
+For this calibration to pin $\Tgnd$, one key assumption is required:
+
+\textbf{Spatial uniformity of ground emission.}
+The calibration measures the total ground contribution at a known
+effective temperature, but the ground term in Equation~\ref{eq:SH}
+is a \emph{beam-weighted} integral over the visible ground.
+If the ground temperature varies spatially, the effective $\Tgnd$ is
+beam-shape-dependent and rotation-dependent, and a single scalar
+$\Tgnd$ is an approximation.
+The assumption required is that the ground is spatially uniform in
+brightness temperature, at least over the footprint of the beam
+sidelobes.
+Violations --- dry vs.\ wet soil patches, vegetation, water bodies,
+near-field scattering objects --- will produce an effective
+$\Tgnd(R)$ that varies with rotation angle, introducing a systematic
+not captured by the scalar calibration.
+
+The severity of this systematic can in principle be bounded by
+measuring $y$ at the zenith-pointing position (tilt $= 0$, all ground
+below horizon) across all turntable azimuths: any azimuthal variation
+in the ground-only measurement directly reflects spatial
+non-uniformity of the ground.
+This is a concrete diagnostic available from the data.
+
+% -------------------------------------------------------------------
+\subsection{C3: Known Horizon Profile and Error Propagation}
+\label{sec:horizon}
+
+\subsubsection{Role of the horizon}
+
+With a known horizon profile, each observation at rotation $r$ and
+local sidereal time $t$ splits as
+\begin{equation} \label{eq:split}
+  y_r(t) =
+  \underbrace{\sum_{\ell mm'} \blm\,\Dlm(R)\,a_{\ell m'}}_{\text{bilinear}}
+  +
+  \underbrace{\Tgnd \sum_{\ell m} \blm\,\Hlm(R)}_{\text{linear in }b}
+  + n_r(t).
+\end{equation}
+The ground term is purely linear in $b$ because the horizon mask is
+known.
+For a fixed mechanical rotation, the ground term is constant in LST
+while the sky term varies, allowing regression to separate the two
+contributions --- though for a wide beam, both terms change
+substantially with tilt, and they must be fitted jointly (see
+Section~\ref{sec:widbeam}).
+
+\subsubsection{Radon-transform interpretation and wide-beam failure}
+\label{sec:widbeam}
+
+The naive knife-edge / Radon-transform strategy --- differentiate $y$
+with respect to tilt $\phi$ to isolate a line integral of $b$ along
+the horizon, then invert --- fails for a wide beam.
+The derivative $\partial y/\partial \phi$ receives two contributions:
+\begin{align}
+  \frac{\partial y}{\partial \phi} &=
+  \Tgnd
+  \underbrace{\sum_{p\,\in\,\partial\mathrm{horizon}} b_p}_{\text{Radon term}}
+  +
+  \underbrace{\frac{\partial}{\partial \phi}
+    \sum_{p\,\in\,\mathrm{sky}} b_p\,
+    x(\alpha_p+\phi+\delta t)}_{\text{sky contamination (comparable for wide beam)}}.
+\end{align}
+The sky contamination cannot be removed without already knowing the
+sky.
+The constructive estimator of Section~\ref{sec:theorem} handles this
+correctly by treating the full bilinear system.
+
+\subsubsection{Horizon error propagation}
+
+Suppose the true horizon profile differs from the assumed profile by
+$\delta H(\phi)$, inducing an error $\delta \Hlm(R)$ in the computed
+hemisphere integrals.
+This perturbs the $C$-matrix in Equation~\ref{eq:Cmat} by
+\begin{equation}
+  \delta C_{\ell_0 m_0 m'_0;\,\ell m}
+  = \frac{2\ell_0+1}{8\pi^2}
+  \sum_i w_i\,
+  \overline{D^{\ell_0}_{m_0 m'_0}(R_i)}\,\delta\Hlm(R_i),
+\end{equation}
+which is a \emph{known linear map} from horizon errors to $C$-matrix
+errors.
+The resulting error in $\boldsymbol{\alpha}$ follows from perturbing
+the linear system~\ref{eq:alphasystem}:
+\begin{equation} \label{eq:alphaerror}
+  \delta\boldsymbol{\alpha} = -M^{-1}\,\delta M\,\boldsymbol{\alpha},
+\end{equation}
+where $\delta M$ is the perturbation to $M$ induced by $\delta C$.
+This transfer matrix $M^{-1}\,\delta M$ is computable from the
+nominal solution and provides a direct \emph{systematic error budget}:
+the contribution of a horizon profile error of magnitude
+$\|\delta H\|$ to the beam and sky recovery errors is bounded by
+$\|M^{-1}\| \cdot \|\delta M\| \cdot \|\boldsymbol{\alpha}\|$.
+A concrete numerical evaluation of this budget, using LiDAR-measured
+horizon profiles for the EIGSEP site, is deferred to future work.
+
+% -------------------------------------------------------------------
+\subsection{C4: Full-Rank $C$-Matrix}
+\label{sec:rank}
+
+The $C$-matrix (Equation~\ref{eq:Cmat}) must be full rank for the
+linear system~\ref{eq:alphasystem} to uniquely determine
+$\boldsymbol{\alpha}$.
+Since $\Hlm(R)$ mixes different $\ell$ (a tilted great-circle cut
+through a hemisphere has power at all multipole orders), $C$ is
+generically full rank.
+However, special horizon geometries can cause rank deficiency.
+
+Specifically, the $C$-matrix will be rank-deficient if and only if
+there exists a non-zero vector $\boldsymbol{\alpha}$ such that
+$\sum_\ell \alpha_\ell \Hlm(R) = 0$ for all $R$ and all
+$(\ell_0, m_0, m'_0)$.
+This requires the function $\sum_\ell \alpha_\ell \Hlm(R)$ to vanish
+identically under Wigner projection, which is the condition that
+the $\Hlm$ at different $\ell$ are linearly dependent under the
+rotation group action.
+
+Three cases are worth noting:
+
+\begin{enumerate}
+  \item \textbf{Flat horizon (no tilt variation):} if the tilt range
+    is zero (antenna always horizontal), $\Hlm(R)$ only samples
+    hemisphere integrals at one elevation cut.
+    The matrix $C$ has rank 1 in the $\ell$ direction and
+    $\boldsymbol{\alpha}$ is undetermined.
+    Some tilt range is essential.
+
+  \item \textbf{Rotationally symmetric horizon:} if the horizon is
+    flat and featureless (same elevation at all azimuths), then
+    $\Hlm(R)$ is non-zero only for $m=0$ modes, and $C$ loses rank
+    in the $m$ direction.
+    Azimuthal structure in the horizon --- trees, buildings, terrain
+    --- provides $m \neq 0$ power in $\Hlm$ and improves rank.
+
+  \item \textbf{Generic non-flat horizon:} provided the tilt range
+    spans more than a few degrees and the horizon has some azimuthal
+    variation (which is true for any real site), $C$ is generically
+    full rank.
+    Characterizing the minimum tilt range required for full rank at
+    a given $\lmax$, and relating it to the horizon power spectrum,
+    would be of theoretical interest and is left for future work.
+\end{enumerate}
+
+% -------------------------------------------------------------------
+\subsection{C5: Non-degenerate Signals}
+
+This condition is benign in practice.
+For $b_{\ell m} = 0$ at some $\ell$, the beam has no power at that
+multipole and that scale is simply not measurable (nor needed).
+For $a_{\ell m'} = 0$, the sky has no power at that multipole and
+no beam mode at $\ell$ can be constrained by the sky term; the
+ground term still constrains the beam.
+The only genuine failure is $b_{00} = 0$ (zero-gain antenna) which
+is unphysical.
+
+% -------------------------------------------------------------------
+\subsection{C6: Sky Asymmetry}
+\label{sec:skyasym}
+
+This condition is the most practically constraining at high $\ell$
+and high frequency.
+The beam shape $\hat{\mathbf{b}}_\ell$ is estimated from the
+$m' \neq 0$ columns of $X_\ell$ (Sub-step 1a of the proof), which
+requires the sky to have nonzero $m' \neq 0$ power at order $\ell$.
+The condition is necessary: if the sky is perfectly axisymmetric at
+some $\ell$ (all power in $m'=0$), the $m' \neq 0$ block vanishes
+and the beam shape cannot be recovered from the LST residual at that
+$\ell$.
+
+For the real diffuse radio sky, C6 is satisfied for all $\ell$ up
+to a practical $\lmax^\mathrm{sky}$, with the Galactic plane
+providing strong $m' \neq 0$ power.
+The quality of the beam shape estimate scales with the $m' \neq 0$
+sky power at order $\ell$, which can be computed directly from the
+GSM covariance matrix as a function of $\ell$ and frequency:
+\begin{equation}
+  \mathrm{SNR}_{\hat{b}_\ell}(\nu)
+  \sim
+  \frac{\|\mathbf{b}_\ell\|\,\|[a_{\ell m'}(\nu)]_{m'\neq 0}\|}
+       {T_\mathrm{sys}/\sqrt{\Delta\nu\,\tau}},
+\end{equation}
+where the numerator is determined by the sky model and the
+denominator by the radiometer noise.
+This SNR can be evaluated as a function of $(\ell, \nu)$ before
+taking data, providing a map of which beam modes are reliably
+recoverable across the frequency band.
+
+% -------------------------------------------------------------------
+\section{Hierarchical Structure from Full LST Coverage}
+\label{sec:hierarchy}
+
+Time-averaging over a complete sidereal day yields a useful
+decomposition that does not lose information but reorganizes it
+for efficient estimation.
+By Wigner orthogonality of the Earth-rotation component,
+\begin{equation}
+  \bigl\langle D^\ell_{mm'}(R_\mathrm{mech}\cdot R_\mathrm{LST}(t))
+  \bigr\rangle_t = d^\ell_{m0}(\theta_R)\,\delta_{m'0},
+\end{equation}
+so the time-averaged observation is
+\begin{equation} \label{eq:ybar}
+  \bar{y}(R) = \sum_{\ell m} \blm\, d^\ell_{m0}(\theta_R)\, a_{\ell 0}
+             + \Tgnd\sum_{\ell m}\blm\,\Hlm(R).
+\end{equation}
+Only the $m'=0$ sky modes $a_{\ell 0}$ appear in $\bar{y}$.
+The sky collapses from $(L_s+1)^2$ unknowns to $(L_s+1)$ --- a
+factor of $(L_s+1)$ reduction.
+The LST-varying residual $\delta y = y - \bar{y}$ carries all
+$m'\neq 0$ sky information but loses the ground term anchor.
+
+This decomposition is lossless (it is a bijection on the data) and
+is valid under complete 24-hr LST coverage.
+With partial coverage, $\langle D^\ell_{mm'}\rangle_t \neq
+d^\ell_{m0}\delta_{m'0}$ and cross-$m'$ leakage occurs, exactly
+analogous to the cross-$\ell$ leakage from incomplete SO(3) coverage.
+The optimal weighting of Section~\ref{sec:weighting} addresses both
+simultaneously.
+
+% -------------------------------------------------------------------
+\section{Degrees of Freedom} \label{sec:dof}
+
+The unknowns per frequency channel are:
+beam $\blm$ for $\ell = 0,\ldots,L_b$: $(L_b+1)^2$ real DOF;
+sky $\alm$ for $\ell = 0,\ldots,L_s$: $(L_s+1)^2$ real DOF.
+The available observations are $N_R \times N_t$ real measurements.
+The formal identifiability condition $N_R N_t \geq (L_b+1)^2 +
+(L_s+1)^2$ is necessary but not sufficient; the identifiability
+theorem provides the sufficient conditions.
+
+Within each $\ell$-block, the sky term is a linear functional of the
+rank-1 matrix $X_\ell = \mathbf{b}_\ell \mathbf{a}_\ell^T$.
+By compressed sensing theory (RIP for rank-1 matrices under
+Haar-random Wigner measurement operators), the number of measurements
+needed to recover $X_\ell$ at order $\ell$ is
+\begin{equation}
+  N_\mathrm{meas}^\ell \;\gtrsim\; 4(2\ell+1) - 4 \approx 8\ell,
+\end{equation}
+setting a minimum rotation grid density per $\ell$-block.
+
+% -------------------------------------------------------------------
+\section{Estimation Strategy} \label{sec:estimation}
+
+The constructive proof of the theorem directly yields the estimation
+algorithm.
+
+\textbf{Step 1 (Spectral initialization):}
+Form the Wigner-projected matrices $\hat{X}_\ell$ per $\ell$-block
+using the optimal weights from Equation~\ref{eq:optweights}.
+Take the top rank-1 SVD of each $\hat{X}_\ell$ to get initial
+estimates $\hat{\mathbf{b}}^{(0)}_\ell$, $\hat{\mathbf{a}}^{(0)}_\ell$.
+This step is non-iterative and provides a globally consistent
+initialization.
+
+\textbf{Step 2 (Scale fixing):}
+Solve the linear system~\ref{eq:alphasystem} for
+$\boldsymbol{\alpha}$ using the ground-term Wigner projections.
+This uniquely pins the per-$\ell$ amplitudes and completes the
+closed-form estimator under ideal conditions.
+
+\textbf{Step 3 (Joint refinement via ALS or Gibbs sampling):}
+Run alternating least squares (ALS) or Gibbs sampling over all
+$(t, R)$ simultaneously, initialized from $(\hat{\mathbf{b}}^{(0)},
+\hat{\mathbf{a}}^{(0)})$.
+Each ALS step fixes one block and applies a Wiener filter to the
+other; the ground term enters as a known linear contribution.
+For Gaussian noise and Gaussian priors, each Gibbs conditional is
+Gaussian (a linear solve), and the sampler correctly propagates
+uncertainty through the bilinear structure.
+
+ALS and Gibbs both converge at linear rate $\rho_\mathrm{ALS} =
+\|\Sigma_{bb}^{-1}\Sigma_{ba}\Sigma_{aa}^{-1}\Sigma_{ab}\|_2^{1/2}$,
+the largest canonical correlation between beam and sky in the joint
+Fisher matrix.
+Convergence requires $\rho < 1$, which holds when the sky is
+structured (Galactic plane), the beam is asymmetric, and informative
+priors regularize the degenerate directions.
+Counterintuitively, high SNR alone degrades convergence:
+at high SNR the posterior concentrates on the bilinear manifold and
+$\rho \to 1$; priors are essential.
+
+% -------------------------------------------------------------------
+\section{Relationship to Rotation-Free Experiments and the Prior Spectrum}
+\label{sec:edges}
+
+\subsection{What Rotation-Free Experiments Know About Their Beam}
+
+Single-antenna experiments without rotation diversity measure
+$T_\mathrm{ant}(\nu)$, the beam-weighted sky brightness temperature
+as a function of frequency, at fixed pointing.
+The beam enters as a nuisance: its chromaticity couples spatial sky
+structure into the frequency spectrum, producing features that
+mimic or obscure the 21-cm signal.
+Such experiments handle this by computing the beam from an
+electromagnetic simulation (FMCW or HFSS) and treating the result
+as truth.
+The beam is never measured in situ; the residual uncertainty between
+the simulated and true beam is an unquantified systematic.
+
+EIGSEP has the same HFSS simulation capability, and arguably a
+better one: the canyon suspension places the antenna in a nearly
+free-space electromagnetic environment, eliminating the ground
+coupling to the antenna structure that complicates terrestrial
+simulations.
+EIGSEP therefore starts with the same level of beam knowledge as
+rotation-free experiments.
+The question rotis addresses is how much further the rotation data
+can push that knowledge.
+
+\subsection{The Prior Spectrum}
+
+The rotis estimation pipeline operates along a continuous spectrum
+of beam prior strength, parameterized by the fractional uncertainty
+$\sigma_\ell$ in the beam coefficients $\blm$:
+
+\begin{equation}
+  \blm \sim \mathcal{N}\!\left(b^\mathrm{HFSS}_{\ell m},\;
+  \sigma_\ell^2\right),
+\end{equation}
+
+where $b^\mathrm{HFSS}_{\ell m}$ is the HFSS-simulated beam.
+The prior width $\sigma_\ell$ can vary with $\ell$, reflecting
+different levels of simulation accuracy at different angular scales.
+
+\begin{table}
+  \centering
+  \begin{tabular}{c|c|c|c}
+    \toprule
+    \textbf{Regime} & \textbf{$\sigma_\ell$} & \textbf{Beam free parameters}
+      & \textbf{Equivalent to} \\
+    \midrule
+    Rotation-free
+      & $\to 0$
+      & 0 (simulation is truth)
+      & Standard single-antenna pipeline \\
+    \hline
+    Perturbative
+      & $1$--$5\%$
+      & Low-$\ell$ corrections only
+      & Single-antenna $+$ in-situ verification \\
+    \hline
+    Weakly informative
+      & $\sim 50\%$
+      & All modes, constrained
+      & Rotation-assisted calibration \\
+    \hline
+    Free beam
+      & $\to \infty$
+      & $(L_b+1)^2$ free parameters
+      & Full rotis theorem \\
+    \bottomrule
+  \end{tabular}
+  \caption{The prior spectrum for beam estimation in rotis.
+    The rotation-free limit ($\sigma_\ell \to 0$) corresponds to
+    treating the EM simulation as truth without in-situ verification.
+    The rotis identifiability theorem guarantees recovery in the
+    $\sigma_\ell \to \infty$ limit under conditions C1--C6.
+    The perturbative regime is the most immediately practical:
+    it uses the simulation as initialization and measures corrections
+    from the rotation data.}
+  \label{tab:prior_spectrum}
+\end{table}
+
+In the perturbative regime, the effective number of beam free
+parameters is small --- perhaps a handful of low-$\ell$ modes
+representing gain uncertainty, beam ellipticity errors, and horizon
+coupling residuals.
+The SNR required to constrain these few parameters is easily
+achievable with the EIGSEP noise budget, unlike the full free-beam
+case which requires SNR $\sim 10^5$ per mode.
+
+\subsection{The Key Scientific Output: Posterior Width vs.\ Prior Width}
+
+The most important diagnostic of the rotis pipeline is the function
+\begin{equation}
+  \sigma^\mathrm{post}_\ell(\sigma^\mathrm{prior}_\ell),
+\end{equation}
+the posterior width on $\blm$ as a function of the prior width,
+computed from the Gibbs sampler at each $\ell$.
+This function directly answers: \emph{how much does the rotation
+data constrain the beam beyond the HFSS simulation?}
+
+Three qualitatively distinct behaviors are possible:
+\begin{enumerate}
+  \item $\sigma^\mathrm{post}_\ell \ll \sigma^\mathrm{prior}_\ell$:
+    the data are strongly informative at this $\ell$; rotation
+    diversity substantially improves on the simulation.
+  \item $\sigma^\mathrm{post}_\ell \sim \sigma^\mathrm{prior}_\ell$:
+    the data add nothing; the posterior tracks the prior.
+    Either this $\ell$-mode is not constrained by the rotation
+    grid, or the sky has insufficient $m' \neq 0$ power (C6).
+  \item $\sigma^\mathrm{post}_\ell \sim \sigma^\mathrm{noise}_\ell$:
+    the noise floor is reached; rotation data constrain this mode
+    as well as the data allow regardless of prior.
+\end{enumerate}
+The crossover between regimes (1) and (2) as a function of $\ell$
+defines the effective angular resolution of the in-situ beam
+measurement.
+The crossover between regimes (1) and (3) as a function of
+$\sigma^\mathrm{prior}$ defines how informative the rotation data
+are relative to the simulation.
+
+\subsection{Hierarchy of Scientific Claims}
+
+The prior spectrum framing supports a natural hierarchy of
+increasingly ambitious claims, all derivable from the same dataset:
+
+\begin{enumerate}
+  \item \textbf{Beam verification (immediately achievable):}
+    Use rotation data to test whether the HFSS simulation matches
+    the in-situ beam response as a function of rotation angle.
+    This is a null test unavailable to rotation-free experiments.
+    Significant regardless of the 21-cm signal.
+
+  \item \textbf{Perturbative beam correction (achievable with
+    tight priors):}
+    Use rotation data to measure and correct low-order beam
+    perturbations around the HFSS simulation.
+    Feed the corrected beam into a standard single-antenna spectral
+    analysis.
+    Reduces beam systematic uncertainty below the rotation-free level.
+
+  \item \textbf{Rotation-assisted beam recovery (weakly informative
+    prior):}
+    Recover the beam with significant freedom from the simulation,
+    using rotation diversity as the primary constraint.
+    Demonstrates the in-principle power of the rotis approach.
+
+  \item \textbf{Free-beam recovery (full theorem):}
+    Recover beam and sky jointly with no simulation prior.
+    Requires SNR $\sim 10^5$ per beam mode; aspirational with
+    current noise budgets.
+\end{enumerate}
+
+Claims 1 and 2 are immediately achievable and publishable.
+Claim 3 depends on the posterior-width diagnostic showing
+informative constraints beyond the prior.
+Claim 4 is the theoretical limit guaranteed by the identifiability
+theorem.
+
+% -------------------------------------------------------------------
+\section{Fisher Information Summary} \label{sec:fisher}
+
+A 1D elevation-slice numerical Fisher analysis (22 beam pixels over
+$\pm 80^\circ$, 16 sky pixels over $1$--$75^\circ$, $\Tgnd = 300$~K)
+gives the following qualitative results:
+
+\begin{itemize}
+  \item Tilt range is the primary driver of beam mode recovery.
+    The eigenvalue spectrum of the joint FIM shows a ``knee'' that
+    lifts with tilt range.
+  \item LST diversity independently constrains sky modes.
+    Without sidereal time variation, sky modes are severely
+    underdetermined even with good beam constraints.
+  \item Two to four modes remain near zero regardless of tilt and LST,
+    corresponding to the conditions in Table~\ref{tab:conditions}.
+  \item Structured sky (e.g., the Galactic plane) dramatically improves
+    sky mode recovery.
+  \item Beam pixels near the horizon edge are best constrained;
+    pixels far from the horizon are constrained primarily via LST
+    drift against sky structure.
+\end{itemize}
+
+% -------------------------------------------------------------------
+\section{Summary} \label{sec:summary}
+
+\begin{table}
+  \centering
+  \begin{tabular}{c|c|c|c}
+    \toprule
+    \textbf{Condition} & \textbf{What fails if violated}
+      & \textbf{Mitigation} & \textbf{Status} \\
+    \midrule
+    C1: SO(3) coverage
+      & Cross-$\ell$ leakage; biased $X_\ell$
+      & Optimal data weighting; coverage kernel from known grid
+      & Primary design driver \\[4pt]
+    \hline
+    C2: Known $\Tgnd$
+      & $\boldsymbol{\alpha}$ biased; monopole error
+      & Switched-load absolute calibration (EIGSEP);
+        spatial uniformity assumption
+      & Addressed by EIGSEP \\[4pt]
+    \hline
+    C3: Known horizon
+      & $C$-matrix errors; beam/sky bias
+      & LiDAR survey; transfer matrix $M^{-1}\delta M$
+      & Budget TBD \\[4pt]
+    \hline
+    C4: Full-rank $C$
+      & $\boldsymbol{\alpha}$ underdetermined
+      & Non-zero tilt; azimuthally varied horizon
+      & Generically satisfied \\[4pt]
+    \hline
+    C5: Non-zero signals
+      & $\ell$-modes unrecoverable
+      & N/A for physical antennas
+      & Not a concern \\[4pt]
+    \hline
+    C6: Sky asymmetry
+      & Beam shape unrecoverable from $\delta y$
+      & GSM confirms $m'\neq 0$ power; SNR map in $(\ell,\nu)$
+      & Frequency/\,$\ell$-dependent \\
+    \bottomrule
+  \end{tabular}
+  \caption{Summary of the six identifiability conditions, the
+    consequence of each failure, the mitigation strategy, and the
+    current experimental status.}
+  \label{tab:conditions}
+\end{table}
+
+The central results are:
+
+\begin{enumerate}
+
+  \item \textbf{Beam and sky are jointly identifiable}, including the
+    sky monopole, under the six conditions of the theorem.
+    The proof is constructive: Wigner projection recovers $X_\ell$,
+    the ground term linear system recovers per-$\ell$ scales, and
+    the monopole follows from the $\ell=0$ ground projection.
+
+  \item \textbf{Incomplete SO(3) coverage introduces known,
+    correctable bias.}
+    The coverage kernel $K^{\ell_0\ell}$ is computable from the
+    known rotation grid and produces a known leakage systematic.
+    Optimal data weighting minimizes the leakage--noise tradeoff
+    and depends on LST in a non-trivial way.
+
+  \item \textbf{$\Tgnd$ uncertainty is the primary condition
+    requiring external calibration.}
+    Spatial uniformity of ground emission is the key assumption;
+    its violation is diagnosable from azimuthal variation of the
+    ground-only signal.
+
+  \item \textbf{Horizon profile errors propagate linearly into
+    beam and sky errors} via the known transfer matrix
+    $M^{-1}\delta M$. A quantitative systematic budget requires
+    a site-specific LiDAR survey.
+
+  \item \textbf{Generic non-flat horizons produce full-rank $C$.}
+    The minimum tilt range for full rank as a function of $\lmax$
+    and horizon power spectrum is an open theoretical question.
+
+  \item \textbf{The HFSS simulation provides the same beam
+    knowledge as rotation-free experiments as a starting point.}
+    The rotis pipeline operates along a prior spectrum from
+    tight (rotation-free limit) to free (full theorem), parameterized by
+    the fractional beam uncertainty $\sigma_\ell$.
+    The key scientific output is the posterior width
+    $\sigma^\mathrm{post}_\ell$ as a function of prior width
+    $\sigma^\mathrm{prior}_\ell$, which directly measures how
+    much the rotation data improve on the simulation at each
+    angular scale (Table~\ref{tab:prior_spectrum}).
+    Claims 1 and 2 of the scientific hierarchy
+    (Section~\ref{sec:edges}) are achievable with current noise
+    budgets; Claims 3 and 4 are aspirational.
+
+\end{enumerate}
+
+\subsection{Immediate Next Steps}
+
+\begin{enumerate}
+  \item Compute the coverage kernel $K^{\ell_0\ell}$ numerically
+    for the planned rotation grid and quantify cross-$\ell$ leakage
+    vs.\ $\ell_0$.
+  \item Solve the optimal weighting problem
+    (Equation~\ref{eq:optweights_sky}) for the coverage and assess
+    the leakage--noise tradeoff as a function of tilt range.
+  \item Compute $\Hlm(R)$ and verify $C$-matrix rank for the
+    planned tilt range.
+  \item Implement the constructive estimator (Steps 1--2) on
+    synthetic data and verify exact recovery under ideal conditions.
+  \item Implement and test the ALS/Gibbs refinement initialized from
+    the constructive estimator.
+  \item Run the prior sweep: compute $\sigma^\mathrm{post}_\ell$
+    vs.\ $\sigma^\mathrm{prior}_\ell$ for the EIGSEP rotation grid
+    and noise budget.
+    Identify the $\ell$-modes where rotation data are informative
+    beyond the HFSS simulation, and the minimum prior width at
+    which the data dominate.
+  \item Quantify the $M^{-1}\delta M$ transfer matrix for realistic
+    LiDAR-derived horizon errors at the EIGSEP site.
+  \item Determine the minimum tilt range for full $C$-matrix rank
+    as a function of $\lmax$ for a flat and a non-flat horizon.
+\end{enumerate}
+
+\bibliography{refs}{}
+\bibliographystyle{aasjournal}
+
+\end{document}

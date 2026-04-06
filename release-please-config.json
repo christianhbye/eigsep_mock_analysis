@@ -9,6 +9,15 @@
       "extra-files": [
         "src/eigsim/__init__.py"
       ]
+    },
+    "rotis": {
+      "release-type": "python",
+      "component": "rotis",
+      "package-name": "rotis",
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        "src/rotis/__init__.py"
+      ]
     }
   }
 }

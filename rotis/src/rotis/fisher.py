@@ -1,0 +1,319 @@
+"""Fisher information and error characterization for the EIGSEP rotation grid.
+
+Milestone 1: characterize the information content and systematic floor
+of the rotation grid before doing any inference. All three error terms
+(cross-ell leakage, LST sampling error, noise) are computable from the
+rotation grid alone, without fitting any beam or sky.
+
+Mathematical reference: memo/sample631.tex, Sections 3--4.
+"""
+
+import jax.numpy as jnp
+import numpy as np
+import s2fft
+from croissant.rotations import rotmat_to_eulerZYZ
+
+
+def _wigner_D_matrices(alpha, beta, gamma, lmax):
+    """Compute full Wigner D-matrices for a single ZYZ rotation.
+
+    D^l_{mm'}(alpha, beta, gamma) = exp(-i*m*alpha) * d^l_{mm'}(beta) * exp(-i*m'*gamma)
+
+    Parameters
+    ----------
+    alpha, beta, gamma : float
+        ZYZ Euler angles in radians.
+    lmax : int
+        Maximum multipole order.
+
+    Returns
+    -------
+    D : jnp.ndarray
+        Shape ``(L, 2L-1, 2L-1)`` where ``L = lmax + 1``.
+        ``D[l, m + L-1, m' + L-1] = D^l_{mm'}(alpha, beta, gamma)``.
+    """
+    L = lmax + 1
+    dl = s2fft.generate_rotate_dls(L, beta)  # (L, 2L-1, 2L-1), real
+    m = jnp.arange(-(L - 1), L)  # (2L-1,)
+    return (
+        dl.astype(complex)
+        * jnp.exp(-1j * m * alpha)[None, :, None]
+        * jnp.exp(-1j * m * gamma)[None, None, :]
+    )
+
+
+def _rotmats_to_D(rotation_matrices, lmax):
+    """Compute D-matrices for a batch of rotation matrices.
+
+    Parameters
+    ----------
+    rotation_matrices : array_like
+        Shape ``(N, 3, 3)``.
+    lmax : int
+        Maximum multipole order.
+
+    Returns
+    -------
+    D_all : jnp.ndarray
+        Shape ``(N, L, 2L-1, 2L-1)``.
+    """
+    N = rotation_matrices.shape[0]
+    D_list = []
+    for i in range(N):
+        alpha, beta, gamma = rotmat_to_eulerZYZ(np.asarray(rotation_matrices[i]))
+        D_list.append(_wigner_D_matrices(float(alpha), float(beta), float(gamma), lmax))
+    return jnp.stack(D_list)
+
+
+def compute_fim(
+    simulator_fn,
+    beam_alm,
+    sky_alm,
+    noise_var,
+    lmax,
+):
+    """Linearized Fisher information matrix at a fiducial (beam, sky).
+
+    Concatenates beam and sky alm into a single parameter vector
+    theta = [Re(beam_alm), Im(beam_alm), Re(sky_alm), Im(sky_alm)],
+    computes the Jacobian J = d(simulator_fn)/d(theta) via jax.jacrev,
+    and returns FIM = J^T J / noise_var.
+
+    Parameters
+    ----------
+    simulator_fn : callable
+        Function mapping (beam_alm, sky_alm) -> y_obs, where y_obs is
+        the flattened observation vector. This should wrap eigsim.simulate
+        as a differentiable function of the alm parameters.
+    beam_alm : jnp.ndarray
+        Fiducial beam alm, shape ``(L, 2L-1)`` in s2fft convention.
+    sky_alm : jnp.ndarray
+        Fiducial sky alm, shape ``(L, 2L-1)`` in s2fft convention.
+    noise_var : float
+        Noise variance per observation (scalar, assumes white noise).
+    lmax : int
+        Maximum multipole order. L = lmax + 1.
+
+    Returns
+    -------
+    fim : jnp.ndarray
+        Fisher information matrix, shape ``(N_params, N_params)`` where
+        N_params = 2 * (L * (2L-1)) for beam + sky (real and imag parts).
+
+    Notes
+    -----
+    Uses reverse-mode autodiff (jacrev) since N_obs >> N_params at
+    typical NSIDE=32.
+    """
+    raise NotImplementedError
+
+
+def coverage_kernel(rotation_matrices, weights, lmax):
+    """Coverage kernel quantifying cross-ell leakage from the rotation grid.
+
+    Computes the coverage kernel (memo Eq. in Sec. 4.1):
+
+        K^{l0,l}_{m0,m0';m,m'} = (2*l0+1)/(8*pi^2) * sum_i w_i *
+            conj(D^l0_{m0,m0'}(R_i)) * D^l_{m,m'}(R_i)
+
+    Under Haar measure, K^{l0,l} = delta_{l,l0} * I (no leakage).
+    Deviation from this identity is the cross-ell leakage bias (error
+    term (i) from the memo).
+
+    This is computable from the rotation grid alone -- no data needed.
+
+    Parameters
+    ----------
+    rotation_matrices : array_like
+        Rotation matrices for all observations, shape ``(N_obs, 3, 3)``.
+        Each R_i encodes the full rotation (mechanical + LST).
+    weights : array_like
+        Quadrature weights, shape ``(N_obs,)``. Should approximate
+        the Haar measure, i.e., ``sum(w_i * f(R_i)) ~ integral f dR``
+        where the Haar volume is ``8 * pi^2``. For uniform weights:
+        ``w_i = 8 * pi^2 / N_obs``.
+    lmax : int
+        Maximum multipole order to compute.
+
+    Returns
+    -------
+    diagonal : jnp.ndarray
+        Diagonal of the ``K^{l0,l0}`` blocks, shape
+        ``(lmax+1, 2*lmax+1, 2*lmax+1)``.
+        ``diagonal[l, m+L-1, m'+L-1]`` is the self-response of mode
+        ``(l, m, m')``. Should be 1.0 for perfect Haar coverage.
+    offdiagonal_power : jnp.ndarray
+        Leakage power ``sum_{l != l0} ||K^{l0,l}||_F^2`` vs l0,
+        shape ``(lmax+1,)``. Measures the cross-ell systematic floor.
+    """
+    L = lmax + 1
+    weights = jnp.asarray(weights)
+
+    # Compute D-matrices for all rotations: (N, L, 2L-1, 2L-1)
+    D_all = _rotmats_to_D(rotation_matrices, lmax)
+
+    # Normalization: (2l+1) / (8pi^2)
+    ell = jnp.arange(L)
+    norm = (2 * ell + 1) / (8 * jnp.pi**2)
+
+    # --- Diagonal completeness ---
+    # K^{l,l}_{m,m';m,m'} = norm[l] * sum_i w_i * |D^l_{mm'}(R_i)|^2
+    diagonal = jnp.einsum("i,iklm->klm", weights, jnp.abs(D_all) ** 2)
+    diagonal = diagonal * norm[:, None, None]
+
+    # --- Off-diagonal leakage power via Gram matrices ---
+    # G[l, i, j] = sum_{m,m'} D^l_{mm'}(R_i) * conj(D^l_{mm'}(R_j))
+    N = D_all.shape[0]
+    D_flat = D_all.reshape(N, L, -1)  # (N, L, (2L-1)^2)
+    G = jnp.einsum("ilk,jlk->lij", D_flat, D_flat.conj())  # (L, N, N)
+
+    W = weights[:, None] * weights[None, :]  # (N, N)
+    G_total = jnp.sum(G, axis=0)  # (N, N)
+
+    # offdiag[l0] = norm[l0]^2 * sum_{l!=l0} ||K^{l0,l}||_F^2
+    #             = norm[l0]^2 * [sum_{ij} W * conj(G[l0]) * G_total
+    #                             - sum_{ij} W * |G[l0]|^2]
+    WG_total = W * G_total  # (N, N)
+    term_total = jnp.einsum("lij,ij->l", G.conj(), WG_total).real
+    G_abs_sq = (G * G.conj()).real  # (L, N, N)
+    term_self = jnp.einsum("lij,ij->l", G_abs_sq, W)
+    offdiagonal_power = norm**2 * (term_total - term_self)
+
+    return diagonal, offdiagonal_power
+
+
+def lst_sampling_error(lsts_rad, lat_rad, lmax):
+    """LST quadrature error from discrete sidereal sampling.
+
+    In equatorial coordinates (as used by eigsim), the LST rotation is
+    a pure z-axis rotation, so D^l_{mm'}(R_LST(t)) = exp(-i*m*t) * delta_{m,m'}.
+
+    The continuous sidereal average gives delta_{m,0} * delta_{m',0},
+    so the sampling error reduces to a scalar per m:
+
+        psi(m) = (1/N_t) * sum_j exp(-i*m*lst_j) - delta_{m,0}
+
+    and eta[l, m, m'] = delta_{m,m'} * psi(m) for all l.
+
+    For uniformly spaced LST samples, |psi(m)| < machine epsilon for
+    |m| < N_lst/2 (below the Nyquist limit) and equals 1.0 for aliased
+    modes m = k * N_lst.
+
+    Parameters
+    ----------
+    lsts_rad : array_like
+        LST samples in radians, shape ``(N_lst,)``.
+    lat_rad : float
+        Observatory latitude in radians. Unused in the equatorial frame
+        (kept for API compatibility with a future topocentric variant).
+    lmax : int
+        Maximum multipole order.
+
+    Returns
+    -------
+    eta : jnp.ndarray
+        LST sampling error, shape ``(lmax+1, 2*lmax+1, 2*lmax+1)``.
+        Nonzero only on the diagonal (m = m').
+        Key diagnostic: ``max|eta[l]|`` vs l should be < 0.01 for
+        l < N_lst/2 and grows for higher l.
+    """
+    L = lmax + 1
+    lsts = jnp.asarray(lsts_rad)
+    m = jnp.arange(-(L - 1), L)  # (2L-1,)
+
+    # psi[m] = mean_j exp(-i*m*lst_j) - delta_{m,0}
+    phases = jnp.exp(-1j * jnp.outer(m, lsts))  # (2L-1, N_t)
+    psi = jnp.mean(phases, axis=1) - (m == 0).astype(complex)  # (2L-1,)
+
+    # Build diagonal tensor: eta[l, k, k] = psi[k] for all l
+    eta = jnp.zeros((L, 2 * L - 1, 2 * L - 1), dtype=complex)
+    idx = jnp.arange(2 * L - 1)
+    eta = eta.at[:, idx, idx].set(jnp.broadcast_to(psi, (L, 2 * L - 1)))
+
+    return eta
+
+
+def sky_asymmetry_snr(sky_alm, beam_alm, noise_var, lmax):
+    """Check condition C6: sky asymmetry SNR per multipole.
+
+    Condition C6 requires the sky to have nonzero m' != 0 power at each
+    l for the beam shape to be recoverable from the LST residual.
+
+    Computes:
+        SNR_b_l = ||b_l|| * ||[a_{lm'}]_{m'!=0}|| / sigma_noise
+
+    Parameters
+    ----------
+    sky_alm : jnp.ndarray
+        Sky alm, shape ``(L, 2L-1)`` in s2fft convention.
+    beam_alm : jnp.ndarray
+        Beam alm, shape ``(L, 2L-1)`` in s2fft convention.
+    noise_var : float
+        Noise variance per observation.
+    lmax : int
+        Maximum multipole order.
+
+    Returns
+    -------
+    snr : jnp.ndarray
+        Sky asymmetry SNR per l, shape ``(lmax+1,)``.
+        Flag l-modes where SNR < 1 -- beam shape is unrecoverable
+        from the LST residual at those modes.
+    """
+    L = lmax + 1
+    sigma = jnp.sqrt(noise_var)
+
+    # Beam norm per ell: ||b_l||
+    b_norm = jnp.sqrt(jnp.sum(jnp.abs(beam_alm) ** 2, axis=1))  # (L,)
+
+    # Sky with m=0 zeroed: m=0 is at column index L-1 in s2fft convention
+    sky_mneq0 = sky_alm.at[:, L - 1].set(0.0)
+    a_mneq0_norm = jnp.sqrt(jnp.sum(jnp.abs(sky_mneq0) ** 2, axis=1))  # (L,)
+
+    return b_norm * a_mneq0_norm / sigma
+
+
+def plot_milestone1_summary(
+    fim,
+    kernel_diagonal,
+    kernel_offdiag_power,
+    eta_lst,
+    sky_snr,
+    lmax,
+):
+    """Five-panel summary figure for Milestone 1.
+
+    Panels:
+        1. FIM eigenvalue spectrum: log10(lambda) vs mode index.
+           Mark the knee and near-zero floor.
+        2. Beam and sky marginal 1-sigma from diag(FIM^{-1}) vs ell.
+           Cramer-Rao bound per mode.
+        3. Coverage kernel leakage power vs l0 (error term (i)).
+        4. LST sampling error max|eta[l]| vs l (error term (ii)).
+           Mark l = N_lst/2 threshold.
+        5. Sky asymmetry SNR per l. Mark SNR=1 threshold.
+
+    Panels 3, 4, 5 together define the systematic floor before any
+    inference is attempted.
+
+    Parameters
+    ----------
+    fim : jnp.ndarray
+        Fisher information matrix from ``compute_fim``.
+    kernel_diagonal : jnp.ndarray
+        Diagonal blocks from ``coverage_kernel``.
+    kernel_offdiag_power : jnp.ndarray
+        Off-diagonal leakage power from ``coverage_kernel``.
+    eta_lst : jnp.ndarray
+        LST sampling error from ``lst_sampling_error``.
+    sky_snr : jnp.ndarray
+        Sky asymmetry SNR from ``sky_asymmetry_snr``.
+    lmax : int
+        Maximum multipole order.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The five-panel summary figure.
+    """
+    raise NotImplementedError

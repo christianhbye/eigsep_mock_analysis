@@ -11,6 +11,7 @@ resolution-markers = [
 members = [
     "eigsep-mock-analysis",
     "eigsim",
+    "rotis",
 ]
 
 [[package]]
@@ -592,6 +593,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "rotis" },
     { name = "ruff" },
 ]
 
@@ -605,6 +607,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "rotis", editable = "rotis" },
     { name = "ruff" },
 ]
 
@@ -2325,6 +2328,32 @@ sdist = { url = "https://files.pythonhosted.org/packages/2c/06/37c1a5557acf449e8
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/71/44ce230e1b7fadd372515a97e32a83011f906ddded8d03e3c6aafbdedbb7/rfc3987_syntax-1.1.0-py3-none-any.whl", hash = "sha256:6c3d97604e4c5ce9f714898e05401a0445a641cfa276432b0a648c80856f6a3f", size = 8046, upload-time = "2025-07-18T01:05:03.843Z" },
 ]
+
+[[package]]
+name = "rotis"
+version = "0.0.1"
+source = { editable = "rotis" }
+dependencies = [
+    { name = "eigsim" },
+    { name = "jax" },
+    { name = "jaxlib" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "eigsim", editable = "eigsim" },
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "rpds-py"

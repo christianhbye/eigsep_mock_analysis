@@ -1,6 +1,7 @@
 # EIGSEP Mock Analysis
 
 [![eigsim](https://codecov.io/gh/christianhbye/eigsep_mock_analysis/branch/main/graph/badge.svg?flag=eigsim)](https://codecov.io/gh/christianhbye/eigsep_mock_analysis?flags[0]=eigsim)
+[![rotis](https://codecov.io/gh/christianhbye/eigsep_mock_analysis/branch/main/graph/badge.svg?flag=rotis)](https://codecov.io/gh/christianhbye/eigsep_mock_analysis?flags[0]=rotis)
 
 Simulation and analysis workspace for the [EIGSEP](https://github.com/eigsep) experiment — a 21 cm cosmology instrument targeting the Cosmic Dawn signal.
 
@@ -46,6 +47,7 @@ uv run ruff format .
 | Package | Description | Status |
 |---------|-------------|--------|
 | `eigsim` | EIGSEP simulation code | In development |
+| `rotis` | Joint beam/sky inference | In development |
 
 ## Notebooks
 
