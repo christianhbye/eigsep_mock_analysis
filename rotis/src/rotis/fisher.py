@@ -8,7 +8,9 @@ rotation grid alone, without fitting any beam or sky.
 Mathematical reference: memo/sample631.tex, Sections 3--4.
 """
 
+import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import numpy as np
 import s2fft
 from croissant.rotations import rotmat_to_eulerZYZ
@@ -65,6 +67,78 @@ def _rotmats_to_D(rotation_matrices, lmax):
     return jnp.stack(D_list)
 
 
+def _pack_alm(alm, L):
+    """Pack complex alm into independent real parameters respecting reality.
+
+    For a real-valued field, a_{l,-m} = (-1)^m conj(a_{l,m}) and a_{l,0}
+    is real.  The independent parameters per degree l are:
+
+        Re(a_{l,0}), Re(a_{l,1}), Im(a_{l,1}), ..., Re(a_{l,l}), Im(a_{l,l})
+
+    giving 2l+1 parameters per l and L^2 total.
+
+    Parameters
+    ----------
+    alm : jnp.ndarray
+        Complex alm array, shape ``(L, 2L-1)`` in s2fft convention.
+    L : int
+        ``lmax + 1``.
+
+    Returns
+    -------
+    params : jnp.ndarray
+        Real parameter vector of length ``L**2``.
+    """
+    params = jnp.zeros(L * L)
+    idx = 0
+    for ell in range(L):
+        # m = 0: purely real
+        params = params.at[idx].set(alm[ell, L - 1].real)
+        idx += 1
+        # m = 1 .. ell
+        for m in range(1, ell + 1):
+            col = L - 1 + m
+            params = params.at[idx].set(alm[ell, col].real)
+            params = params.at[idx + 1].set(alm[ell, col].imag)
+            idx += 2
+    return params
+
+
+def _unpack_alm(params, L):
+    """Reconstruct complex alm from independent real parameters.
+
+    Inverse of :func:`_pack_alm`.  Sets m > 0 from params, m = 0 from the
+    real parameter, and m < 0 via (-1)^m conj(m > 0).
+
+    Parameters
+    ----------
+    params : jnp.ndarray
+        Real parameter vector of length ``L**2``.
+    L : int
+        ``lmax + 1``.
+
+    Returns
+    -------
+    alm : jnp.ndarray
+        Complex alm array, shape ``(L, 2L-1)``.
+    """
+    alm = jnp.zeros((L, 2 * L - 1), dtype=complex)
+    idx = 0
+    for ell in range(L):
+        # m = 0: purely real
+        alm = alm.at[ell, L - 1].set(params[idx] + 0j)
+        idx += 1
+        # m = 1 .. ell
+        for m in range(1, ell + 1):
+            re_val = params[idx]
+            im_val = params[idx + 1]
+            idx += 2
+            val = re_val + 1j * im_val
+            alm = alm.at[ell, L - 1 + m].set(val)
+            alm = alm.at[ell, L - 1 - m].set((-1) ** m * jnp.conj(val))
+    return alm
+
+
 def compute_fim(
     simulator_fn,
     beam_alm,
@@ -74,17 +148,19 @@ def compute_fim(
 ):
     """Linearized Fisher information matrix at a fiducial (beam, sky).
 
-    Concatenates beam and sky alm into a single parameter vector
-    theta = [Re(beam_alm), Im(beam_alm), Re(sky_alm), Im(sky_alm)],
-    computes the Jacobian J = d(simulator_fn)/d(theta) via jax.jacrev,
-    and returns FIM = J^T J / noise_var.
+    Packs beam and sky alm into a single real parameter vector of
+    independent degrees of freedom (respecting the reality condition
+    a_{l,-m} = (-1)^m conj(a_{l,m})), computes the Jacobian
+    J = d(simulator_fn)/d(theta) via ``jax.jacrev``, and returns
+    FIM = J^T J / noise_var.
 
     Parameters
     ----------
     simulator_fn : callable
-        Function mapping (beam_alm, sky_alm) -> y_obs, where y_obs is
-        the flattened observation vector. This should wrap eigsim.simulate
-        as a differentiable function of the alm parameters.
+        Function mapping ``(beam_alm, sky_alm) -> y_obs``, where y_obs
+        is the flattened observation vector. This should wrap
+        eigsim.simulate as a differentiable function of the alm
+        parameters.
     beam_alm : jnp.ndarray
         Fiducial beam alm, shape ``(L, 2L-1)`` in s2fft convention.
     sky_alm : jnp.ndarray
@@ -98,14 +174,23 @@ def compute_fim(
     -------
     fim : jnp.ndarray
         Fisher information matrix, shape ``(N_params, N_params)`` where
-        N_params = 2 * (L * (2L-1)) for beam + sky (real and imag parts).
-
-    Notes
-    -----
-    Uses reverse-mode autodiff (jacrev) since N_obs >> N_params at
-    typical NSIDE=32.
+        ``N_params = 2 * L**2`` (L^2 independent real parameters for each
+        of beam and sky, after enforcing the reality condition).
     """
-    raise NotImplementedError
+    L = lmax + 1
+    n_beam = L * L
+
+    beam_alm = jnp.asarray(beam_alm)
+    sky_alm = jnp.asarray(sky_alm)
+
+    def forward(theta):
+        b = _unpack_alm(theta[:n_beam], L)
+        s = _unpack_alm(theta[n_beam:], L)
+        return jnp.ravel(simulator_fn(b, s).real)
+
+    theta0 = jnp.concatenate([_pack_alm(beam_alm, L), _pack_alm(sky_alm, L)])
+    J = jax.jacrev(forward)(theta0)
+    return J.T @ J / noise_var
 
 
 def coverage_kernel(rotation_matrices, weights, lmax):
@@ -316,4 +401,86 @@ def plot_milestone1_summary(
     fig : matplotlib.figure.Figure
         The five-panel summary figure.
     """
-    raise NotImplementedError
+    L = lmax + 1
+    n_beam = L * L
+    ell = np.arange(L)
+
+    fig, axes = plt.subplots(1, 5, figsize=(25, 5))
+
+    # --- Panel 1: FIM eigenvalue spectrum ---
+    eigvals = np.sort(np.array(jnp.linalg.eigvalsh(fim)))[::-1]
+    ax = axes[0]
+    ax.semilogy(np.arange(len(eigvals)), np.maximum(eigvals, 1e-30), ".-", ms=2)
+    n_zero = int(np.sum(eigvals < np.max(eigvals) * 1e-10))
+    if n_zero > 0:
+        ax.axvline(
+            len(eigvals) - n_zero,
+            color="gray",
+            ls=":",
+            alpha=0.7,
+            label=f"{n_zero} near-zero",
+        )
+        ax.legend(fontsize=8)
+    ax.set_xlabel("Mode index")
+    ax.set_ylabel(r"$\lambda_i$")
+    ax.set_title("FIM eigenvalue spectrum")
+
+    # --- Panel 2: CRB per ell ---
+    ax = axes[1]
+    fim_inv = np.linalg.pinv(np.array(fim))
+    crb = np.diag(fim_inv)
+    beam_sigma = np.zeros(L)
+    sky_sigma = np.zeros(L)
+    for l_idx in range(L):
+        start = l_idx * l_idx
+        width = 2 * l_idx + 1
+        n_modes = max(width, 1)
+        beam_sigma[l_idx] = np.sqrt(
+            np.sum(np.maximum(crb[start : start + width], 0)) / n_modes
+        )
+        sky_sigma[l_idx] = np.sqrt(
+            np.sum(np.maximum(crb[n_beam + start : n_beam + start + width], 0))
+            / n_modes
+        )
+    ax.semilogy(ell, np.maximum(beam_sigma, 1e-30), "o-", label="Beam", ms=4)
+    ax.semilogy(ell, np.maximum(sky_sigma, 1e-30), "s-", label="Sky", ms=4)
+    ax.set_xlabel(r"$\ell$")
+    ax.set_ylabel(r"$\sigma$ (CRB)")
+    ax.set_title("CRB per mode")
+    ax.legend(fontsize=8)
+
+    # --- Panel 3: Coverage kernel leakage ---
+    ax = axes[2]
+    offdiag = np.array(kernel_offdiag_power)
+    ax.semilogy(ell, np.maximum(offdiag, 1e-30), "o-", ms=4)
+    ax.set_xlabel(r"$\ell_0$")
+    ax.set_ylabel("Leakage power")
+    ax.set_title(r"Cross-$\ell$ leakage (i)")
+
+    # --- Panel 4: LST sampling error ---
+    ax = axes[3]
+    eta = np.array(eta_lst)
+    max_eta = np.array([np.max(np.abs(eta[l_idx])) for l_idx in range(L)])
+    ax.semilogy(ell, np.maximum(max_eta, 1e-30), "o-", ms=4)
+    ax.axhline(0.01, color="r", ls="--", alpha=0.5, label="0.01 threshold")
+    above = np.where(max_eta > 0.01)[0]
+    if len(above) > 0:
+        l_nyq = above[0]
+        ax.axvline(l_nyq, color="gray", ls=":", alpha=0.5, label=rf"$\ell$ = {l_nyq}")
+    ax.set_xlabel(r"$\ell$")
+    ax.set_ylabel(r"$\max|\eta[\ell]|$")
+    ax.set_title("LST sampling error (ii)")
+    ax.legend(fontsize=8)
+
+    # --- Panel 5: Sky asymmetry SNR ---
+    ax = axes[4]
+    snr = np.array(sky_snr)
+    ax.semilogy(ell, np.maximum(snr, 1e-30), "o-", ms=4)
+    ax.axhline(1.0, color="r", ls="--", alpha=0.5, label="SNR = 1")
+    ax.set_xlabel(r"$\ell$")
+    ax.set_ylabel("SNR")
+    ax.set_title("Sky asymmetry SNR (C6)")
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    return fig

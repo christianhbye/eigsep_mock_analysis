@@ -2,8 +2,12 @@
 
 import jax.numpy as jnp
 import numpy as np
-import pytest
-from rotis.fisher import coverage_kernel, lst_sampling_error, sky_asymmetry_snr
+from rotis.fisher import (
+    compute_fim,
+    coverage_kernel,
+    lst_sampling_error,
+    sky_asymmetry_snr,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -168,16 +172,123 @@ def test_sky_asymmetry_snr_axisymmetric_sky():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skip(reason="compute_fim not yet implemented")
 def test_fim_positive_semidefinite():
     """FIM should be positive semidefinite."""
+    lmax = 2
+    L = lmax + 1
+
+    rng = np.random.default_rng(42)
+    A = jnp.array(rng.standard_normal((20, L, 2 * L - 1)))
+    B = jnp.array(rng.standard_normal((20, L, 2 * L - 1)))
+
+    def sim(beam_alm, sky_alm):
+        return (
+            jnp.einsum("ijk,jk->i", A, beam_alm) + jnp.einsum("ijk,jk->i", B, sky_alm)
+        ).real
+
+    beam = jnp.zeros((L, 2 * L - 1), dtype=complex)
+    beam = beam.at[1, L - 1].set(1.0)  # b_{1,0} real
+    beam = beam.at[1, L].set(0.5 + 0.1j)  # b_{1,1}
+    beam = beam.at[1, L - 2].set(-(0.5 - 0.1j))  # b_{1,-1} = -conj(b_{1,1})
+
+    sky = jnp.zeros((L, 2 * L - 1), dtype=complex)
+    sky = sky.at[0, L - 1].set(100.0)
+    sky = sky.at[1, L - 1].set(10.0)
+    sky = sky.at[1, L].set(5.0 + 1.0j)
+    sky = sky.at[1, L - 2].set(-(5.0 - 1.0j))
+
+    fim = compute_fim(sim, beam, sky, 1.0, lmax)
+    eigvals = jnp.linalg.eigvalsh(fim)
+    assert jnp.all(eigvals >= -1e-6), f"min eigenvalue = {float(jnp.min(eigvals))}"
 
 
-@pytest.mark.skip(reason="compute_fim not yet implemented")
 def test_fim_nullspace_matches_degeneracy():
-    """Number of near-zero FIM eigenvalues should match expected degeneracy."""
+    """Block-diagonal bilinear model has one scale degeneracy per ell."""
+    lmax = 2
+    L = lmax + 1
+
+    rng = np.random.default_rng(42)
+    n_obs = 50
+    # Complex M couples Re/Im parts like physical D-matrices do
+    M = [
+        jnp.array(
+            rng.standard_normal((n_obs, 2 * L - 1, 2 * L - 1))
+            + 1j * rng.standard_normal((n_obs, 2 * L - 1, 2 * L - 1))
+        )
+        for _ in range(L)
+    ]
+
+    def sim(beam_alm, sky_alm):
+        y = jnp.zeros(n_obs, dtype=complex)
+        for ell in range(L):
+            y = y + jnp.einsum("imn,m,n->i", M[ell], beam_alm[ell], sky_alm[ell])
+        return y.real
+
+    # Non-trivial fiducial point (must satisfy reality condition)
+    beam = jnp.zeros((L, 2 * L - 1), dtype=complex)
+    beam = beam.at[0, L - 1].set(1.0)
+    beam = beam.at[1, L - 1].set(0.8)
+    beam = beam.at[1, L].set(0.3 + 0.2j)
+    beam = beam.at[1, L - 2].set(-(0.3 - 0.2j))
+    beam = beam.at[2, L - 1].set(0.5)
+    beam = beam.at[2, L].set(0.2 + 0.1j)
+    beam = beam.at[2, L - 2].set(-(0.2 - 0.1j))
+    beam = beam.at[2, L + 1].set(0.1 + 0.05j)
+    beam = beam.at[2, L - 3].set(0.1 - 0.05j)
+
+    sky = jnp.zeros((L, 2 * L - 1), dtype=complex)
+    sky = sky.at[0, L - 1].set(100.0)
+    sky = sky.at[1, L - 1].set(50.0)
+    sky = sky.at[1, L].set(20.0 + 5.0j)
+    sky = sky.at[1, L - 2].set(-(20.0 - 5.0j))
+    sky = sky.at[2, L - 1].set(30.0)
+    sky = sky.at[2, L].set(10.0 + 3.0j)
+    sky = sky.at[2, L - 2].set(-(10.0 - 3.0j))
+    sky = sky.at[2, L + 1].set(5.0 + 1.0j)
+    sky = sky.at[2, L - 3].set(5.0 - 1.0j)
+
+    fim = compute_fim(sim, beam, sky, 1.0, lmax)
+    eigvals = jnp.sort(jnp.linalg.eigvalsh(fim))
+
+    threshold = float(jnp.max(eigvals)) * 1e-8
+    n_degenerate = int(jnp.sum(jnp.abs(eigvals) < threshold))
+
+    # Complex M couples Re/Im subspaces → one scale degeneracy per l
+    assert n_degenerate == L, (
+        f"Expected {L} degenerate modes, got {n_degenerate}. "
+        f"Smallest eigenvalues: {eigvals[: L + 2]}"
+    )
 
 
-@pytest.mark.skip(reason="compute_fim not yet implemented")
 def test_fim_eigenvalues_increase_with_tilts():
-    """FIM eigenvalues should increase monotonically with number of tilts."""
+    """FIM trace should increase with more observations."""
+    lmax = 2
+    L = lmax + 1
+
+    rng = np.random.default_rng(42)
+    # Pre-generate large projection matrices; subsets share the same rows
+    A_full = jnp.array(rng.standard_normal((100, L, 2 * L - 1)))
+    B_full = jnp.array(rng.standard_normal((100, L, 2 * L - 1)))
+
+    beam = jnp.zeros((L, 2 * L - 1), dtype=complex)
+    beam = beam.at[0, L - 1].set(1.0)
+    sky = jnp.zeros((L, 2 * L - 1), dtype=complex)
+    sky = sky.at[0, L - 1].set(100.0)
+
+    def make_fim(n_obs):
+        A = A_full[:n_obs]
+        B = B_full[:n_obs]
+
+        def sim(beam_alm, sky_alm):
+            return (
+                jnp.einsum("ijk,jk->i", A, beam_alm)
+                + jnp.einsum("ijk,jk->i", B, sky_alm)
+            ).real
+
+        return compute_fim(sim, beam, sky, 1.0, lmax)
+
+    trace_small = float(jnp.trace(make_fim(10)))
+    trace_large = float(jnp.trace(make_fim(50)))
+    assert trace_large > trace_small, (
+        f"trace(FIM_50)={trace_large} should exceed trace(FIM_10)={trace_small}"
+    )

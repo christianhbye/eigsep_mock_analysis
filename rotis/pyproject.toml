@@ -13,6 +13,7 @@ dependencies = [
     "eigsim",
     "jax",
     "jaxlib",
+    "matplotlib",
 ]
 
 [project.optional-dependencies]

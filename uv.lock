@@ -2337,6 +2337,7 @@ dependencies = [
     { name = "eigsim" },
     { name = "jax" },
     { name = "jaxlib" },
+    { name = "matplotlib" },
 ]
 
 [package.optional-dependencies]
@@ -2350,6 +2351,7 @@ requires-dist = [
     { name = "eigsim", editable = "eigsim" },
     { name = "jax" },
     { name = "jaxlib" },
+    { name = "matplotlib" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
 ]
