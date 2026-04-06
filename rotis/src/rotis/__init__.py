@@ -1,7 +1,8 @@
 """rotis: joint beam and sky inference for the EIGSEP experiment."""
 
-import jax
+import os
+from importlib.metadata import version
 
-jax.config.update("jax_enable_x64", True)
+os.environ.setdefault("JAX_ENABLE_X64", "1")
 
-__version__ = "0.0.1"
+__version__ = version("rotis")
