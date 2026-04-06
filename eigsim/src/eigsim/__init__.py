@@ -1,5 +1,12 @@
 """eigsim: simulation code for the EIGSEP experiment."""
 
+import os
+from importlib.metadata import version
+
+os.environ.setdefault("JAX_ENABLE_X64", "1")
+
+__version__ = version("eigsim")
+
 from .config import load_config
 from .data import load_beam, load_horizon
 from .noise import radiometer_noise
