@@ -192,7 +192,6 @@ class TestRotateAlmToBeam:
         rotated = rotate_alm_to_beam(alm, LMAX, SAMPLING, 30.0, 45.0)
         assert rotated.shape == (1, NTHETA, NPHI)
 
-    @pytest.mark.xfail(reason="requires croissant gimbal lock fix (croissant#120)")
     def test_identity_rotation_preserves_data(self):
         """Near-zero rotation should reconstruct the original beam."""
         data = _dipole_beam()

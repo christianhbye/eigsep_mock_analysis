@@ -117,11 +117,11 @@ wheels = [
 
 [[package]]
 name = "astropy-iers-data"
-version = "0.2026.4.1.15.5.49"
+version = "0.2026.4.6.0.54.57"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/25/af/c4dc0106b7bc003c4e16db575a48d7d16912ea29cfe59c857d433c79d17d/astropy_iers_data-0.2026.4.1.15.5.49.tar.gz", hash = "sha256:0f76474e6a0d6a7cecf086d08dc4c00d0540518fc6e0133a24e13cf7fcae8a53", size = 1929573, upload-time = "2026-04-01T15:06:31.015Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/10/a5e7ffb532c10412ba18a94a91057d244c1bf294275b7063716d9a128d14/astropy_iers_data-0.2026.4.6.0.54.57.tar.gz", hash = "sha256:d248c5e154c61536533688787d14c0f45c1e22f599670e7399ed493b21c5d2a5", size = 1929792, upload-time = "2026-04-06T00:55:37.521Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/21/14/125eb772fc1e8985d4cdc46a7e81a61009eae02492ef62488c53245c9d9f/astropy_iers_data-0.2026.4.1.15.5.49-py3-none-any.whl", hash = "sha256:ca90106817015638234cfeb41a6543d51149d64ab0b495b76863d33411846f25", size = 1986539, upload-time = "2026-04-01T15:06:29.332Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/96/97e6e46c8198015b0dcd3709794b358aae42a18e5a1bed393dc34307165f/astropy_iers_data-0.2026.4.6.0.54.57-py3-none-any.whl", hash = "sha256:e3d85850ccfd2e68f797c417cd1cc30fe1bdbd54c3a6ec6e48c307c879858ac4", size = 1986669, upload-time = "2026-04-06T00:55:35.946Z" },
 ]
 
 [[package]]
@@ -508,7 +508,7 @@ wheels = [
 
 [[package]]
 name = "croissant-sim"
-version = "5.1.4"
+version = "5.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "astropy" },
@@ -518,9 +518,9 @@ dependencies = [
     { name = "numpy" },
     { name = "s2fft" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6e/de/07a5e565fe05a75b1d621922bf61447fc6c8a72809f07c38c8d37d4a810c/croissant_sim-5.1.4.tar.gz", hash = "sha256:5c16eef724022789852eb604eedb5d79632ea41d5080e7346394dc9b88738291", size = 18788278, upload-time = "2026-03-25T23:18:07.456Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/05/da/07136830000d1812674d8aed468a616fad2dbcf76e0dfcaf55e52ba38172/croissant_sim-5.2.1.tar.gz", hash = "sha256:a36f2a93e64c0d6c1a6036f6d5e32cc6935c7c8f156b657e152912cefcd580ca", size = 18790520, upload-time = "2026-04-06T02:08:51.985Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/07/1dc9a8a411847848dc898fc04471c67809d8c8146c19cd84774ac35a4a32/croissant_sim-5.1.4-py3-none-any.whl", hash = "sha256:fff6f50bdbd4028b4c787f6e72d0c60bab2975406de5d00f19e38aab7eced3f6", size = 23207, upload-time = "2026-03-25T23:18:04.504Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/fc/adc45ee730a59b010fa901b5b77545dffcd501eb20dbee6c06313391c92d/croissant_sim-5.2.1-py3-none-any.whl", hash = "sha256:3ece4d0de5a9fcaa60814758a55c51cf9239c0b34dbd8c7c8ef5f3f15d0a534f", size = 24251, upload-time = "2026-04-06T02:08:50.484Z" },
 ]
 
 [[package]]
@@ -630,7 +630,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "croissant-sim", specifier = ">=5.1" },
+    { name = "croissant-sim", specifier = ">=5.2.1" },
     { name = "numpy" },
     { name = "pygdsm" },
     { name = "pytest", marker = "extra == 'dev'" },

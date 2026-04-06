@@ -153,6 +153,11 @@ def simulate(
         nside = cro.utils.hp_npix2nside(beam_data.shape[1])
     alm = beam_to_alm(beam_data, lmax, sampling, nside=nside)
 
+    # Pre-compute sky ALM once (avoids redundant SHT per orientation).
+    first_beam = cro.Beam(beam_data, freqs, sampling=sampling, niter=0, **beam_kw)
+    first_sim = cro.Simulator(first_beam, sky, times_jd, freqs, **defaults)
+    sky_alm = first_sim.precompute_sky_alm()
+
     results = []
     for elev, az in zip(elevations, azimuths):
         if np.isclose(float(elev), 0.0) and np.isclose(float(az), 0.0):
@@ -163,7 +168,7 @@ def simulate(
             )
         beam = cro.Beam(rotated, freqs, sampling=sampling, niter=0, **beam_kw)
         sim = cro.Simulator(beam, sky, times_jd, freqs, **defaults)
-        results.append(sim.sim())
+        results.append(sim.sim(sky_alm=sky_alm))
 
     t_ant = jnp.stack(results)
     return t_ant + t_rcvr

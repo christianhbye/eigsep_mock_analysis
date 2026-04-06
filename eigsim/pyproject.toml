@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
-    "croissant-sim>=5.1",
+    "croissant-sim>=5.2.1",
     "numpy",
     "pygdsm",
     "pyyaml",

@@ -4,8 +4,6 @@
 
 world: earth
 
-precision: float32  # float32 or float64 (float64 enables JAX x64 mode)
-
 location:
   lon: -113.4033
   lat: 39.2477

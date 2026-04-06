@@ -12,25 +12,22 @@ uv run python scripts/run_canonical_sim.py
 import time
 from pathlib import Path
 
+# ---------------------------------------------------------------------------
+# Configuration — enable JAX x64 before other imports (SHTs need float64)
+# ---------------------------------------------------------------------------
+import jax  # noqa: E402
+
 import eigsim
 
-# ---------------------------------------------------------------------------
-# Configuration — must come before other imports so JAX x64 is set early
-# ---------------------------------------------------------------------------
-cfg = eigsim.load_config()
-precision = cfg.get("precision", "float32")
-if precision == "float64":
-    import jax
+jax.config.update("jax_enable_x64", True)
 
-    jax.config.update("jax_enable_x64", True)
+cfg = eigsim.load_config()
 
 import croissant as cro  # noqa: E402
 import numpy as np  # noqa: E402
 from astropy import units as u  # noqa: E402
 from astropy.time import Time  # noqa: E402
 from pygdsm import GlobalSkyModel16  # noqa: E402
-
-np_dtype = np.float64 if precision == "float64" else np.float32
 
 # Observation start: July 1, 2026 00:00 local time (Mountain Time, UTC-6)
 T_START = "2026-07-01 06:00:00"  # UTC
@@ -129,7 +126,7 @@ print(f"Saving to {outfile}...")
 np.savez_compressed(
     outfile,
     # Simulation output
-    t_obs=t_obs.astype(np_dtype),
+    t_obs=t_obs,
     # Axes
     freqs_mhz=freqs_mhz,
     times_jd=times_jd,

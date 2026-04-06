@@ -202,7 +202,6 @@ class TestSHTRoundTrip:
 # ── Test 4: eigsim azimuth rotation == croissant beam_rot ────────────────
 
 
-@pytest.mark.xfail(reason="requires croissant gimbal lock fix (croissant#120)")
 class TestAzimuthVsBeamRot:
     """eigsim Wigner-D azimuth rotation should match croissant beam_rot.
 
