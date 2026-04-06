@@ -197,7 +197,7 @@ def test_fim_positive_semidefinite():
     sky = sky.at[1, L].set(5.0 + 1.0j)
     sky = sky.at[1, L - 2].set(-(5.0 - 1.0j))
 
-    fim = compute_fim(sim, beam, sky, 1.0, lmax)
+    fim, _J = compute_fim(sim, beam, sky, 1.0, lmax)
     eigvals = jnp.linalg.eigvalsh(fim)
     assert jnp.all(eigvals >= -1e-6), f"min eigenvalue = {float(jnp.min(eigvals))}"
 
@@ -247,16 +247,16 @@ def test_fim_nullspace_matches_degeneracy():
     sky = sky.at[2, L + 1].set(5.0 + 1.0j)
     sky = sky.at[2, L - 3].set(5.0 - 1.0j)
 
-    fim = compute_fim(sim, beam, sky, 1.0, lmax)
-    eigvals = jnp.sort(jnp.linalg.eigvalsh(fim))
+    fim, J = compute_fim(sim, beam, sky, 1.0, lmax)
+    s = jnp.linalg.svd(J, full_matrices=False)[1]
 
-    threshold = float(jnp.max(eigvals)) * 1e-8
-    n_degenerate = int(jnp.sum(jnp.abs(eigvals) < threshold))
+    tol = max(J.shape) * jnp.finfo(float).eps * s[0]
+    n_degenerate = int(jnp.sum(s < tol))
 
     # Complex M couples Re/Im subspaces → one scale degeneracy per l
     assert n_degenerate == L, (
         f"Expected {L} degenerate modes, got {n_degenerate}. "
-        f"Smallest eigenvalues: {eigvals[: L + 2]}"
+        f"Smallest singular values: {s[-L - 2 :]}"
     )
 
 
@@ -285,7 +285,7 @@ def test_fim_eigenvalues_increase_with_tilts():
                 + jnp.einsum("ijk,jk->i", B, sky_alm)
             ).real
 
-        return compute_fim(sim, beam, sky, 1.0, lmax)
+        return compute_fim(sim, beam, sky, 1.0, lmax)[0]
 
     trace_small = float(jnp.trace(make_fim(10)))
     trace_large = float(jnp.trace(make_fim(50)))

@@ -176,6 +176,10 @@ def compute_fim(
         Fisher information matrix, shape ``(N_params, N_params)`` where
         ``N_params = 2 * L**2`` (L^2 independent real parameters for each
         of beam and sky, after enforcing the reality condition).
+    jacobian : jnp.ndarray
+        Raw Jacobian matrix, shape ``(N_obs, N_params)``.  Use ``SVD(J)``
+        instead of ``eigvalsh(J^T J)`` to avoid squaring the condition
+        number and losing float64 precision.
     """
     L = lmax + 1
     n_beam = L * L
@@ -190,7 +194,7 @@ def compute_fim(
 
     theta0 = jnp.concatenate([_pack_alm(beam_alm, L), _pack_alm(sky_alm, L)])
     J = jax.jacrev(forward)(theta0)
-    return J.T @ J / noise_var
+    return J.T @ J / noise_var, J
 
 
 def coverage_kernel(rotation_matrices, weights, lmax):
@@ -359,7 +363,10 @@ def sky_asymmetry_snr(sky_alm, beam_alm, noise_var, lmax):
 
 
 def plot_milestone1_summary(
-    fim,
+    jacobian,
+    noise_var,
+    beam_alm,
+    sky_alm,
     kernel_diagonal,
     kernel_offdiag_power,
     eta_lst,
@@ -369,11 +376,10 @@ def plot_milestone1_summary(
     """Five-panel summary figure for Milestone 1.
 
     Panels:
-        1. FIM eigenvalue spectrum: log10(lambda) vs mode index.
-           Mark the knee and near-zero floor.
-        2. Beam and sky marginal 1-sigma from diag(FIM^{-1}) vs ell.
-           Cramer-Rao bound per mode.
-        3. Coverage kernel leakage power vs l0 (error term (i)).
+        1. FIM singular-value spectrum: s_i^2/noise_var vs mode index.
+           Uses SVD of J to avoid squaring the condition number.
+        2. Beam and sky marginal 1-sigma CRB vs ell.
+        3. Statistical (CRB) vs systematic (leakage bias) floor per ell.
         4. LST sampling error max|eta[l]| vs l (error term (ii)).
            Mark l = N_lst/2 threshold.
         5. Sky asymmetry SNR per l. Mark SNR=1 threshold.
@@ -383,8 +389,14 @@ def plot_milestone1_summary(
 
     Parameters
     ----------
-    fim : jnp.ndarray
-        Fisher information matrix from ``compute_fim``.
+    jacobian : jnp.ndarray
+        Jacobian matrix from ``compute_fim``, shape ``(N_obs, N_params)``.
+    noise_var : float
+        Noise variance per observation.
+    beam_alm : jnp.ndarray
+        Fiducial beam alm, shape ``(L, 2L-1)`` in s2fft convention.
+    sky_alm : jnp.ndarray
+        Fiducial sky alm, shape ``(L, 2L-1)`` in s2fft convention.
     kernel_diagonal : jnp.ndarray
         Diagonal blocks from ``coverage_kernel``.
     kernel_offdiag_power : jnp.ndarray
@@ -405,13 +417,18 @@ def plot_milestone1_summary(
     n_beam = L * L
     ell = np.arange(L)
 
+    # SVD of Jacobian (avoids squaring the condition number)
+    J = np.array(jacobian)
+    _U, s, Vt = np.linalg.svd(J, full_matrices=False)
+    eigvals = s**2 / noise_var  # FIM eigenvalues
+    tol = max(J.shape) * np.finfo(float).eps * s[0]
+
     fig, axes = plt.subplots(1, 5, figsize=(25, 5))
 
-    # --- Panel 1: FIM eigenvalue spectrum ---
-    eigvals = np.sort(np.array(jnp.linalg.eigvalsh(fim)))[::-1]
+    # --- Panel 1: FIM eigenvalue spectrum (from SVD) ---
     ax = axes[0]
     ax.semilogy(np.arange(len(eigvals)), np.maximum(eigvals, 1e-30), ".-", ms=2)
-    n_zero = int(np.sum(eigvals < np.max(eigvals) * 1e-10))
+    n_zero = int(np.sum(s < tol))
     if n_zero > 0:
         ax.axvline(
             len(eigvals) - n_zero,
@@ -425,10 +442,12 @@ def plot_milestone1_summary(
     ax.set_ylabel(r"$\lambda_i$")
     ax.set_title("FIM eigenvalue spectrum")
 
-    # --- Panel 2: CRB per ell ---
+    # --- Panel 2: CRB per ell (SVD-based pseudo-inverse) ---
     ax = axes[1]
-    fim_inv = np.linalg.pinv(np.array(fim))
-    crb = np.diag(fim_inv)
+    mask = s > tol
+    inv_s2 = np.zeros_like(s)
+    inv_s2[mask] = 1.0 / s[mask] ** 2
+    crb = noise_var * np.sum(Vt**2 * inv_s2[:, None], axis=0)
     beam_sigma = np.zeros(L)
     sky_sigma = np.zeros(L)
     for l_idx in range(L):
@@ -449,13 +468,40 @@ def plot_milestone1_summary(
     ax.set_title("CRB per mode")
     ax.legend(fontsize=8)
 
-    # --- Panel 3: Coverage kernel leakage ---
+    # --- Panel 3: Statistical vs systematic floor ---
     ax = axes[2]
     offdiag = np.array(kernel_offdiag_power)
-    ax.semilogy(ell, np.maximum(offdiag, 1e-30), "o-", ms=4)
-    ax.set_xlabel(r"$\ell_0$")
-    ax.set_ylabel("Leakage power")
-    ax.set_title(r"Cross-$\ell$ leakage (i)")
+    sqrt_leak = np.sqrt(np.maximum(offdiag, 0))
+    beam_arr = np.array(beam_alm)
+    sky_arr = np.array(sky_alm)
+    beam_rms = np.array(
+        [np.sqrt(np.mean(np.abs(beam_arr[ell]) ** 2)) for ell in range(L)]
+    )
+    sky_rms = np.array(
+        [np.sqrt(np.mean(np.abs(sky_arr[ell]) ** 2)) for ell in range(L)]
+    )
+    ax.semilogy(ell, np.maximum(beam_sigma, 1e-30), "o-", label="Beam CRB", ms=4)
+    ax.semilogy(ell, np.maximum(sky_sigma, 1e-30), "s-", label="Sky CRB", ms=4)
+    ax.semilogy(
+        ell,
+        np.maximum(sqrt_leak * beam_rms, 1e-30),
+        "o--",
+        label="Beam leakage",
+        ms=4,
+        alpha=0.7,
+    )
+    ax.semilogy(
+        ell,
+        np.maximum(sqrt_leak * sky_rms, 1e-30),
+        "s--",
+        label="Sky leakage",
+        ms=4,
+        alpha=0.7,
+    )
+    ax.set_xlabel(r"$\ell$")
+    ax.set_ylabel(r"$\sigma$ or bias (alm units)")
+    ax.set_title("Statistical vs systematic floor")
+    ax.legend(fontsize=7)
 
     # --- Panel 4: LST sampling error ---
     ax = axes[3]
