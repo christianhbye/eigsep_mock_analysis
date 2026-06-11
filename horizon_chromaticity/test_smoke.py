@@ -104,3 +104,39 @@ def test_fgnd_per_case(horizons):
     assert fgnd["nohorizon"] == pytest.approx(0.0, abs=1e-12)
     assert fgnd["quarry"] > 0.01
     assert fgnd["eigsep"] > 0.01
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_run_sims_end_to_end(case, horizons):
+    """Tiny full run per case: finite, positive, correctly shaped."""
+    outfile = OUTPUT_DIR / f"chromaticity_{case}_smoke.npz"
+    outfile.unlink(missing_ok=True)
+    subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_DIR / "run_sims.py"),
+            "--case",
+            case,
+            "--n-times",
+            "3",
+            "--max-orientations",
+            "2",
+            "--freq-stride",
+            "50",
+            "--batch-size",
+            "2",
+            "--output-tag",
+            "_smoke",
+        ],
+        check=True,
+    )
+    d = np.load(outfile)
+    t_sys = d["t_sys"]
+    # 2 orientations, 3 times, 5 freqs (201 channels, stride 50)
+    assert t_sys.shape == (2, 3, 5)
+    assert np.all(np.isfinite(t_sys))
+    assert np.all(t_sys > 0)
+    assert str(d["case"]) == case
+    assert len(d["elevations"]) == 2
+    assert len(d["azimuths"]) == 2
+    outfile.unlink()
