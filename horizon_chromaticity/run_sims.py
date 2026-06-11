@@ -209,7 +209,9 @@ def main():
         beam_file=cfg["beam"]["file"],
         beam_sampling=cfg["beam"]["sampling"],
         beam_lmax=lmax,
+        horizon_file=cfg["horizon"]["file"],
         mask_sha=mask_sha,
+        eigsim_version=eigsim.__version__,
     )
     print(f"Done. Output size: {outfile.stat().st_size / 1e6:.0f} MB")
 

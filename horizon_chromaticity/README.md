@@ -25,7 +25,8 @@ From the monorepo root:
 uv run python horizon_chromaticity/make_horizons.py
 
 # 2. Run the simulation for each case (hours each; checkpoint/resume
-#    via output/<case>_batch_*.npz, safe to interrupt and rerun)
+#    via output/<case>_batch_*.npz, safe to interrupt and rerun —
+#    but resume with the SAME flags: batches don't record CLI args)
 uv run python horizon_chromaticity/run_sims.py --case nohorizon
 uv run python horizon_chromaticity/run_sims.py --case quarry
 uv run python horizon_chromaticity/run_sims.py --case eigsep
