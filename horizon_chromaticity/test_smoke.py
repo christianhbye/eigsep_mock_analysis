@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(
 
 PROJECT_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = PROJECT_DIR / "output"
-CASES = ("nohorizon", "quarry", "eigsep")
+CASES = ("nohorizon", "quarry", "eigsep", "flat")
 
 
 @pytest.fixture(scope="module")
@@ -84,6 +84,21 @@ def test_quarry_solid_angle_matches_eigsep(horizons):
     assert 0.3 * 4 * np.pi < omega_eigsep < 0.7 * 4 * np.pi
 
 
+def test_flat_blocks_half_sky(horizons):
+    lmax = int(horizons["lmax"])
+    w = _quad_weights(lmax)
+    mask = horizons["flat"]
+    i_cut = int(horizons["i_cut_flat"])
+    # whole rings: open above the cut, blocked below, nothing partial
+    assert mask[:i_cut].all()
+    assert not mask[i_cut:].any()
+    # exactly half the sphere by quadrature (weights are symmetric)
+    omega = (w[:, None] * ~mask).sum()
+    assert omega == pytest.approx(2 * np.pi, rel=1e-10)
+    # cut boundary at the celestial horizon
+    assert abs(float(horizons["theta_c_flat_deg"]) - 90.0) < 1.0
+
+
 def test_fgnd_per_case(horizons):
     import croissant as cro
 
@@ -104,6 +119,7 @@ def test_fgnd_per_case(horizons):
     assert fgnd["nohorizon"] == pytest.approx(0.0, abs=1e-12)
     assert fgnd["quarry"] > 0.01
     assert fgnd["eigsep"] > 0.01
+    assert fgnd["flat"] > 0.01
 
 
 @pytest.mark.parametrize("case", CASES)

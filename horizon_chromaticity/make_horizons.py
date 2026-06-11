@@ -1,10 +1,12 @@
-"""Build the three horizon masks for the chromaticity comparison.
+"""Build the four horizon masks for the chromaticity comparison.
 
 Cases (boolean masks on the MWSS grid, True = open sky):
 
 - ``nohorizon``: no horizon, all pixels open (ground fraction 0).
 - ``quarry``: constant-theta cut at the MWSS ring boundary whose
   blocked solid angle best matches the EIGSEP horizon.
+- ``flat``: constant-theta cut at theta = 90 deg — the ring boundary
+  blocking exactly half the sky's solid angle (flat ground, no terrain).
 - ``eigsep``: realistic horizon from ``horizon_mwss.npz`` (the file
   stores distance-to-terrain; finite = blocked, NaN = open sky).
 
@@ -51,6 +53,12 @@ def main():
     mask_quarry[:i_cut] = True
     theta_c = theta[i_cut - 1] if i_cut > 0 else np.nan  # last open ring
 
+    # Flat ground: ring cut blocking exactly half the sky (2 pi sr).
+    i_cut_flat = int(np.argmin(np.abs(blocked - 2 * np.pi)))
+    mask_flat = np.zeros((ntheta, nphi), dtype=bool)
+    mask_flat[:i_cut_flat] = True
+    theta_c_flat = theta[i_cut_flat - 1] if i_cut_flat > 0 else np.nan
+
     mask_nohorizon = np.ones((ntheta, nphi), dtype=bool)
 
     omega_blocked = {
@@ -58,6 +66,7 @@ def main():
         for case, mask in [
             ("nohorizon", mask_nohorizon),
             ("quarry", mask_quarry),
+            ("flat", mask_flat),
             ("eigsep", mask_eigsep),
         ]
     }
@@ -69,6 +78,11 @@ def main():
         nohorizon=mask_nohorizon,
         quarry=mask_quarry,
         eigsep=mask_eigsep,
+        flat=mask_flat,
+        i_cut_flat=i_cut_flat,
+        theta_c_flat_rad=theta_c_flat,
+        theta_c_flat_deg=np.degrees(theta_c_flat),
+        omega_blocked_flat=omega_blocked["flat"],
         lmax=lmax,
         i_cut=i_cut,
         theta_c_rad=theta_c,
@@ -81,7 +95,10 @@ def main():
 
     print(f"Saved {out}")
     print(f"  quarry cut: ring {i_cut}, theta_c = {np.degrees(theta_c):.2f} deg")
-    for case in ("nohorizon", "quarry", "eigsep"):
+    print(
+        f"  flat cut:   ring {i_cut_flat}, theta_c = {np.degrees(theta_c_flat):.2f} deg"
+    )
+    for case in ("nohorizon", "quarry", "eigsep", "flat"):
         om = omega_blocked[case]
         print(
             f"  {case:10s} blocked solid angle = {om:7.4f} sr "
