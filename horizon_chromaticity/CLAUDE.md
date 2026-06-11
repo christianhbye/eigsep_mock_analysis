@@ -20,6 +20,7 @@ Run from the monorepo root, always via `uv run`:
 ```bash
 uv run python horizon_chromaticity/make_horizons.py        # build masks -> output/horizons.npz
 uv run python horizon_chromaticity/run_sims.py --case eigsep   # one sim case (hours)
+uv run python horizon_chromaticity/compute_fgnd.py         # ground fractions -> output/fgnd_<case>.npz (minutes)
 EIGSEP_SMOKE=1 uv run pytest horizon_chromaticity/test_smoke.py -v   # smoke tests (~5 min)
 ```
 
@@ -41,6 +42,14 @@ Three horizon cases, all boolean masks on the MWSS grid (130, 258),
 
 Chromaticity metrics live in `notebooks/`, never in the scripts — the
 scripts only produce raw noiseless `t_sys` (no radiometer noise).
+
+**`t_sys` is a system temperature** (antenna temperature normalized by
+the full-4π beam integral, plus `fgnd*Tgnd` ground pickup and 50 K
+receiver). To analyze the ground-loss-corrected sky temperature
+instead, load `output/fgnd_<case>.npz` (from `compute_fgnd.py`) and
+apply `eigsim.correct_ground_loss(t_sys, fgnd)`, which computes
+`(t_sys - t_rcvr - fgnd*Tgnd) / (1 - fgnd)`. Both npz files record
+`mask_sha`; check they match before pairing them.
 
 ## Critical conventions
 
