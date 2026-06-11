@@ -139,4 +139,8 @@ def test_run_sims_end_to_end(case, horizons):
     assert str(d["case"]) == case
     assert len(d["elevations"]) == 2
     assert len(d["azimuths"]) == 2
+    assert len(d["freqs_mhz"]) == 5
+    assert len(d["elev_vals"]) > 0
+    assert len(d["az_vals"]) > 0
+    assert str(d["beam_sampling"]) == "mwss"
     outfile.unlink()

@@ -16,6 +16,7 @@ uv run python horizon_chromaticity/run_sims.py --case eigsep
 """
 
 import argparse
+import hashlib
 import os
 import time
 from pathlib import Path
@@ -83,6 +84,7 @@ def main():
         raise SystemExit(f"{horizons_file} not found — run make_horizons.py first")
     hz = np.load(horizons_file)
     horizon = hz[args.case]
+    mask_sha = hashlib.sha256(np.ascontiguousarray(horizon).tobytes()).hexdigest()
     theta_c_deg = float(hz["theta_c_deg"]) if args.case == "quarry" else np.nan
     omega_blocked = float(hz[f"omega_blocked_{args.case}"])
 
@@ -143,6 +145,13 @@ def main():
         batch_files.append(batch_file)
 
         if batch_file.exists():
+            npz = np.load(batch_file)
+            if "mask_sha" not in npz or str(npz["mask_sha"]) != mask_sha:
+                raise SystemExit(
+                    f"{batch_file} was produced with a different horizon mask "
+                    "(horizons.npz changed since). Delete the stale "
+                    f"{args.case}{args.output_tag}_batch_*.npz files and rerun."
+                )
             print(f"  Batch {b + 1}/{n_batches} [{i0}:{i1}] — found on disk, skipping")
             continue
 
@@ -159,7 +168,7 @@ def main():
             sky_alm=sky_alm,
             verbose=True,
         )
-        np.savez(batch_file, t_sys=np.asarray(t_sys))
+        np.savez(batch_file, t_sys=np.asarray(t_sys), mask_sha=mask_sha)
         print(f"  Batch {b + 1}/{n_batches} done in {time.time() - t0:.0f}s")
 
     print(f"All batches complete in {(time.time() - wall_start) / 3600:.1f} h")
@@ -198,7 +207,9 @@ def main():
         sky_resolution=sky_cfg["resolution"],
         sky_include_cmb=sky_cfg["include_cmb"],
         beam_file=cfg["beam"]["file"],
+        beam_sampling=cfg["beam"]["sampling"],
         beam_lmax=lmax,
+        mask_sha=mask_sha,
     )
     print(f"Done. Output size: {outfile.stat().st_size / 1e6:.0f} MB")
 
