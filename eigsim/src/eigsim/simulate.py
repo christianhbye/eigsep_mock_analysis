@@ -9,6 +9,7 @@ import numpy as np
 import s2fft
 from croissant.rotations import rotmat_to_eulerZYZ
 from croissant.simulator import convolve
+from croissant.simulator import correct_ground_loss as _cro_correct_ground_loss
 from s2fft.recursions.risbo_jax import compute_full as _risbo_compute_full
 
 from .config import load_config
@@ -135,6 +136,174 @@ def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo):
         return vis.real
 
     return _run
+
+
+def _build_fgnd_fn(beam_L, sampling, nside):
+    """Return a JIT-compiled ground-fraction function for one orientation.
+
+    Mirrors steps 1-3 of :func:`_build_orientation_fn` exactly, so the
+    returned values match the ``fgnd`` used internally by
+    :func:`simulate`.
+    """
+
+    @jax.jit
+    def _run(beam_alm, euler_drive, horizon, quad_weights, beam_norm):
+        dl_drive = _generate_rotate_dls(beam_L, euler_drive[1])
+        alm_rot = jax.vmap(
+            partial(
+                _rotate_flms,
+                L=beam_L,
+                rotation=euler_drive,
+                dl_array=dl_drive,
+            )
+        )(beam_alm)
+
+        pixel = jax.vmap(
+            partial(
+                s2fft.inverse,
+                L=beam_L,
+                spin=0,
+                nside=nside,
+                sampling=sampling,
+                method="jax",
+                reality=True,
+            )
+        )(alm_rot)
+
+        pixel_masked = pixel * horizon[None]
+        norm_above = jnp.einsum("ft...,t->f", pixel_masked, quad_weights)
+        return 1.0 - norm_above / beam_norm
+
+    return _run
+
+
+def compute_fgnd(
+    beam_data,
+    freqs,
+    elevations,
+    azimuths,
+    sampling="mwss",
+    beam_kw=None,
+    verbose=False,
+):
+    """Compute the ground fraction for multiple beam orientations.
+
+    For each ``(elevation, azimuth)`` pair the beam is rotated by the
+    drive model, masked by the horizon, and integrated; the ground
+    fraction is one minus the above-horizon beam integral divided by
+    the full-sphere beam integral (``croissant.Beam.compute_fgnd``
+    generalized to rotated beams).  The pipeline replicates the masking
+    steps inside :func:`simulate`, so the result matches the ground
+    fraction that entered the simulated spectra.
+
+    Use with :func:`correct_ground_loss` to recover the beam-weighted
+    sky temperature from the output of :func:`simulate`.
+
+    Parameters
+    ----------
+    beam_data : array_like
+        Unrotated beam power pattern.
+    freqs : array_like
+        Frequencies in MHz.
+    elevations : array_like
+        Elevation angles in degrees, one per orientation.
+    azimuths : array_like
+        Azimuth angles in degrees, one per orientation.
+    sampling : str
+        Beam sampling scheme.
+    beam_kw : dict or None
+        Extra kwargs for ``croissant.Beam`` (e.g. *horizon*).
+    verbose : bool
+        Print per-orientation progress.
+
+    Returns
+    -------
+    fgnd : jax.Array
+        Ground fraction, shape ``(N_orientations, N_freqs)``.
+
+    """
+    beam_kw = beam_kw or {}
+
+    beam_data = np.asarray(beam_data)
+    lmax = cro.utils.lmax_from_ntheta(beam_data.shape[1], sampling)
+    beam_L = lmax + 1
+    nside = None
+    if sampling == "healpix":
+        nside = cro.utils.hp_npix2nside(beam_data.shape[1])
+    alm = beam_to_alm(beam_data, lmax, sampling, nside=nside)
+
+    ref_beam = cro.Beam(beam_data, freqs, sampling=sampling, niter=0, **beam_kw)
+    beam_norm = ref_beam.compute_norm()
+    horizon = ref_beam.horizon
+    if sampling == "healpix":
+        npix = 12 * nside**2
+        quad_weights = jnp.ones(npix) * (4 * jnp.pi / npix)
+    else:
+        quad_weights = s2fft.utils.quadrature_jax.quad_weights(
+            L=beam_L, sampling=sampling, nside=nside
+        )
+
+    fgnd_one = _build_fgnd_fn(beam_L, sampling, nside)
+
+    n_ori = len(elevations)
+    results = []
+    for i, (elev, az) in enumerate(zip(elevations, azimuths)):
+        if verbose:
+            print(f"    orientation {i + 1}/{n_ori}    ", end="\r", flush=True)
+
+        R = drive_rotation_matrix(float(elev), float(az))
+        euler = rotmat_to_eulerZYZ(R)
+        euler_jax = jnp.asarray(euler, dtype=jnp.float64)
+
+        results.append(fgnd_one(alm, euler_jax, horizon, quad_weights, beam_norm))
+
+    if verbose:
+        print()
+
+    return jnp.stack(results)
+
+
+def correct_ground_loss(t_sys, fgnd, Tgnd=None, t_rcvr=None, config=None):
+    """Recover the sky temperature from a simulated system temperature.
+
+    Subtracts the receiver temperature that :func:`simulate` adds, then
+    applies ``croissant.simulator.correct_ground_loss``:
+    ``t_sky = (t_ant - fgnd * Tgnd) / (1 - fgnd)``.
+
+    Parameters
+    ----------
+    t_sys : array_like
+        System temperature from :func:`simulate`, shape
+        ``(N_orientations, N_times, N_freqs)``.
+    fgnd : array_like
+        Ground fraction from :func:`compute_fgnd`, shape
+        ``(N_orientations, N_freqs)``.
+    Tgnd : float or None
+        Ground temperature in K.  ``None`` reads it from the config.
+    t_rcvr : float or None
+        Receiver temperature in K.  ``None`` reads it from the config.
+        Pass ``0.0`` if *t_sys* is already an antenna temperature.
+    config : str, Path, or None
+        Path to EIGSEP config YAML.  ``None`` uses the default.
+
+    Returns
+    -------
+    t_sky : jax.Array
+        Ground-loss-corrected sky temperature, same shape as *t_sys*.
+
+    """
+    cfg = load_config(config)
+    if Tgnd is None:
+        Tgnd = cfg["ground"]["temperature"]
+    if t_rcvr is None:
+        t_rcvr = cfg["receiver"]["temperature"]
+
+    t_sys = jnp.asarray(t_sys)
+    fgnd = jnp.asarray(fgnd)
+    if fgnd.ndim == t_sys.ndim - 1:
+        fgnd = jnp.expand_dims(fgnd, axis=-2)  # broadcast over the time axis
+
+    return _cro_correct_ground_loss(t_sys - t_rcvr, fgnd, Tgnd)
 
 
 def make_beam(

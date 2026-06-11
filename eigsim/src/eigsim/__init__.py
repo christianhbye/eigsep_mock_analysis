@@ -16,10 +16,18 @@ from .rotations import (
     rotate_alm_to_beam,
     rotate_beam_data,
 )
-from .simulate import make_beam, precompute_sky_alm, simulate
+from .simulate import (
+    compute_fgnd,
+    correct_ground_loss,
+    make_beam,
+    precompute_sky_alm,
+    simulate,
+)
 
 __all__ = [
     "beam_to_alm",
+    "compute_fgnd",
+    "correct_ground_loss",
     "drive_rotation_matrix",
     "load_beam",
     "load_config",
