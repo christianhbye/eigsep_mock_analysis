@@ -2,7 +2,7 @@
 
 Cases (boolean masks on the MWSS grid, True = open sky):
 
-- ``nohorizon``: theta = pi cut, all pixels open.
+- ``nohorizon``: no horizon, all pixels open (ground fraction 0).
 - ``quarry``: constant-theta cut at the MWSS ring boundary whose
   blocked solid angle best matches the EIGSEP horizon.
 - ``eigsep``: realistic horizon from ``horizon_mwss.npz`` (the file

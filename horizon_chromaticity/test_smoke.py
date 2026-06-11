@@ -8,6 +8,9 @@ gated behind an env var:
 """
 
 import os
+
+os.environ.setdefault("JAX_ENABLE_X64", "1")
+
 import subprocess
 import sys
 from pathlib import Path
@@ -32,7 +35,6 @@ def horizons():
 
 
 def _quad_weights(lmax):
-    os.environ.setdefault("JAX_ENABLE_X64", "1")
     import s2fft
 
     return np.asarray(
@@ -83,7 +85,6 @@ def test_quarry_solid_angle_matches_eigsep(horizons):
 
 
 def test_fgnd_per_case(horizons):
-    os.environ.setdefault("JAX_ENABLE_X64", "1")
     import croissant as cro
 
     import eigsim
