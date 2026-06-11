@@ -17,7 +17,7 @@ simulations.
 Usage
 -----
 uv run python horizon_chromaticity/make_horizons.py   # once, first
-uv run python horizon_chromaticity/compute_fgnd.py [--case eigsep]
+uv run python horizon_chromaticity/compute_fgnd.py [--case eigsep] [--zenith-only]
 """
 
 import argparse
@@ -32,7 +32,7 @@ import numpy as np
 
 import eigsim
 
-CASES = ("nohorizon", "quarry", "eigsep")
+CASES = ("nohorizon", "quarry", "eigsep", "flat")
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 
 
@@ -46,6 +46,11 @@ def parse_args():
         choices=CASES,
         default=None,
         help="single horizon case (default: all cases)",
+    )
+    p.add_argument(
+        "--zenith-only",
+        action="store_true",
+        help="compute only the zenith pointing (elevation 0, azimuth 0)",
     )
     return p.parse_args()
 
@@ -69,8 +74,12 @@ def main():
     assert beam_data.shape[0] == n_freqs
 
     ori = cfg["orientations"]
-    elev_vals = np.array(ori["elevations"], dtype=float)
-    az_vals = np.array(ori["azimuths"], dtype=float)
+    if args.zenith_only:
+        elev_vals = np.array([0.0])
+        az_vals = np.array([0.0])
+    else:
+        elev_vals = np.array(ori["elevations"], dtype=float)
+        az_vals = np.array(ori["azimuths"], dtype=float)
     elev_grid, az_grid = np.meshgrid(elev_vals, az_vals, indexing="ij")
     elevations = elev_grid.ravel()
     azimuths = az_grid.ravel()
