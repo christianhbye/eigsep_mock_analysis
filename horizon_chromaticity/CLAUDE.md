@@ -6,7 +6,7 @@ in this directory.
 ## What this is
 
 Self-contained analysis project (for a paper) comparing the spectral
-chromaticity of simulated EIGSEP spectra under three horizon models.
+chromaticity of simulated EIGSEP spectra under four horizon models.
 It **uses** the `eigsim` workspace package but is not a package itself —
 plain scripts + notebooks, no pyproject.toml, not shipped or released.
 
@@ -20,6 +20,7 @@ Run from the monorepo root, always via `uv run`:
 ```bash
 uv run python horizon_chromaticity/make_horizons.py        # build masks -> output/horizons.npz
 uv run python horizon_chromaticity/run_sims.py --case eigsep   # one sim case (hours)
+uv run python horizon_chromaticity/run_sims.py --case flat --zenith-only  # flat case, zenith only
 uv run python horizon_chromaticity/compute_fgnd.py         # ground fractions -> output/fgnd_<case>.npz (minutes)
 EIGSEP_SMOKE=1 uv run pytest horizon_chromaticity/test_smoke.py -v   # smoke tests (~5 min)
 ```
@@ -29,15 +30,18 @@ them (they spawn subprocesses and compile JAX).
 
 ## Architecture
 
-**make_horizons.py -> output/horizons.npz -> run_sims.py (x3 cases) ->
+**make_horizons.py -> output/horizons.npz -> run_sims.py (x4 cases) ->
 output/chromaticity_<case>.npz -> notebooks/**
 
-Three horizon cases, all boolean masks on the MWSS grid (130, 258),
+Four horizon cases, all boolean masks on the MWSS grid (130, 258),
 **True = open sky** (the convention `croissant.Beam(horizon=...)` expects):
 
 - `nohorizon` — all open, ground fraction 0
 - `quarry` — constant-θ ring cut (ring 52, θ_c ≈ 71.16°), solved by
   matching blocked **solid angle** (not pixel count) to the eigsep case
+- `flat` — constant-θ ring cut at θ = 90° (ring 65, θ_c ≈ 89.30°),
+  blocking exactly half the sky; simulated zenith-only
+  (`run_sims.py --case flat --zenith-only`, `N_ori = 1`)
 - `eigsep` — `np.isnan(raw)` of `eigsim/data/horizon_mwss.npz`
 
 Chromaticity metrics live in `notebooks/`, never in the scripts — the
@@ -74,7 +78,20 @@ apply `eigsim.correct_ground_loss(t_sys, fgnd)`, which computes
   aborts the run) but not the other CLI args.
 - `--n-times/--max-orientations/--freq-stride/--batch-size/--output-tag`
   exist for smoke tests only; production runs use defaults.
+- `--zenith-only` is a **production** flag (not smoke-test-only): it
+  restricts the run to a single orientation (elevation 0°, azimuth 0°).
+  For zenith-only outputs, `elevations`/`azimuths`/`elev_vals`/`az_vals`
+  are all length-1 `[0.0]`.
+- **Checkpoint collision hazard:** zenith-only and full-grid runs of the
+  same case share the same `output/<case>_batch_*.npz` filenames, and the
+  mask-SHA guard cannot tell them apart. Do not switch modes for one case
+  without deleting existing batch files first — a shape mismatch at merge
+  time will abort the run with a confusing assert error.
 - In `chromaticity_<case>.npz`: `elevations`/`azimuths` are FLAT
-  per-orientation arrays (length 1296). Use `elev_vals`/`az_vals`
-  (36 each) for grid reshaping. (Note this differs from
-  `eigsim/output/canonical_sim.npz`, where those keys hold grid axes.)
+  per-orientation arrays (length 1296 for full-grid runs, 1 for
+  zenith-only). Use `elev_vals`/`az_vals` for grid reshaping. (Note
+  this differs from `eigsim/output/canonical_sim.npz`, where those keys
+  hold grid axes.)
+- The `chromaticity_pca.ipynb` notebook is a zenith-only comparison of
+  `flat`/`quarry`/`eigsep`. The `nohorizon` npz files are retained on
+  disk but are no longer used by the notebook.

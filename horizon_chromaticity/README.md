@@ -1,7 +1,7 @@
 # Horizon Chromaticity Comparison
 
 Analysis project (for a paper) comparing the spectral chromaticity of
-simulated EIGSEP spectra under three horizon models. Uses the
+simulated EIGSEP spectra under four horizon models. Uses the
 `eigsim` package; does not ship with it.
 
 Design spec: `../docs/superpowers/specs/2026-06-10-horizon-chromaticity-design.md`
@@ -14,6 +14,7 @@ All cases are boolean masks on the MWSS grid, True = open sky:
 |-------------|--------------------------------------------------------------------|
 | `nohorizon` | θ = π cut: everything open, ground fraction 0                     |
 | `quarry`    | Constant-θ cut; θ_c solved to match the blocked solid angle of the EIGSEP horizon (nearest MWSS ring boundary) |
+| `flat`      | Constant-θ cut at θ = 90°: ring boundary blocking exactly half the sky (2π sr); simulated for the zenith pointing only |
 | `eigsep`    | Realistic horizon: `np.isnan(horizon)` of `eigsim/data/horizon_mwss.npz` |
 
 ## Workflow
@@ -21,7 +22,7 @@ All cases are boolean masks on the MWSS grid, True = open sky:
 From the monorepo root:
 
 ```bash
-# 1. Build the three horizon masks -> output/horizons.npz
+# 1. Build the four horizon masks -> output/horizons.npz
 uv run python horizon_chromaticity/make_horizons.py
 
 # 2. Run the simulation for each case (hours each; checkpoint/resume
@@ -30,6 +31,7 @@ uv run python horizon_chromaticity/make_horizons.py
 uv run python horizon_chromaticity/run_sims.py --case nohorizon
 uv run python horizon_chromaticity/run_sims.py --case quarry
 uv run python horizon_chromaticity/run_sims.py --case eigsep
+uv run python horizon_chromaticity/run_sims.py --case flat --zenith-only
 
 # 3. Analyze in notebooks/ (chromaticity metrics live there)
 ```
@@ -42,10 +44,11 @@ one sidereal day (1436 times), 201 channels (50-250 MHz), GSM16 sky,
 
 ## Outputs (`output/`, gitignored)
 
-- `horizons.npz` — the three masks + quarry θ_c + blocked solid angles
+- `horizons.npz` — the four masks + quarry/flat θ_c + blocked solid angles
 - `chromaticity_<case>.npz` — `t_sys (N_ori, N_times, N_freqs)`, axes
   (`freqs_mhz`, `times_jd`, flat per-orientation `elevations`/`azimuths`
   plus grid axes `elev_vals`/`az_vals`), horizon + config metadata
+  (`chromaticity_flat.npz` is zenith-only: `N_ori = 1`)
 
 ## Smoke tests
 
