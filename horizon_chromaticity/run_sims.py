@@ -13,6 +13,7 @@ Usage
 -----
 uv run python horizon_chromaticity/make_horizons.py   # once, first
 uv run python horizon_chromaticity/run_sims.py --case eigsep
+uv run python horizon_chromaticity/run_sims.py --case flat --zenith-only
 """
 
 import argparse
@@ -31,7 +32,7 @@ from pygdsm import GlobalSkyModel16
 
 import eigsim
 
-CASES = ("nohorizon", "quarry", "eigsep")
+CASES = ("nohorizon", "quarry", "eigsep", "flat")
 T_START = "2026-07-01 06:00:00"  # UTC (July 1 2026 00:00 Mountain Time)
 SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
@@ -43,6 +44,11 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--case", required=True, choices=CASES)
+    p.add_argument(
+        "--zenith-only",
+        action="store_true",
+        help="simulate only the zenith pointing (elevation 0, azimuth 0)",
+    )
     p.add_argument(
         "--n-times",
         type=int,
@@ -85,7 +91,12 @@ def main():
     hz = np.load(horizons_file)
     horizon = hz[args.case]
     mask_sha = hashlib.sha256(np.ascontiguousarray(horizon).tobytes()).hexdigest()
-    theta_c_deg = float(hz["theta_c_deg"]) if args.case == "quarry" else np.nan
+    if args.case == "quarry":
+        theta_c_deg = float(hz["theta_c_deg"])
+    elif args.case == "flat":
+        theta_c_deg = float(hz["theta_c_flat_deg"])
+    else:
+        theta_c_deg = np.nan
     omega_blocked = float(hz[f"omega_blocked_{args.case}"])
 
     print("Loading beam...")
@@ -115,8 +126,12 @@ def main():
     times_jd = times.jd
 
     ori = cfg["orientations"]
-    elev_vals = np.array(ori["elevations"], dtype=float)
-    az_vals = np.array(ori["azimuths"], dtype=float)
+    if args.zenith_only:
+        elev_vals = np.array([0.0])
+        az_vals = np.array([0.0])
+    else:
+        elev_vals = np.array(ori["elevations"], dtype=float)
+        az_vals = np.array(ori["azimuths"], dtype=float)
     elev_grid, az_grid = np.meshgrid(elev_vals, az_vals, indexing="ij")
     elevations = elev_grid.ravel()
     azimuths = az_grid.ravel()

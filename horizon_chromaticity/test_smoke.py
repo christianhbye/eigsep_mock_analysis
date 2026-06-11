@@ -160,3 +160,35 @@ def test_run_sims_end_to_end(case, horizons):
     assert len(d["az_vals"]) > 0
     assert str(d["beam_sampling"]) == "mwss"
     outfile.unlink()
+
+
+def test_run_sims_zenith_only_flat(horizons):
+    """--zenith-only: single orientation (el=0, az=0)."""
+    outfile = OUTPUT_DIR / "chromaticity_flat_zsmoke.npz"
+    outfile.unlink(missing_ok=True)
+    subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_DIR / "run_sims.py"),
+            "--case",
+            "flat",
+            "--zenith-only",
+            "--n-times",
+            "3",
+            "--freq-stride",
+            "50",
+            "--output-tag",
+            "_zsmoke",
+        ],
+        check=True,
+    )
+    d = np.load(outfile)
+    t_sys = d["t_sys"]
+    assert t_sys.shape == (1, 3, 5)
+    assert np.all(np.isfinite(t_sys))
+    assert np.all(t_sys > 0)
+    assert str(d["case"]) == "flat"
+    assert np.array_equal(d["elevations"], [0.0])
+    assert np.array_equal(d["azimuths"], [0.0])
+    assert d["theta_c_deg"] == pytest.approx(89.3, abs=0.5)
+    outfile.unlink()
