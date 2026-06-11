@@ -44,6 +44,9 @@ OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 print("Loading beam and horizon data...")
 beam_freqs_hz, beam_data, lmax = eigsim.load_beam()
 horizon, _ = eigsim.load_horizon()
+# File stores distance-to-terrain (finite = blocked, NaN = open sky);
+# croissant.Beam needs a boolean mask with True = above horizon.
+horizon = np.isnan(horizon)
 
 # Config frequencies are the source of truth — select matching channels.
 freqs_mhz = np.array(cfg["frequencies"])
