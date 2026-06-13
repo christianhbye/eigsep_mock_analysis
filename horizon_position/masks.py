@@ -59,7 +59,10 @@ def open_sky_weight(alpha_h, az_grid, thetas, phis):
     edges = _theta_edges(thetas)
     lo = edges[:-1][:, None]
     hi = edges[1:][:, None]
-    # fraction of [lo, hi] with theta < theta_h (open)
+    # fraction of [lo, hi] with theta < theta_h (open). Linear in theta
+    # (not sin-theta weighted) on purpose: cells are ~1 deg wide so sin is
+    # nearly constant across one, making this a first-order-accurate
+    # anti-alias of the sub-cell horizon position (see spec).
     frac = (theta_h[None, :] - lo) / (hi - lo)
     return np.clip(frac, 0.0, 1.0)
 
