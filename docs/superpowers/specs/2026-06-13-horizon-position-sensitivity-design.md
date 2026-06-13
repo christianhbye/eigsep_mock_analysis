@@ -193,14 +193,38 @@ knowledge."
 ## The spec / deliverable
 
 Per position, the analysis produces **ΔT vs. (LST, frequency)** for the
-selected mode (waterfall). Summary products:
+selected mode (a difference waterfall). From each waterfall we reduce to
+summary statistics.
 
-- For each axis / direction / magnitude: `max|ΔT|` and `RMS|ΔT|` over
-  the (LST, frequency) plane.
-- Summary curves: `|ΔT|` vs. shift magnitude, per axis and per mode,
-  reading off "antenna position must be known to within X m to hold ΔT
-  below the error budget."
-- Representative ΔT waterfalls.
+**Scalar summary (one number per position).** The headline statistic is
+the RMS of the difference waterfall over the whole (LST, frequency)
+plane:
+
+```
+S(p) = sqrt( mean_{LST, ν} [ ΔT^p(LST, ν)² ] )
+```
+
+with the worst-case `max_{LST,ν} |ΔT^p|` reported alongside it. `S(p)`
+is the "typical" temperature error injected by a position error `p`.
+(Both are computed per mode.)
+
+**The spec curve.** Plot `S` (and `max|ΔT|`) **vs. shift magnitude**
+`δ ∈ {0.1, 1, 10} m`, one curve per axis (x/y/z), sign, and mode
+(log–log). This is the deliverable the paper quotes: read off "antenna
+position must be known to within X m to hold the typical/worst-case ΔT
+below the error budget." Expected shape (see *Physical expectations*):
+roughly **linear in δ** (slope ≈ 1 on log–log) for the small shifts,
+possibly departing at 10 m where the sliver is no longer thin.
+
+**Resolved reductions (diagnostics).** To expose *where* the error
+lives and test the physical predictions:
+
+- `RMS_LST |ΔT^p|(ν)` — a spectrum: the chromaticity of the error.
+- `RMS_ν  |ΔT^p|(LST)` — a time series: the LST structure. The
+  prediction is that x/y errors are strongly LST-modulated (sky
+  azimuthal contrast) while z errors are flatter/broadband (ground-
+  fraction offset).
+- A few representative full ΔT waterfalls.
 
 ## Pipeline & files (`horizon_position/`)
 
@@ -237,8 +261,66 @@ notebooks/horizon_position.ipynb                      (the three modes + spec; l
   `eigsim.simulate()`.
 - Receiver temperature and `T_gnd` from the eigsim config.
 
+## Physical expectations (idealized limits)
+
+These analytic limits set expectations the simulation should reproduce,
+and explain *why* the real horizon is the interesting case. They are the
+qualitative backbone of the validation below.
+
+**Flat ground (θ = 90°).** A flat infinite plane is translation-
+invariant: the horizon sits at elevation 0° in every azimuth regardless
+of horizontal position, and (ignoring Earth curvature) regardless of
+height. So **every** shift — x, y, *and* z — gives `ΔT = 0` exactly.
+This is the null case.
+
+**Symmetric quarry (constant θ_c).** Physically a circular rim of height
+`Δh` at radius `R`, antenna at the center, `α_h = arctan(Δh/R)`. A
+horizontal shift `δ` makes the near rim closer (`R−δ`, horizon **rises**)
+and the far rim farther (`R+δ`, horizon **drops**): the horizon ring
+*tilts* by `~δ/R`. But the antenna-temperature change is **suppressed by
+near/far cancellation** — the ground gained on the near side cancels the
+ground lost on the far side to first order, leaving
+
+```
+Δt_sys ∝ (δ/R) · (sky azimuthal contrast across the horizon ring),
+```
+
+for an azimuthally symmetric beam. Consequences:
+
+- Horizontal sensitivity scales as `δ/R`: **bigger quarry → smaller
+  effect, tighter quarry → larger**.
+- The residual is driven by the *sky's* azimuthal structure, so it is
+  **strongly LST-modulated** and vanishes for a uniform sky.
+- **Vertical shifts do not cancel**: raising the antenna lowers the rim
+  elevation uniformly in azimuth, shrinking the blocked region
+  everywhere and changing the *total* ground fraction. So in a quarry, z
+  produces a net, broadband (ground-fraction) ΔT even for a uniform sky
+  — the opposite of the flat case.
+
+**Real EIGSEP horizon (asymmetric).** Terrain distances/heights differ
+across azimuth, so the near/far slivers no longer pair up and the
+cancellation is **incomplete**. This is exactly why the realistic
+horizon is more sensitive than the symmetric quarry, and why we simulate
+it. Concrete predictions to check against:
+
+1. **x/y errors** appear mainly through **LST modulation** (sky contrast
+   across the moved horizon edge): `RMS_ν|ΔT|(LST)` should be strongly
+   structured in LST.
+2. **z errors** look more like a **broadband ground-fraction offset**:
+   flatter in LST, set by how much open-sky solid angle the move adds or
+   removes.
+3. **Scaling**: for thin slivers (0.1, 1 m) `ΔT ∝ δ`, so `S(δ)` is
+   ~linear (slope ≈ 1 on log–log); the 10 m sliver (~5°) is thick enough
+   that beam/sky curvature across it can bend the curve.
+4. With nearest terrain `~100 m`, `δ/R ~ 10⁻³` per 0.1 m sets the rough
+   amplitude scale.
+
 ## Validation
 
+- **Idealized limits:** the predictions above (flat → 0 in all axes;
+  x/y LST-modulated; z broadband; `S ∝ δ` for small shifts) are
+  reproduced. A symmetric-quarry analytic check can be run as an
+  optional unit comparison.
 - **Convergence to zero:** `Δt_sys^p → 0` smoothly as the shift → 0
   (0.1 m is the smallest, and should be the smallest ΔT).
 - **Sign:** at low frequency `T_sky ≫ T_gnd`, so a rising horizon
