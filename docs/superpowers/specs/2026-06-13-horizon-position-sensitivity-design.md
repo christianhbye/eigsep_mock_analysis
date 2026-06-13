@@ -81,82 +81,63 @@ Nominal `p0 = (1648, 2024, 1796) m`. One axis perturbed at a time:
   `T_ant_sky = (1/Ω_B) ∮∮_{open} B·T_sky cosα dα dφ` and
   `fgnd = (1/Ω_B) ∮∮_{blocked} B cosα dα dφ`.
 
-### Core idea: one waterfall + flip-band corrections
+### Core idea: anti-aliased horizon masks through `eigsim.simulate`
 
-Compute the expensive sky×beam convolution **once**, for the nominal
-position: the full waterfall `t_sys^0(t, ν)` and `fgnd^0(ν)`. Every
-perturbed position is then a cheap correction integrated **only over
-the directions whose horizon status flips** between nominal and shifted:
+The discretization floor that makes a 0.1 m shift vanish comes from
+representing the horizon as a **boolean** mask on the beam grid — a
+sub-pixel edge motion flips no pixels. The fix is to keep the mask
+**fractional**: each grid cell carries its **open-sky fraction**
+`W(θ, φ) ∈ [0, 1]` (1 = fully open, 0 = fully blocked, a partial value
+for the cell the horizon edge crosses). A sub-pixel horizon move then
+changes the boundary cell's fraction **continuously**, so the floor
+disappears with no change to the grid resolution.
 
-```
-t_sys^p(t, ν) = t_sys^0(t, ν) + Δt_sys^p(t, ν)
-
-Δt_sys^p(t, ν) = (1/Ω_B) ∮dφ ∫_{α_h^p(φ)}^{α_h^0(φ)}
-                     B(α, φ; ν) · [T_sky(α, φ; t, ν) − T_gnd] · cosα dα
-```
-
-The inner integral runs over the **elevation sliver** between the
-shifted and nominal horizon curves (note the limits run `α_h^p → α_h^0`,
-so a rising horizon — `α_h^p > α_h^0` — inverts them and yields a
-negative contribution):
-
-- Where the horizon **rose** (sky → ground): the sliver contributes
-  `−(T_sky − T_gnd)` — sky lost, ground gained.
-- Where the horizon **dropped** (ground → sky): the reverse.
-- Unflipped directions, the receiver term, and the entire unchanged
-  sky/ground cancel exactly and never enter.
-
-Because only the horizon ring is ever evaluated, this is a 1-D
-azimuthal integral that resolves 0.1/1/10 m uniformly. For thin slivers
-(sub-degree shifts) it is the first-order limit `B·(T_sky−T_gnd)·cosα·
-(α_h^0 − α_h^p)` per azimuth; for the ~5° sliver of a 10 m shift the sliver is
-sub-sampled in elevation so the beam/sky variation across it is
-captured.
-
-The LST dependence enters because `T_sky` in the flipped directions
-rotates through the sidereal day, so `Δt_sys^p` is itself a (smaller)
-waterfall, not a scalar.
-
-### Absolute ground fractions
-
-For the ground-loss modes we also need `fgnd^p(ν)` per position. This is
-a beam integral over the blocked region with the horizon as the
-elevation limit:
+This is exactly the mask that `eigsim.simulate()` already consumes:
+internally it forms `pixel * horizon` (a plain multiply) and computes
+`fgnd = 1 − Σ(beam·horizon·w)/Ω_B`, normalizing by the full-sphere beam
+integral `Ω_B`. croissant stores the passed mask as-is
+(`self.horizon = jnp.asarray(horizon)`) — it does **not** booleanize —
+so a float `W` flows through untouched. Therefore:
 
 ```
-fgnd^p(ν) = (1/Ω_B) ∮dφ ∫_{−π/2}^{α_h^p(φ)} B(α, φ; ν) cosα dα
+t_sys^p(t, ν) = eigsim.simulate(beam, ν, sky, t, elev=0, az=0,
+                                horizon = W_p)          # zenith only
+fgnd^p(ν)     = eigsim.compute_fgnd(beam, ν, elev=0, az=0, horizon = W_p)
 ```
 
-computed by direct quadrature from `α_h(φ; p)` (no LST, cheap, and
-consistent across all positions because it uses the same `α_h`
-representation).
+We run this once per position (19 cheap zenith-only waterfalls), reusing
+the precomputed sky ALM across positions, and difference the results.
+The whole custom-numerics surface is a single function: build `W_p` from
+the continuous horizon curve `α_h(φ; p)`.
 
-### What is evaluated where
+**Why this still resolves 0.1/1/10 m.** The difference `t_sys^p − t_sys^0`
+is driven by `B·(W_p − W_0)`, which is nonzero only in the **boundary
+cells whose open-fraction changed** — the flip band of the
+one-waterfall-plus-sliver picture, now realized as fractional cell
+weights rather than a hand-rolled line integral. A 0.1 m shift changes
+the boundary fraction by `≈ Δα_h / Δα_cell ≈ 0.05°/1.4° ≈ 4%` per ring
+cell: small, smooth, and non-zero. The fractional weight is a
+first-order-accurate stand-in for the sub-cell edge position, which is
+the regime that matters for the small shifts; for 10 m whole cells flip
+(exact) plus a fractional boundary.
 
-- **Nominal waterfall** `t_sys^0(t, ν)` and `fgnd^0(ν)`: the standard,
-  well-tested `eigsim.simulate()` / `eigsim.compute_fgnd()` path
-  (`lmax=128`), run once for the nominal horizon. The absolute baseline
-  is smooth, so `lmax=128` is fine here — we are *not* differencing at
-  that resolution.
-- **Beam along the horizon ring**: synthesized from the beam `alm`
-  (`lmax=128`) at the ring directions.
-- **Sky along the horizon ring**: rotated to topocentric per time using
-  the same machinery `eigsim` uses for the sky `alm`. Each fixed
-  alt/az direction maps to a constant declination, so the LST axis can
-  be reduced to a right-ascension shift along precomputed declination
-  rings (optimization, not required for correctness).
+**Building `W_p`.** `α_h(φ)` comes from `calc_horizon` on a fine azimuth
+grid. For each beam-grid azimuth column `φ_j`, `θ_h = π/2 − α_h(φ_j)`,
+and the cell open-fraction is the portion of the cell's polar extent
+above the horizon, clipped to `[0, 1]`. **Frame mapping:** `calc_horizon`
+azimuth is `atan2(E, N)` (from North toward East), while croissant's
+beam/grid azimuth is measured from East (`beam_rot=0` ⇒ `φ=0` along ENU
+East), so `φ = π/2 − az`, i.e. evaluate `α_h` at `az = π/2 − φ_j`. This
+single mapping is verified against the existing nominal
+`horizon_mwss.npz` (same site, croissant frame) before any sims run.
 
-### Why this split
-
-The primary metric (uncorrected ΔT) needs **only** the sliver integral,
-which is fully floor-free and method-pure. The absolute nominal
-baseline (used only by the ground-loss modes) is the one quantity taken
-at `lmax=128`; the resulting seam between the `lmax=128` baseline and
-the high-res differences is negligible for the metric, which is a
-difference. (Alternative considered: compute every absolute on one
-consistent fine `(α, φ)` grid. Rejected for now — more custom
-integration code for a baseline that cancels in the metric. Easy to add
-later if wanted.)
+**Resolution knob.** The beam's native grid is `lmax = 128`
+(~1.4°/cell); anti-aliasing removes the floor at that resolution. If
+edge aliasing in the masked-beam SHT proves non-negligible (checked by
+the 10 m anti-aliased-vs-boolean cross-check and the convergence test),
+the beam is resampled to a finer working grid `L_work` (lossless inverse
+SHT of the `lmax=128` beam ALM) and masks are rebuilt there. Default is
+the native grid.
 
 ## Analysis modes (ground-loss handling)
 
@@ -229,27 +210,39 @@ lives and test the physical predictions:
 ## Pipeline & files (`horizon_position/`)
 
 ```
+positions.py       -> the 19 ENU positions (pure module, imported)
+masks.py           -> anti-aliased open-sky weight W from α_h(φ) (pure module, imported)
 make_horizons.py   -> output/horizons_position.npz   (positions + α_h(φ) per position; minutes)
-run_reference.py   -> output/reference_nominal.npz    (t_sys^0(t,ν), fgnd^0(ν); zenith-only; minutes)
-compute_deltas.py  -> output/deltas.npz               (Δt_sys^p(t,ν), fgnd^p(ν); reconstructs t_sys^p; minutes)
-notebooks/horizon_position.ipynb                      (the three modes + spec; loads npz only)
+run_sims.py        -> output/position_sims.npz        (t_sys^p(t,ν), fgnd^p(ν) for all 19; zenith-only; tens of minutes)
+analysis.py        -> the three modes + summary statistics (pure module, imported + unit-tested)
+notebooks/horizon_position.ipynb                      (modes + spec curves; loads npz + analysis.py only)
 ```
 
+- `positions.py`: `NOMINAL_ENU` and `build_positions()` → the ordered 19
+  `(name, enu)` pairs (nominal + ±x/±y/±z × {0.1, 1, 10} m).
+- `masks.py`: `open_sky_weight(alpha_h, az_grid, thetas, phis)` → the
+  fractional `W` on the beam grid (with the `φ = π/2 − az` frame
+  mapping), plus a `boolean_weight` variant for the cross-check.
 - `make_horizons.py`: builds the DEM via `MarjumDEM` (rebuilds from the
   TIFs already in `eigsep_terrain/data` if no cache), enumerates the 19
-  ENU positions, computes `α_h(φ)` for each via `calc_horizon` at high
-  `n_az`, and also writes the nominal MWSS mask (for `run_reference`).
-  Records a hash of the horizon set so downstream files can guard
-  against staleness (as `run_sims.py` does with `mask_sha`).
-- `run_reference.py`: nominal waterfall + ground fraction via `eigsim`
-  (`--zenith-only` semantics; `N_ori = 1`).
-- `compute_deltas.py`: the sliver and blocked-region integrals; stores
-  `Δt_sys^p`, `fgnd^p`, and reconstructed `t_sys^p`. Stores enough to
-  let the notebook build all three modes; a `--mode` / ground-loss flag
-  exists but, since the modes are cheap post-processing, the default is
-  to store the ingredients and select the mode in the notebook.
-- The notebook only loads npz from `output/`; it never imports the
-  scripts (same convention as `horizon_chromaticity`).
+  positions, computes `α_h(φ)` for each via `calc_horizon` at high
+  `n_az`, and records a hash of the position+horizon set so `run_sims.py`
+  can guard against staleness (as `horizon_chromaticity/run_sims.py`
+  does with `mask_sha`).
+- `run_sims.py`: for each position, builds `W_p` (via `masks.py`), runs
+  `eigsim.simulate` (zenith-only, `N_ori = 1`) and `eigsim.compute_fgnd`,
+  reusing one precomputed sky ALM across positions. Checkpoints per
+  position (resumable, like `horizon_chromaticity/run_sims.py`). Stores
+  `t_sys` `(19, N_times, N_freqs)` and `fgnd` `(19, N_freqs)` plus axes
+  and metadata. Storing absolute `t_sys`/`fgnd` (not differences) keeps
+  all three analysis modes available as post-processing.
+- `analysis.py`: pure functions for the three modes (uncorrected /
+  oracle / mis-corrected) and the summary statistics `S(p)`, `max|ΔT|`,
+  and the resolved reductions — imported by the notebook and unit-tested.
+- The notebook loads npz from `output/` and imports `analysis.py`; it
+  never imports the heavy scripts (same convention as
+  `horizon_chromaticity`). The ground-loss mode is a notebook/analysis
+  argument, default uncorrected.
 - `output/` is gitignored. Own `CLAUDE.md` and `README.md`.
 
 ## Conventions (inherited)
@@ -325,11 +318,15 @@ it. Concrete predictions to check against:
   (0.1 m is the smallest, and should be the smallest ΔT).
 - **Sign:** at low frequency `T_sky ≫ T_gnd`, so a rising horizon
   (sky → ground) must give negative `Δt_sys`.
-- **Cross-check at 10 m:** the 10 m shift is several `lmax=128` pixels,
-  so it is resolvable by a brute-force `nside=64` mask run through
-  `eigsim.simulate()`. The sliver result must agree with that coarse
-  run within grid error. (Smaller shifts cannot be cross-checked this
-  way — that is the whole reason for the sliver method.)
+- **Anti-aliasing cross-check at 10 m:** for a 10 m shift the horizon
+  moves several grid cells, so a **boolean** mask already resolves it.
+  The anti-aliased `W` and the boolean mask must give the same `t_sys`
+  to within grid error at 10 m — confirming the fractional weighting
+  does not bias large shifts. (Smaller shifts cannot be cross-checked
+  this way; that is the whole point of anti-aliasing.)
+- **Frame mapping:** the nominal `α_h(φ)` mapped to the beam grid (via
+  `φ = π/2 − az`) must reproduce the existing nominal `horizon_mwss.npz`
+  (boundary elevation per azimuth) within method differences.
 - **Mode 3 identity:** `D3^p` computed via GLC must equal
   `Δt_sys^p / (1 − fgnd^0)` to numerical precision.
 
@@ -343,9 +340,11 @@ it. Concrete predictions to check against:
 - **Horizon feature switches.** `α_h(φ)` is mostly smooth in position
   but can jump where the azimuth's tallest blocking feature changes;
   such jumps are physical and handled by integrating the actual sliver.
-- **Baseline seam.** The `lmax=128` nominal baseline vs. high-res
-  differences (see "Why this split"); negligible for the difference
-  metric.
+- **Edge aliasing.** Masking the band-limited beam with a sharp horizon
+  puts power above `lmax` that aliases into the retained harmonics. The
+  anti-aliased ramp band-limits the edge to ~1 cell, keeping this small;
+  if the cross-checks flag it, the `L_work` knob (resample the beam to a
+  finer grid) reduces it.
 
 ## Out of scope
 
