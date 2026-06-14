@@ -69,6 +69,65 @@ im = ax.pcolormesh(freqs, lst_hours, delta[i], shading="auto", cmap="RdBu_r")
 ax.set_xlabel("freq [MHz]"); ax.set_ylabel("LST [h]")
 ax.set_title(f"dT waterfall: {names[i]} ({MODE})")
 fig.colorbar(im, label="dT [K]"); fig.tight_layout(); fig.savefig("fig_waterfall.pdf"); fig.show()''',
+
+    # 5: PAPER FIGURE -- raw uncorrected dT(nu) spectra at 24 LSTs (one per
+    #    hour), colored by LST, one panel per axis; saved wide and single-
+    #    column. Referee response: antenna-temperature change vs frequency for
+    #    different LST and feed height. The largest (transit) curves are near
+    #    LST 16 h, when the bright Galactic plane crosses the structured
+    #    horizon; the per-metre response is ~linear (0.1 m -> ~0.1 K). The
+    #    spectra are smooth/foreground-shaped (the genuinely non-smooth part
+    #    is the ~0.01 K high-frequency residual).
+    '''import astropy.units as u
+from astropy.time import Time
+from astropy.utils import iers
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
+
+iers.conf.auto_download = False
+iers.conf.auto_max_age = None  # tolerate sim dates; UT1-UTC is sub-second here
+
+dT = analysis.delta_waterfall(t_sys, fgnd, "uncorrected", T_GND, T_RCVR)
+st = analysis.summary_stats(dT)
+lst = (Time(times_jd, format="jd", scale="utc")
+       .sidereal_time("apparent", longitude=float(d["lon"]) * u.deg).hour)
+idx = [int(np.argmin(np.abs((lst - h + 12) % 24 - 12))) for h in range(24)]
+dirs = [("x_p_1", "(a) East +1 m"),
+        ("y_p_1", "(b) North +1 m"),
+        ("z_p_1", "(c) Up +1 m")]
+CMAP = "twilight"; norm = Normalize(0, 24)
+
+
+def _spectra(ax, tag):
+    i = names.index(tag)
+    for ti in idx:
+        ax.plot(freqs, dT[i, ti], color=plt.get_cmap(CMAP)(norm(lst[ti])),
+                lw=0.9, alpha=0.9)
+    ax.axhline(0, color="0.5", lw=0.8, ls="--", zorder=0); ax.grid(alpha=0.2)
+    ax.text(0.96, 0.05, f"RMS {st['rms'][i]:.2f} K\\nmax {st['max'][i]:.1f} K",
+            transform=ax.transAxes, ha="right", va="bottom", fontsize=8.5,
+            linespacing=1.4,
+            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.8", alpha=0.9))
+
+
+sm = ScalarMappable(norm=norm, cmap=CMAP)
+
+fig, axes = plt.subplots(1, 3, figsize=(13, 4.0), layout="constrained")
+for ax, (tag, title) in zip(axes, dirs):
+    _spectra(ax, tag); ax.set_title(title); ax.set_xlabel("Frequency [MHz]")
+axes[0].set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]")
+cb = fig.colorbar(sm, ax=axes, pad=0.015, fraction=0.04); cb.set_label("LST [h]")
+cb.set_ticks(np.arange(0, 25, 4))
+fig.savefig("fig_misunderstood_horizon.pdf"); fig.show()
+
+fig, axes = plt.subplots(3, 1, figsize=(4.0, 8.0), sharex=True, layout="constrained")
+for ax, (tag, title) in zip(axes, dirs):
+    _spectra(ax, tag); ax.set_title(title, fontsize=9.5)
+    ax.set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]")
+axes[-1].set_xlabel("Frequency [MHz]")
+cb = fig.colorbar(sm, ax=axes, pad=0.02, fraction=0.05); cb.set_label("LST [h]")
+cb.set_ticks(np.arange(0, 25, 4))
+fig.savefig("fig_misunderstood_horizon_1col.pdf"); fig.show()''',
 ]
 
 nb = nbf.v4.new_notebook()

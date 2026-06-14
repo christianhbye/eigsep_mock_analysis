@@ -48,4 +48,8 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 - `run_sims.py` -> `output/position_sims.npz` (eigsim env; resumable
   per-position checkpoints `pos*_batch_*.npz`; `pos_sha` guards against a
   stale `horizons_position.npz`).
-- `notebooks/horizon_position.ipynb` — modes, spec curve, reductions.
+- `notebooks/horizon_position.ipynb` — modes, spec curve, reductions, and
+  the referee-response paper figure (cell 5 in `_build_notebook.py`): raw
+  uncorrected ΔT(ν) spectra at 24 LSTs (one/hour), coloured by LST, one panel
+  per axis (East/North/Up = +1 m), saved wide (`fig_misunderstood_horizon.pdf`)
+  and single-column (`fig_misunderstood_horizon_1col.pdf`).
