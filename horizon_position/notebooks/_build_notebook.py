@@ -98,27 +98,28 @@ dirs = [("x_p_1", "(a) East +1 m"),
 CMAP = "twilight"; norm = Normalize(0, 24)
 
 
-def _spectra(ax, tag):
+def _spectra(ax, tag, annotate=True):
     i = names.index(tag)
     for ti in idx:
         ax.plot(freqs, dT[i, ti], color=plt.get_cmap(CMAP)(norm(lst[ti])),
                 lw=0.9, alpha=0.9)
     ax.axhline(0, color="0.5", lw=0.8, ls="--", zorder=0); ax.grid(alpha=0.2)
-    ax.text(0.96, 0.05, f"RMS {st['rms'][i]:.2f} K\\nmax {st['max'][i]:.1f} K",
-            transform=ax.transAxes, ha="right", va="bottom", fontsize=8.5,
-            linespacing=1.4,
-            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.8", alpha=0.9))
+    if annotate:
+        ax.text(0.96, 0.05, f"RMS {st['rms'][i]:.2f} K\\nmax {st['max'][i]:.1f} K",
+                transform=ax.transAxes, ha="right", va="bottom", fontsize=8.5,
+                linespacing=1.4,
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.8", alpha=0.9))
 
 
 sm = ScalarMappable(norm=norm, cmap=CMAP)
 
 fig, axes = plt.subplots(1, 3, figsize=(13, 4.0), layout="constrained")
 for ax, (tag, title) in zip(axes, dirs):
-    _spectra(ax, tag); ax.set_title(title); ax.set_xlabel("Frequency [MHz]")
+    _spectra(ax, tag, annotate=False); ax.set_title(title); ax.set_xlabel("Frequency [MHz]")
 axes[0].set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]")
 cb = fig.colorbar(sm, ax=axes, pad=0.015, fraction=0.04); cb.set_label("LST [h]")
 cb.set_ticks(np.arange(0, 25, 4))
-fig.savefig("fig_misunderstood_horizon.pdf"); fig.show()
+fig.savefig("horizon_shift.pdf"); fig.show()
 
 fig, axes = plt.subplots(3, 1, figsize=(4.0, 8.0), sharex=True, layout="constrained")
 for ax, (tag, title) in zip(axes, dirs):

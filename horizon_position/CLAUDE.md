@@ -51,5 +51,6 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 - `notebooks/horizon_position.ipynb` — modes, spec curve, reductions, and
   the referee-response paper figure (cell 5 in `_build_notebook.py`): raw
   uncorrected ΔT(ν) spectra at 24 LSTs (one/hour), coloured by LST, one panel
-  per axis (East/North/Up = +1 m), saved wide (`fig_misunderstood_horizon.pdf`)
-  and single-column (`fig_misunderstood_horizon_1col.pdf`).
+  per axis (East/North/Up = +1 m), saved wide (`horizon_shift.pdf`, no
+  per-panel RMS/max box — those stats go in the caption) and single-column
+  (`fig_misunderstood_horizon_1col.pdf`, keeps the RMS/max box).
