@@ -7,7 +7,7 @@ correct it to a sky temperature, subtract the mean spectrum over time
 (so the SVD is of the time-frequency *covariance*, in temperature
 units), and take the singular values ``s_i``.
 
-Two quantities, both per-channel RMS temperatures (mK):
+Two quantities, both per-channel RMS temperatures (K):
 
 * ``rms_i = s_i / sqrt(n_t * n_f)`` -- the RMS each mode contributes to a
   single channel of a single spectrum (Fig. 1).
@@ -34,7 +34,7 @@ FIG_DIR = HERE / "notebooks"
 
 N_SHOW = 25  # modes shown in the singular-value spectrum
 N_MAX = 25  # max modes removed in the residual curve
-MK = 1e3  # K -> mK
+ONE_MK = 1e-3  # 1 mK reference threshold, in K
 
 
 def load_baseline():
@@ -50,42 +50,40 @@ def load_baseline():
     return x, freqs
 
 
-def fig_spectrum(rms_mk, path):
+def fig_spectrum(rms_k, path):
     """Per-channel RMS contributed by each singular mode."""
     fig, ax = plt.subplots(figsize=(5.2, 3.8), constrained_layout=True)
     modes = np.arange(1, N_SHOW + 1)
-    ax.semilogy(modes, rms_mk[:N_SHOW], "o-", color="C0", ms=4, lw=1.3)
-    ax.set_xlabel("singular mode index")
-    ax.set_ylabel("per-channel RMS [mK]")
-    ax.set_title("Baseline foreground mode spectrum (zenith)")
+    ax.semilogy(modes, rms_k[:N_SHOW], "o-", color="k", ms=4, lw=1.3)
+    ax.set_xlabel("Singular mode index")
+    ax.set_ylabel("Per-channel RMS [K]")
     ax.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
     ax.set_xlim(0, N_SHOW + 1)
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
 
 
-def fig_residual(resid_mk, path):
+def fig_residual(resid_k, path):
     """Residual foreground RMS after projecting out the leading N modes."""
     fig, ax = plt.subplots(figsize=(5.2, 3.8), constrained_layout=True)
     n = np.arange(N_MAX + 1)
-    ax.semilogy(n, resid_mk[: N_MAX + 1], "o-", color="C3", ms=4, lw=1.3)
-    ax.axhline(1.0, color="0.5", ls="--", lw=1)
-    ax.text(N_MAX, 1.0, " 1 mK", color="0.4", va="bottom", ha="right", fontsize=9)
+    ax.semilogy(n, resid_k[: N_MAX + 1], "o-", color="k", ms=4, lw=1.3)
+    ax.axhline(ONE_MK, color="0.5", ls="--", lw=1)
+    ax.text(N_MAX, ONE_MK, " 1 mK", color="0.4", va="bottom", ha="right", fontsize=9)
 
-    n_below = int(np.nonzero(resid_mk < 1.0)[0][0])
+    n_below = int(np.nonzero(resid_k < ONE_MK)[0][0])
     ax.axvline(n_below, color="0.7", ls=":", lw=1, zorder=0)
     ax.annotate(
         f"{n_below} modes\n$\\to$ < 1 mK",
-        xy=(n_below, 1.0),
-        xytext=(n_below + 1.5, 30.0),
+        xy=(n_below, ONE_MK),
+        xytext=(n_below + 1.5, 30 * ONE_MK),
         color="0.3",
         fontsize=9,
         arrowprops=dict(arrowstyle="->", color="0.5", lw=0.8),
     )
 
-    ax.set_xlabel("foreground modes removed, $N$")
-    ax.set_ylabel("residual RMS [mK]")
-    ax.set_title("Foreground suppression vs modes filtered (zenith)")
+    ax.set_xlabel("Foreground modes removed, $N$")
+    ax.set_ylabel("Residual RMS [K]")
     ax.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
     ax.set_xlim(0, N_MAX)
     fig.savefig(path, bbox_inches="tight")
@@ -101,18 +99,18 @@ def main():
     s = np.linalg.svd(x, compute_uv=False)  # (n_f,)
     norm = np.sqrt(n_t * n_f)
 
-    rms_mk = s / norm * MK  # per-mode per-channel RMS
+    rms_k = s / norm  # per-mode per-channel RMS [K]
     tail = np.concatenate([np.cumsum((s**2)[::-1])[::-1], [0.0]])  # tail[N]
-    resid_mk = np.sqrt(tail / (n_t * n_f)) * MK  # residual after N modes
+    resid_k = np.sqrt(tail / (n_t * n_f))  # residual after N modes [K]
 
     FIG_DIR.mkdir(exist_ok=True)
-    fig_spectrum(rms_mk, FIG_DIR / "fig_svd_spectrum.pdf")
-    fig_residual(resid_mk, FIG_DIR / "fig_svd_residual.pdf")
+    fig_spectrum(rms_k, FIG_DIR / "fig_svd_spectrum.pdf")
+    fig_residual(resid_k, FIG_DIR / "fig_svd_residual.pdf")
 
-    n_below = int(np.nonzero(resid_mk < 1.0)[0][0])
+    n_below = int(np.nonzero(resid_k < ONE_MK)[0][0])
     print(f"baseline waterfall: {n_t} LST x {n_f} freq, {len(s)} modes")
-    print(f"mode-1 per-channel RMS: {rms_mk[0] / MK:.1f} K")
-    print(f"residual after 10 modes: {resid_mk[10]:.2f} mK")
+    print(f"mode-1 per-channel RMS: {rms_k[0]:.1f} K")
+    print(f"residual after 10 modes: {resid_k[10] * 1e3:.2f} mK")
     print(f"modes to reach < 1 mK residual: {n_below}")
     print(f"wrote {FIG_DIR / 'fig_svd_spectrum.pdf'}")
     print(f"wrote {FIG_DIR / 'fig_svd_residual.pdf'}")
