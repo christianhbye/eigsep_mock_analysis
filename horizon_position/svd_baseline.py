@@ -3,9 +3,10 @@
 The baseline case is the nominal antenna position from
 ``output/position_sims.npz`` (``t_sys[0]``): bowtie beam, GSM16 sky,
 T_ground = 300 K, zenith pointing, realistic horizon. We ground-loss
-correct it to a sky temperature, subtract the mean spectrum over time
-(so the SVD is of the time-frequency *covariance*, in temperature
-units), and take the singular values ``s_i``.
+correct it to a sky temperature and take the SVD of the *uncentered*
+time-frequency waterfall (a second-moment matrix in temperature units).
+The mean spectrum is kept -- it is the dominant foreground and must be
+removed by any per-spectrum cleaning, so it counts as mode 1.
 
 Two quantities, both per-channel RMS temperatures (K):
 
@@ -38,7 +39,7 @@ ONE_MK = 1e-3  # 1 mK reference threshold, in K
 
 
 def load_baseline():
-    """Ground-loss-corrected, mean-subtracted baseline waterfall (K)."""
+    """Ground-loss-corrected baseline waterfall (K); mean kept (uncentered)."""
     d = np.load(SIMS_FILE, allow_pickle=True)
     t_sys = d["t_sys"][0]  # (n_t, n_f), nominal position, zenith
     fgnd = d["fgnd"][0]  # (n_f,)
@@ -46,8 +47,7 @@ def load_baseline():
     t_rcvr = float(d["t_receiver"])
     freqs = d["freqs_mhz"]
     x_sky = glc(t_sys, fgnd, t_gnd, t_rcvr)  # sky temperature
-    x = x_sky - x_sky.mean(axis=0, keepdims=True)  # remove mean spectrum
-    return x, freqs
+    return x_sky, freqs
 
 
 def fig_spectrum(rms_k, path):
