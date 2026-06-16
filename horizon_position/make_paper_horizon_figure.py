@@ -7,8 +7,9 @@ PDF, data archived to Zenodo):
 * ``horizon_shift.npz``  -- the +1 m East/North/Up antenna-temperature
   differences Delta T_ant(nu) at 24 LSTs (one per hour, the curves of
   ``horizon_shift.pdf``), plus the foreground spectral modes ``Vh`` (the
-  right singular vectors of the *same* nominal (uncorrected) system-
-  temperature waterfall used by ``foreground_svd.npz`` -- byte-identical).
+  right singular vectors of the nominal antenna-temperature waterfall --
+  the ``foreground_svd.npz`` system temperature minus the constant
+  receiver temperature, the same modes as Fig. 1).
 * ``horizon_shift.ipynb`` -- loads the npz and makes the figure.
 * ``horizon_shift.pdf``  -- the rendered figure.
 
@@ -18,7 +19,7 @@ leading N foreground modes (bottom, same per-LST colours). The residual
 panel matches ``foreground_svd_residual.pdf``: log-y Residual RMS [K],
 10 mK red dashed reference, "Foreground modes filtered" x-axis. It shows
 the position-error signal is removed by the same low-order foreground
-filtering as the sky: every LST/axis drops below 10 mK within ~8 modes.
+filtering as the sky: every LST/axis drops below 10 mK within ~6 modes.
 
 Run in the mock_analysis env (numpy + matplotlib + astropy + nbformat):
     uv run python horizon_position/make_paper_horizon_figure.py
@@ -55,13 +56,14 @@ def build_data():
     freqs = d["freqs_mhz"]
     t_gnd, t_rcvr = float(d["t_ground"]), float(d["t_receiver"])
 
-    # foreground spectral modes: uncentered SVD of the nominal (uncorrected)
-    # system-temperature waterfall -- the *same* modes as foreground_svd.npz.
+    # foreground spectral modes: uncentered SVD of the nominal antenna-
+    # temperature waterfall (system temperature minus the constant receiver
+    # temperature) -- the *same* modes as foreground_svd.npz / Fig. 1.
     fg = np.load(FG_NPZ)
     assert np.array_equal(t_sys[0], fg["t_sys"]), (
         "baseline mismatch vs foreground_svd.npz"
     )
-    _, _, Vh = np.linalg.svd(t_sys[0], full_matrices=False)
+    _, _, Vh = np.linalg.svd(t_sys[0] - t_rcvr, full_matrices=False)
 
     # uncorrected dT at 24 LSTs (one per hour) -- the horizon_shift.pdf curves
     dT = analysis.delta_waterfall(t_sys, fgnd, "uncorrected", t_gnd, t_rcvr)
@@ -86,9 +88,9 @@ def build_data():
             "Uncorrected antenna-temperature differences dT_ant(nu) for +1 m "
             "East/North/Up antenna displacements at 24 LSTs (one per hour), and "
             "the foreground spectral modes Vh (right singular vectors of the "
-            "nominal uncorrected system-temperature waterfall, identical to "
-            "foreground_svd.npz). dT_spectra (3, 24, n_freq) in K; axis order "
-            "East/North/Up."
+            "nominal antenna-temperature waterfall = foreground_svd.npz system "
+            "temperature minus the constant receiver). dT_spectra (3, 24, "
+            "n_freq) in K; axis order East/North/Up."
         ),
     )
     print(f"wrote {PAPER / 'horizon_shift.npz'}")
