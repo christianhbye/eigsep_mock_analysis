@@ -32,7 +32,7 @@ SHIFTS = [
     ("y_p_1", "North +1 m", "#CC79A7"),  # reddish purple
     ("z_p_1", "Up +1 m", "#009E73"),  # bluish green
 ]
-FILL = "tab:orange"
+FILL = "#c56a39"
 
 
 def build_figure(az, alpha, names, base, figsize, legend_kw, resid_ylim=(-1.3, 1.3)):
@@ -51,10 +51,11 @@ def build_figure(az, alpha, names, base, figsize, legend_kw, resid_ylim=(-1.3, 1
         layout="constrained",
     )
 
-    axt.fill_between(az, 0, base, color=FILL, alpha=0.6, lw=0)
+    axt.fill_between(az, 0, base, color=FILL, lw=0)
     axt.plot(az, base, color="black", lw=1.1)
     axt.set_ylabel("Horizon Angle [deg]")
     axt.set_ylim(0, 40)
+    axt.set_axisbelow(False)  # gridlines on top of the opaque fill
 
     for tag, lbl, c in SHIFTS:
         axb.plot(az, alpha[names.index(tag)] - base, color=c, lw=1.0, label=lbl)
