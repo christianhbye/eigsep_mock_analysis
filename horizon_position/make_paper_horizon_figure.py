@@ -7,8 +7,8 @@ PDF, data archived to Zenodo):
 * ``horizon_shift.npz``  -- the +1 m East/North/Up antenna-temperature
   differences Delta T_ant(nu) at 24 LSTs (one per hour, the curves of
   ``horizon_shift.pdf``), plus the foreground spectral modes ``Vh`` (the
-  right singular vectors of the *same* ground-loss-corrected baseline
-  waterfall used by ``foreground_svd.npz`` -- verified byte-identical).
+  right singular vectors of the *same* nominal (uncorrected) system-
+  temperature waterfall used by ``foreground_svd.npz`` -- byte-identical).
 * ``horizon_shift.ipynb`` -- loads the npz and makes the figure.
 * ``horizon_shift.pdf``  -- the rendered figure.
 
@@ -55,16 +55,13 @@ def build_data():
     freqs = d["freqs_mhz"]
     t_gnd, t_rcvr = float(d["t_ground"]), float(d["t_receiver"])
 
-    # foreground spectral modes: SVD of the ground-loss-corrected baseline
-    # sky waterfall -- the *same* modes as foreground_svd.npz.
+    # foreground spectral modes: uncentered SVD of the nominal (uncorrected)
+    # system-temperature waterfall -- the *same* modes as foreground_svd.npz.
     fg = np.load(FG_NPZ)
     assert np.array_equal(t_sys[0], fg["t_sys"]), (
         "baseline mismatch vs foreground_svd.npz"
     )
-    t_sky = (fg["t_sys"] - fg["t_receiver"] - fg["fgnd"] * fg["t_ground"]) / (
-        1.0 - fg["fgnd"]
-    )
-    _, _, Vh = np.linalg.svd(t_sky, full_matrices=False)
+    _, _, Vh = np.linalg.svd(t_sys[0], full_matrices=False)
 
     # uncorrected dT at 24 LSTs (one per hour) -- the horizon_shift.pdf curves
     dT = analysis.delta_waterfall(t_sys, fgnd, "uncorrected", t_gnd, t_rcvr)
@@ -89,7 +86,7 @@ def build_data():
             "Uncorrected antenna-temperature differences dT_ant(nu) for +1 m "
             "East/North/Up antenna displacements at 24 LSTs (one per hour), and "
             "the foreground spectral modes Vh (right singular vectors of the "
-            "ground-loss-corrected nominal baseline waterfall, identical to "
+            "nominal uncorrected system-temperature waterfall, identical to "
             "foreground_svd.npz). dT_spectra (3, 24, n_freq) in K; axis order "
             "East/North/Up."
         ),
