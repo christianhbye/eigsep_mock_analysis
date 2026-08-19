@@ -1219,14 +1219,28 @@ rm -rf models_21cm/output/smoke.npz models_21cm/output/batches_m3_pb1
 
 - [ ] **Step 2: Launch the production run**
 
+**Worker count is set by memory, not by core count.** Measured at
+`precisionboost = 3`: the forked setup costs 0.47 GB shared (copy-on-write),
+and each worker adds **2.78 GB** of private peak RSS for the SFRD meshgrids
+(n_z = 304, NRs = 135). On a 15 GB machine with ~12 GB available that gives:
+
+| workers | total | verdict |
+|---|---|---|
+| 3 | ~8.8 GB | comfortable |
+| 4 | ~11.6 GB | at the edge of available — risky over hours |
+| 8 | ~22.7 GB | OOM-killed on the first batch (observed) |
+
+An 8-worker attempt was killed by the kernel OOM-killer immediately. Size
+`--processes` to `(available_GB - 1) / 2.8`, not to `nproc`.
+
 Run:
 ```bash
 uv run --project models_21cm python models_21cm/generate.py \
     --n-log2 12 --precisionboost 3 --seed 20260819 \
     --out models_21cm/output/zeus21_models.npz \
-    --processes 8 --batch-size 64
+    --processes 3 --batch-size 64
 ```
-Expected: `4096 models, precisionboost=3.0`, then 64 batch lines, then `wrote .../zeus21_models.npz (N models)`. Roughly 70 minutes.
+Expected: `4096 models, precisionboost=3.0`, then 64 batch lines, then `wrote .../zeus21_models.npz (N models)`. Roughly 3.1 hours at 3 workers (9.38 core-hours total).
 
 Run it in the background and monitor the batch lines; if it dies, rerunning the identical command resumes from the last completed batch.
 
@@ -1726,8 +1740,15 @@ workspace member:
         --n-log2 12 --precisionboost 3 --seed 20260819 \
         --out models_21cm/output/zeus21_models.npz
 
-~70 minutes on 8 cores. Resumable: rerunning the identical command skips
-completed batches.
+~3.1 hours at 3 workers. **Worker count is bounded by memory, not cores:**
+each worker needs ~2.8 GB of private peak RSS at `precisionboost = 3` (plus
+0.47 GB shared), so 8 workers on a 15 GB machine is an immediate OOM-kill.
+Size `--processes` to `(available_GB - 1) / 2.8`.
+
+Resumable: rerunning the identical command skips completed batches. The work
+directory is keyed on seed and batch size as well as model count and
+precision, so a resume with different flags cannot silently reuse stale
+batches.
 
 Then the gates, which must all pass before the npz is used or archived:
 
