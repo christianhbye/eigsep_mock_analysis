@@ -201,7 +201,7 @@ N_ANCHOR = int(d["n_anchor"])    # modes filtered at the quoted operating point
 N_CURVES = 500                   # individual signals drawn in panel (b)
 CURVE_ALPHA = 0.10               # opacity of those curves
 ALL_ALPHA = 0.08                 # opacity of the full ensemble in panel (a)
-CONT_CMAP = "viridis"            # continuous variant: colour = retained RMS
+CONT_CMAP = "plasma"             # continuous variant: colour = retained RMS
 print(f"{T21.shape[0]} 21 cm models on {n_f} channels, "
       f"{freqs[0]:.0f}-{freqs[-1]:.0f} MHz")"""
 
