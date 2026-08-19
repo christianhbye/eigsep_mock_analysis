@@ -23,8 +23,9 @@ Panels (a1)/(a2): representative models before and after filtering
 onto a truncated smooth basis, not a residual trough -- retained RMS is
 not retained signal *shape*, which is why the panel is here at all.
 Panel (b): the foreground residual, the worst-case position-error
-systematic, and the retained 21 cm signal (median and 5-95% of the
-ensemble) against the number of modes filtered. This panel supersedes
+systematic, and the retained 21 cm signal against the number of modes
+filtered, drawn as individual model curves rather than a summary band so
+the spread of trajectories is visible. This panel supersedes
 ``foreground_svd_residual.pdf``: the foreground curve is the same one,
 now never shown without the signal beside it.
 
@@ -156,6 +157,8 @@ show_idx = d["show_idx"]         # the three models drawn in panels (a1)/(a2)
 n_f = freqs.size
 N_SHOW = 18                      # x-axis extent
 N_ANCHOR = int(d["n_anchor"])    # modes filtered at the quoted operating point
+N_CURVES = 500                   # individual signals drawn in panel (b)
+CURVE_ALPHA = 0.10               # opacity of those curves
 print(f"{T21.shape[0]} 21 cm models on {n_f} channels, "
       f"{freqs[0]:.0f}-{freqs[-1]:.0f} MHz")"""
 
@@ -208,9 +211,11 @@ ax["a1"].tick_params(labelbottom=False)
 ax["a2"].set_xlabel("Frequency [MHz]", fontsize=8)
 
 b = ax["b"]
-b.fill_between(n_modes, t21_pct[0], t21_pct[2], color=C_21, alpha=0.2, lw=0,
-               label="21 cm signal (5-95%)")
-b.plot(n_modes, t21_pct[1], color=C_21, lw=1.5, label="21 cm signal (median)")
+rng = np.random.default_rng(0)                              # fixed draw, reproducible
+sub = rng.choice(t21_resid.shape[1], size=N_CURVES, replace=False)
+b.plot(n_modes, t21_resid[:, sub], color=C_21, lw=0.5, alpha=CURVE_ALPHA, zorder=0)
+b.plot([], [], color=C_21, lw=1.0, alpha=0.6,                # legend proxy
+       label=f"21 cm signals ({N_CURVES} of {T21.shape[0]})")
 b.plot(n_modes, fg_resid, color=C_FG, lw=1.5, label="foreground residual")
 b.plot(n_modes, sys_resid, color=C_SYS, lw=1.2, ls="--",
        label="+1 m position error (worst LST)")
@@ -261,8 +266,8 @@ def build_notebook():
         "truncated smooth basis, not a residual trough, so retained RMS is "
         "not retained signal *shape*. Panel (b) "
         "puts the foreground residual, the worst-case $+1$ m position-error "
-        "systematic, and the retained signal (median and 5-95% of the "
-        "ensemble) on one set of axes. It supersedes "
+        "systematic, and 500 individual retained-signal curves on one "
+        "set of axes. It supersedes "
         "`foreground_svd_residual.pdf` -- the black curve is the same one, now "
         "never shown without the signal beside it.\n\n"
         "$N = 10$ is the smallest $N$ at which *both* floors fall below the "
