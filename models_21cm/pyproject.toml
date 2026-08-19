@@ -1,0 +1,30 @@
+[project]
+name = "models-21cm"
+version = "0.0.0"
+description = "Zeus21 global 21 cm signal ensemble for EIGSEP"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+    "scipy",
+    "mcfit",
+    "numexpr",
+    "astropy",
+    "tqdm",
+    "classy",
+    # Zeus21's setup.py omits both, but zeus21.maps imports them at
+    # package import time, so `import zeus21` fails without them.
+    "powerbox",
+    "pyfftw",
+    "zeus21",
+]
+
+[tool.uv.sources]
+zeus21 = { git = "https://github.com/ZeusCosmo/Zeus21.git", rev = "9f2d2105e99e74096092e2061082a79c3f85eaca" }
+
+[dependency-groups]
+# Not in the brief's pyproject.toml block: without it, `uv run --project
+# models_21cm pytest ...` finds no pytest in this venv and silently falls
+# back to the system interpreter, which lacks zeus21 (ModuleNotFoundError
+# instead of the intended test run). uv includes the "dev" group by
+# default, so a plain `uv sync --project models_21cm` still works.
+dev = ["pytest"]
