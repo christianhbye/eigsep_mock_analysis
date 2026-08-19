@@ -1489,7 +1489,7 @@ silently as an absent one."
 ### Task 8: Swap the ensemble downstream and recompute the operating point
 
 **Files:**
-- Modify: `horizon_position/make_paper_signal_loss_figure.py:63-92` (the `MODELS_NPZ` constant, the `TODO(provenance)` block, `load_t21`), and `N_ANCHOR`/`RET_EDGES_MK` at lines 76-81
+- Modify: `horizon_position/make_paper_signal_loss_figure.py` — the `MODELS_NPZ` constant and `TODO(provenance)` block (lines 63-75), `load_t21` (84-92), `N_ANCHOR`/`RET_EDGES_MK` (76-81), plus `build_data`, `LOAD_SRC` and `make_figure` for the draw index
 - Create: `horizon_position/recompute_operating_point.py`
 
 **Interfaces:**
@@ -1613,7 +1613,40 @@ Expected: a table over N = 4…16 and a printed `N_ANCHOR`. Record the value.
 
 Set `N_ANCHOR` at line 76 to the value the script printed. Then set `RET_EDGES_MK` at line 80 from the printed retained-RMS fractions, keeping the existing intent — edges that split the ensemble into roughly thirds — and update the comment above it with the new percentages. Update `CLASS_LABELS` at line 81 if the edges changed.
 
-- [ ] **Step 5: Rebuild both figures**
+- [ ] **Step 5: Wire the figure subsample in**
+
+`selection.figure_subsample` exists for this and is currently called by
+nothing. The statistics must use every surviving model; only the *drawn
+curves* are subsampled, for legibility.
+
+In `build_data()`, after `T21 = load_t21(freqs)`, compute and save the draw
+index alongside the existing arrays:
+
+```python
+    # Curves are subsampled for legibility; every statistic below uses the
+    # full surviving ensemble. Storing the index (not a pre-subsampled
+    # array) keeps the figure reproducible and the statistics honest.
+    draw_seed = 20260819
+    n_draw = min(1000, T21.shape[0])
+    draw_idx = selection.figure_subsample(T21.shape[0], n_draw, draw_seed)
+```
+
+Add `draw_idx=draw_idx` and `draw_seed=draw_seed` to the existing
+`np.savez_compressed(PAPER / "signal_loss.npz", ...)` call, and extend that
+call's `description` string to say that `T21` is the full surviving
+ensemble while `draw_idx` selects the curves the figure draws.
+
+Then in the notebook source, load it in `LOAD_SRC`:
+
+```python
+draw_idx = d["draw_idx"]         # (n_draw,) curves the figure draws
+```
+
+and in `make_figure`, use `T21[draw_idx]` and `t21_filt[draw_idx]` for the
+`LineCollection` segments in panels (a1)/(a2) only. Leave every percentile,
+classification, and summary computation on the full `T21`.
+
+- [ ] **Step 6: Rebuild both figures**
 
 Run:
 ```bash
@@ -1622,11 +1655,11 @@ uv run python horizon_position/make_paper_horizon_figure.py
 ```
 Expected: both complete; `signal_loss.npz`, `signal_loss.ipynb`, `signal_loss.pdf` regenerate with the new model count.
 
-- [ ] **Step 6: Confirm the figures reflect the new ensemble**
+- [ ] **Step 7: Confirm the figures reflect the new ensemble**
 
 Open `signal_loss.pdf` and check the curve count matches the surviving ensemble, and that panel (b)'s 21 cm band sits where the recompute script said it should.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 uv run ruff check horizon_position/ && uv run ruff format horizon_position/
