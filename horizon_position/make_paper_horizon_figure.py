@@ -41,10 +41,13 @@ iers.conf.auto_max_age = None
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import analysis  # noqa: E402
+from make_paper_signal_loss_figure import load_t21, retained_pct  # noqa: E402
 
 SIMS = HERE / "output" / "position_sims.npz"
 PAPER = Path("/home/christian/Documents/research/papers/eigsep_instrument/notebooks")
 FG_NPZ = PAPER / "foreground_svd.npz"
+
+N_SHOW = 18  # modes on the residual-panel x-axis; matches LOAD_SRC
 
 TAGS = [("x_p_1", "East +1 m"), ("y_p_1", "North +1 m"), ("z_p_1", "Up +1 m")]
 
@@ -76,6 +79,10 @@ def build_data():
     dT_spectra = np.stack([dT[names.index(t)][idx] for t, _ in TAGS])  # (3, 24, n_f)
     labels = np.array([lab for _, lab in TAGS])
 
+    # retained 21 cm signal under the same projection -- the physical
+    # benchmark the residual panel is read against (see signal_loss.pdf)
+    t21_pct = retained_pct(load_t21(freqs), Vh, np.arange(N_SHOW + 1))
+
     PAPER.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         PAPER / "horizon_shift.npz",
@@ -84,6 +91,7 @@ def build_data():
         freqs_MHz=freqs,
         lst_hr=lst[idx],
         labels=labels,
+        t21_pct=t21_pct,
         description=(
             "Uncorrected antenna-temperature differences dT_ant(nu) for +1 m "
             "East/North/Up antenna displacements at 24 LSTs (one per hour), and "
@@ -106,6 +114,7 @@ from matplotlib.colors import Normalize"""
 LOAD_SRC = """d = np.load("horizon_shift.npz", allow_pickle=True)
 freqs = d["freqs_MHz"]
 lst = d["lst_hr"]                 # LST [h] of each plotted spectrum
+t21 = d["t21_pct"]                # (3, N_SHOW+1) retained 21 cm RMS [K], 5/50/95
 dT = d["dT_spectra"]             # (3, n_lst, n_freq) uncorrected dT_ant [K]
 Vh = d["Vh"]                     # (n_freq, n_freq) foreground spectral modes
 labels = [str(s) for s in d["labels"]]
@@ -114,6 +123,7 @@ N_SHOW = 18                       # foreground modes filtered (x-axis)
 print(dT.shape, "spectra at LSTs", np.round(lst, 1))"""
 
 PLOT_SRC = '''CMAP, norm = "twilight", Normalize(0, 24)
+C_21 = "#0072b2"                  # 21 cm band; matches signal_loss.pdf
 cmap = plt.get_cmap(CMAP)
 n_modes = np.arange(N_SHOW + 1)
 
@@ -142,7 +152,8 @@ for col, lab in enumerate(labels):
     rc = resid_curves(dT[col])                              # bottom: filtered residual
     for j in range(lst.size):
         ab.plot(n_modes, rc[:, j], color=cmap(norm(lst[j])), lw=0.7, alpha=0.9)
-    ab.axhline(1e-2, color="red", lw=1.2, ls="--", alpha=0.8)
+    ab.fill_between(n_modes, t21[0], t21[2], color=C_21, alpha=0.2, lw=0, zorder=0)
+    ab.plot(n_modes, t21[1], color=C_21, lw=1.4, zorder=1)
     ab.set_yscale("log")
     ab.set_xlabel("Foreground modes filtered", fontsize=8)
     ab.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
@@ -150,8 +161,8 @@ for col, lab in enumerate(labels):
 
 axes[0, 0].set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]", fontsize=8)
 axes[1, 0].set_ylabel("Residual RMS [K]", fontsize=8)
-axes[1, 2].text(N_SHOW, 1.2e-2, "10 mK", color="red", alpha=0.8,
-                fontsize=7, va="bottom", ha="right")
+axes[1, 2].text(N_SHOW, 2.5, "21 cm signal (5-95%)", color=C_21,
+                fontsize=6.5, va="top", ha="right")
 for col in (1, 2):
     axes[1, col].tick_params(labelleft=False)
 
@@ -164,10 +175,11 @@ fig.savefig("horizon_shift.pdf", bbox_inches="tight", dpi=600)'''
 SUMMARY_SRC = """for col, lab in enumerate(labels):
     rc = resid_curves(dT[col])               # (N_SHOW+1, n_lst)
     worst = rc.max(axis=1)                    # worst LST at each N
-    n10 = int(np.nonzero(worst < 1e-2)[0][0])
+    below = int(np.nonzero(worst < t21[1])[0][0])
     print(f"{lab:11s}  full RMS {worst[0]*1e3:7.1f} mK  ->  "
-          f"all LSTs < 10 mK after {n10} modes; "
-          f"residual after 10 modes {worst[10]*1e3:.2f} mK")"""
+          f"worst LST drops below the median retained 21 cm signal after "
+          f"{below} modes; residual after 10 modes {worst[10]*1e3:.2f} mK "
+          f"vs {t21[1, 10]*1e3:.2f} mK retained")"""
 
 
 def build_notebook():
@@ -179,10 +191,15 @@ def build_notebook():
         "row, +1 m East/North/Up at 24 LSTs) onto the foreground spectral "
         "modes -- the same SVD modes as `foreground_svd.npz` -- and plot the "
         "residual RMS after filtering the leading $N$ modes (bottom row). The "
-        "signal sits in the same low-order foreground subspace: every LST and "
-        "axis falls below 10 mK within a handful of modes, so the same "
-        "foreground filtering that cleans the sky also removes the "
-        "position-error systematic."
+        "systematic sits in the same low-order foreground subspace: every LST "
+        "and axis is driven down by the same low-order filtering that cleans "
+        "the sky.\n\n"
+        "The blue band is the retained 21 cm signal (5-95% of the model "
+        "ensemble, median solid) under the *identical* projection -- the "
+        "physical benchmark this residual has to beat, in place of an "
+        "arbitrary 10 mK line. By $N = 10$ the worst-LST systematic is below "
+        "the median retained signal on all three axes. See `signal_loss.ipynb` "
+        "for the full signal-loss calculation and its limitations."
     )
     cells = [
         nbf.v4.new_markdown_cell(md),
