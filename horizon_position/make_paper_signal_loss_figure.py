@@ -59,7 +59,12 @@ import nbformat as nbf
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-PAPER = Path("/home/christian/Documents/research/papers/eigsep_instrument/notebooks")
+PAPER = Path(
+    os.environ.get(
+        "EIGSEP_PAPER_NOTEBOOKS",
+        "/home/christian/Documents/research/papers/eigsep_instrument/notebooks",
+    )
+)
 FG_NPZ = PAPER / "foreground_svd.npz"
 SHIFT_NPZ = PAPER / "horizon_shift.npz"
 
@@ -79,6 +84,26 @@ N_ANCHOR = 10  # modes filtered at the quoted operating point
 # at all (the most foreground-orthogonal model retains 16.4 mK).
 RET_EDGES_MK = (1.0, 5.0)
 CLASS_LABELS = ("< 1 mK", "1-5 mK", "> 5 mK")
+
+# Distinguishability statistics (the paragraph on what the filter leaves
+# *measurable*, as opposed to how much amplitude it leaves). Models shallower
+# than DEEP_MIN_MK are not a target for any global-signal experiment and would
+# otherwise dominate the pair statistics; the window is where the ensemble
+# actually puts its absorption trough, so the result cannot be band-edge
+# ringing from the projection.
+DEEP_MIN_MK = 50.0
+PAIR_WINDOW_MHZ = (70.0, 130.0)
+PAIR_THRESH_MK = (1.0, 2.0, 5.0)
+
+# From horizon_position/rotation_dimensionality.py, which pools the 36 x 36
+# drive grid of horizon_chromaticity/output/chromaticity_eigsep.npz. Recorded
+# here rather than recomputed because that needs the 3 GB simulation cube; the
+# script cross-checks its zenith curve against this figure's numbers before
+# reporting, so the two stay tied together.
+ROT_N_ORIENTATIONS = 1296
+ROT_N_ELEV = 36
+ROT_N_AZ = 36
+ROT_N_MODES_FULL_GRID = 16
 
 
 def load_t21(freqs):
@@ -391,6 +416,212 @@ def render_pdf():
     print(f"wrote {PAPER / 'signal_loss.pdf'}")
 
 
+def tex_stats():
+    """Every number the draft paper text quotes, from signal_loss.npz itself.
+
+    Deriving these from the figure's own npz rather than recomputing means the
+    prose and the figure can never disagree, and re-running this script after
+    the 21 cm ensemble is regenerated updates both together.
+    """
+    d = np.load(PAPER / "signal_loss.npz", allow_pickle=True)
+    freqs, Vh, s_fg = d["freqs_MHz"], d["Vh"], d["s_fg"]
+    n_time, n_f = int(d["n_time"]), freqs.size
+    dT, T21 = d["dT_spectra"], d["T21_models"]
+    N = int(d["n_anchor"])
+
+    tail = np.concatenate([np.cumsum(s_fg[::-1] ** 2)[::-1], [0.0]])
+    fg = np.sqrt(tail / (n_time * n_f))
+
+    def filt_rms(x, n):
+        c = np.atleast_2d(x) @ Vh.T
+        return np.sqrt(np.sum(c[:, n:] ** 2, axis=1) / n_f)
+
+    sys_at = {n: filt_rms(dT.reshape(-1, n_f), n).max() for n in (N - 1, N)}
+    ret = filt_rms(T21, N)
+    depth_mK = -T21.min(axis=1) * 1e3
+
+    # Pairwise separation of the deep models inside the trough window: what the
+    # filter leaves distinguishable, rather than how much amplitude it leaves.
+    deep = depth_mK > DEEP_MIN_MK
+    S = T21[deep]
+    R = S - (S @ Vh[:N].T) @ Vh[:N]
+    win = (freqs >= PAIR_WINDOW_MHZ[0]) & (freqs <= PAIR_WINDOW_MHZ[1])
+
+    def pair_rms(A):
+        g = A[:, win] @ A[:, win].T
+        d2 = np.maximum(np.diag(g)[:, None] + np.diag(g)[None, :] - 2 * g, 0.0)
+        return np.sqrt(d2[np.triu_indices(A.shape[0], 1)] / win.sum()) * 1e3
+
+    before, after = pair_rms(S), pair_rms(R)
+
+    return {
+        "N": N,
+        "NM1": N - 1,
+        "N_MODEL": f"{T21.shape[0]}",
+        "FG_ANCHOR": f"{fg[N] * 1e3:.2f}",
+        "FG_NM1": f"{fg[N - 1] * 1e3:.1f}",
+        "FG_NM2": f"{fg[N - 2] * 1e3:.1f}",
+        "SYS_ANCHOR": f"{sys_at[N] * 1e3:.2f}",
+        "SYS_NM1": f"{sys_at[N - 1] * 1e3:.1f}",
+        "RET_P50": f"{np.median(ret) * 1e3:.1f}",
+        "RET_P50_NM1": f"{np.median(filt_rms(T21, N - 1)) * 1e3:.1f}",
+        "RET_PCT": f"{np.median(ret / filt_rms(T21, 0)) * 100:.0f}",
+        "FRAC_ABOVE_FG": f"{(ret > fg[N]).mean() * 100:.0f}",
+        "RET_150": f"{np.median(ret * 1e3 / depth_mK) * 150:.0f}",
+        "DEEP_MIN": f"{DEEP_MIN_MK:.0f}",
+        "N_DEEP": f"{deep.sum()}",
+        "WIN_LO": f"{PAIR_WINDOW_MHZ[0]:.0f}",
+        "WIN_HI": f"{PAIR_WINDOW_MHZ[1]:.0f}",
+        "PAIR_BEFORE": f"{np.median(before):.0f}",
+        "PAIR_AFTER": f"{np.median(after):.0f}",
+        "PAIR_GT1": f"{(after > PAIR_THRESH_MK[0]).mean() * 100:.0f}",
+        "PAIR_GT2": f"{(after > PAIR_THRESH_MK[1]).mean() * 100:.0f}",
+        "ROT_N_ORI": f"{ROT_N_ORIENTATIONS}",
+        "ROT_N_ELEV": f"{ROT_N_ELEV}",
+        "ROT_N_AZ": f"{ROT_N_AZ}",
+        "ROT_N_MODES": f"{ROT_N_MODES_FULL_GRID}",
+    }
+
+
+TEX_TEMPLATE = r"""% signal_loss_text.tex -- GENERATED, do not edit by hand.
+%
+% Draft replacement text for the 21 cm signal-loss result. Regenerate with
+%     uv run python horizon_position/make_paper_signal_loss_figure.py
+% in the mock_analysis repo; every number below is computed from
+% signal_loss.npz, so re-running after the 21 cm ensemble is regenerated
+% updates the prose and the figure together.
+%
+% Paste the three blocks into rasti_template.tex as marked. Nothing here is
+% \input by the paper -- this file is a staging area, not a dependency.
+%
+% Numbers that depend on the 21 cm ensemble and will move when it is
+% regenerated: the model count, retained amplitudes and percentages, and every
+% distinguishability statistic. Numbers that will not move: the foreground
+% residual, the position systematic, the choice of N, and the mode counts in
+% block 3.
+
+
+% ===================================================================
+% BLOCK 1 -- section "Minimising Covariance with the 21-cm Signal".
+% Replaces the sentence beginning "We emphasise that this analysis only
+% quantifies the spectral complexity ...".
+% ===================================================================
+
+This analysis quantifies the spectral complexity of the beam-weighted
+foregrounds; on its own it says nothing about whether the cosmological signal
+survives the same filter. We therefore passed an ensemble of @N_MODEL@ global
+21-cm models through the identical projection, so that the retained signal, the
+foreground residual, and the antenna-position systematic of
+section~\ref{subsec:fwd_modelling} are read off the same axes
+(Fig.~\ref{fig:singular_values}). We adopt $N=@N@$ filtered modes as a
+reference operating point: it is the smallest $N$ at which both the foreground
+residual ($@FG_ANCHOR@$\,mK) and the worst-case systematic from a 1\,m antenna
+displacement ($@SYS_ANCHOR@$\,mK) fall below the median retained signal. At
+$N=@NM1@$ the position systematic is $@SYS_NM1@$\,mK against a median retained
+signal of $@RET_P50_NM1@$\,mK, and at $N=8$ the foreground residual alone
+exceeds it. At the reference point the median model retains @RET_PCT@ per cent
+of its band RMS, or $@RET_P50@$\,mK, and @FRAC_ABOVE_FG@ per cent of the
+ensemble retains more than the foreground residual. Retention scales
+approximately with signal amplitude: a model with a 150\,mK absorption trough
+retains $\sim@RET_150@$\,mK.
+
+Retained RMS understates what such a filter leaves measurable. The projection
+discards the components of a signal that lie along the foreground modes and
+keeps the orthogonal complement, so the relevant question is not how much
+amplitude survives but which models remain distinguishable within the subspace
+that does. Restricting to the @N_DEEP@ ensemble members with absorption troughs
+deeper than @DEEP_MIN@\,mK and scoring over @WIN_LO@--@WIN_HI@\,MHz, the median
+separation between a pair of models falls from @PAIR_BEFORE@\,mK to
+@PAIR_AFTER@\,mK under the filter, yet @PAIR_GT1@ per cent of pairs remain
+separated by more than 1\,mK and @PAIR_GT2@ per cent by more than 2\,mK. A
+measurement in the filtered subspace therefore constrains the signal to a
+family of models differing by components that lie along the foreground modes,
+rather than collapsing the ensemble to an indistinguishable residual.
+
+These figures are a floor rather than a forecast. The filter used here is
+maximally agnostic: its modes are estimated from the antenna temperature
+itself, and no knowledge of the beam or the sky enters. EDGES
+\citep{2025PASP..137l5002C} and MIST \citep{2024MNRAS.530.4125M} instead divide
+out a simulated beam chromaticity correction before fitting, and REACH
+\citep{2022JAI....1150001C} marginalises over a parametrised beam within its
+forward model. EIGSEP is designed to do likewise, using the beam measurements
+of section~\ref{subsec:beam_mapping} and the forward model of
+section~\ref{subsec:fwd_modelling}; every mode of chromaticity that is modelled
+rather than filtered is one fewer mode removed from the signal. Filtering is
+also a hard projection, whereas a joint fit for the signal and the foregrounds
+recovers part of what a projection discards, and the rotational degrees of
+freedom described below provide further leverage that a per-spectrum filter
+cannot use. Finally, the calculation uses a single simulated sky and beam and
+contains no noise, so it describes spectral subspace overlap and not
+sensitivity; whether a retained amplitude is detectable is set by the thermal
+noise and integration time, which we do not model here.
+Fig.~\ref{fig:singular_values} should accordingly not be read as a requirement
+that EIGSEP calibrate at the millikelvin level to detect a typical signal. It
+is the residual left by the most conservative foreground filter available, and
+it sets the scale of the improvement that beam knowledge and joint fitting are
+required to deliver.
+
+
+% ===================================================================
+% BLOCK 2 -- caption for signal_loss.pdf, replacing the
+% foreground_svd_residual.pdf caption. Keep \label{fig:singular_values}:
+% the horizon_shift caption already refers to it.
+% ===================================================================
+
+\caption{Signal loss under foreground-mode filtering. An ensemble of @N_MODEL@
+global 21-cm models is passed through the same projection onto the leading $N$
+eigenmodes of the simulated antenna temperature that is applied to the
+foregrounds. Panels (a1) and (a2) show every model before and after filtering
+$N=@N@$ modes, each coloured by the band RMS it retains at that operating
+point; the colour scale is logarithmic and shared with panel (b), so a curve's
+colour and its height in (b) agree. Panel (b) shows retained RMS against the
+number of modes filtered, with the foreground residual (black) and the
+worst-case systematic from a 1\,m antenna displacement (grey dashed,
+Fig.~\ref{fig:horizon_shift}) for reference; colour marks the signal, greyscale
+the floors it is measured against. At $N=@N@$ the foreground residual is
+$@FG_ANCHOR@$\,mK and the position systematic $@SYS_ANCHOR@$\,mK, while the
+median model retains $@RET_P50@$\,mK, or @RET_PCT@ per cent of its band RMS,
+and @FRAC_ABOVE_FG@ per cent of the ensemble retains more than the foreground
+residual. The structure surviving in (a2) is ringing from projecting onto a
+truncated smooth basis rather than a residual absorption trough, so retained
+RMS should not be read as retained signal shape. This filter uses no knowledge
+of the beam or the sky and is therefore the most conservative case; see the
+text.}
+
+
+% ===================================================================
+% BLOCK 3 -- section "Minimising Covariance", rotation paragraph.
+% Insert after "... we aim to use both to improve constraints."
+% Numbers from horizon_position/rotation_dimensionality.py.
+% ===================================================================
+
+Rotation adds spectral diversity to the data, and it is worth asking what that
+diversity costs in model complexity. Repeating the eigenmode analysis above
+over the full drive grid of @ROT_N_ORI@ pointings (@ROT_N_ELEV@ elevations
+$\times$ @ROT_N_AZ@ azimuths) rather than the zenith pointing alone, the pooled
+antenna temperature is described to the same residual by @ROT_N_MODES@ modes
+instead of @N@. The foregrounds seen across every accessible orientation
+therefore occupy a subspace only marginally larger than that of a single
+pointing. Realising the benefit of that diversity requires a joint fit in which
+the sky and the beam are shared parameters and the rotations are known; a
+per-spectrum projection of the kind used in Fig.~\ref{fig:singular_values}
+cannot exploit it, because the information lies in the correlation between
+pointings rather than within any one spectrum. We defer this analysis to future
+work.
+"""
+
+
+def build_tex():
+    """Write the draft paper text with every number filled in from the data."""
+    out = TEX_TEMPLATE
+    for key, val in tex_stats().items():
+        out = out.replace(f"@{key}@", str(val))
+    leftover = [tok for tok in out.split("@")[1::2] if tok.isupper()]
+    assert not leftover, f"unfilled tokens in the template: {leftover}"
+    (PAPER / "signal_loss_text.tex").write_text(out)
+    print(f"wrote {PAPER / 'signal_loss_text.tex'}")
+
+
 def main():
     for p in (FG_NPZ, SHIFT_NPZ, MODELS_NPZ):
         if not p.exists():
@@ -398,6 +629,7 @@ def main():
     build_data()
     build_notebook()
     render_pdf()
+    build_tex()
 
 
 if __name__ == "__main__":
