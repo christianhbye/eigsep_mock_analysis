@@ -134,13 +134,20 @@ requires it to be tested.
 ## Redshift and frequency coverage
 
 The paper grid is **50–250 MHz at 1 MHz** (201 points), taken from
-`foreground_svd.npz`.
+`foreground_svd.npz` and verified against it (`n = 201`, uniform 1 MHz
+step).
 
 Zeus21 is advertised for z = 5–35, i.e. 39.5–236.7 MHz, which does not
 reach the top of the band. Running with `zmin_CLASS=4.5` and
-`zmin=4.68` extends it to **250.1 MHz** and covers the whole grid with
+`zmin=4.65` extends it to **251.4 MHz** and covers the whole grid with
 computed values. This is a stated assumption: it dips just below the
 code's advertised validity floor.
+
+`zmin` is 4.65 rather than the 4.681623 that 250 MHz corresponds to
+exactly. The endpoint must sit *inside* the spline's domain, not on its
+boundary: `zmin = 4.68` would leave only dz = 0.0016 of margin, so any
+float rounding or change to the grid's top end would silently turn
+interpolation into extrapolation. 4.65 gives dz = 0.032.
 
 **Zero-padding above 236.7 MHz was considered and rejected as wrong.**
 For weak-X-ray, low-efficiency models reionization finishes late and
@@ -172,7 +179,7 @@ structure that survives.
 
 `precisionboost` controls the native grid: it scales both the number of
 redshift samples and the number of smoothing radii `NRs`. Measured on
-8 cores, Pop III enabled, `zmin=4.68`:
+8 cores, Pop III enabled, `zmin=4.65`:
 
 | `precisionboost` | s/model | `NRs` | n_z | native dnu at 250 MHz | 4096 models | wall-clock, 8 cores |
 |---|---|---|---|---|---|---|
@@ -270,7 +277,7 @@ without `allow_pickle`) containing:
 - **Full Zeus21 configuration:** every `User_Parameters`,
   `Cosmo_Parameters_Input`, and fixed `Astro_Parameters` keyword as
   actually passed — including `precisionboost = 3`, `zmin_CLASS = 4.5`,
-  `zmin = 4.68`, `USE_POPIII`, `USE_LW_FEEDBACK` — not just the ones
+  `zmin = 4.65`, `USE_POPIII`, `USE_LW_FEEDBACK` — not just the ones
   that differ from defaults, since defaults drift between versions.
 - **Sampler:** kind, scrambling, seed, `m`, `n_models`, and the
   `varied` list of `{name, transform, lo, hi}` in the column order of
