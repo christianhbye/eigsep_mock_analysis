@@ -175,7 +175,8 @@ def build_data():
 # --- source shared by the notebook and the direct render (kept in sync) ---
 
 IMPORTS_SRC = """import numpy as np
-import matplotlib.pyplot as plt"""
+import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe"""
 
 LOAD_SRC = """d = np.load("signal_loss.npz", allow_pickle=True)
 freqs = d["freqs_MHz"]           # (n_f,) MHz
@@ -193,6 +194,7 @@ N_SHOW = 18                      # x-axis extent
 N_ANCHOR = int(d["n_anchor"])    # modes filtered at the quoted operating point
 N_CURVES = 500                   # individual signals drawn in panel (b)
 CURVE_ALPHA = 0.10               # opacity of those curves
+ALL_ALPHA = 0.05                 # opacity of the full ensemble in panel (a)
 print(f"{T21.shape[0]} 21 cm models on {n_f} channels, "
       f"{freqs[0]:.0f}-{freqs[-1]:.0f} MHz")"""
 
@@ -212,68 +214,94 @@ def filt_rms(x):
 
 
 def filtered(x, N):
-    """The part of a single spectrum left after projecting out N modes."""
-    return (x @ Vh.T)[N:] @ Vh[N:]
+    """The part of x left after projecting out the leading N modes."""
+    c = np.atleast_2d(x) @ Vh.T
+    return (c[:, N:] @ Vh[N:]).reshape(np.shape(x))
 
 
 sys_resid = filt_rms(dT.reshape(-1, n_f)).max(axis=1)      # worst axis/LST
 t21_resid = filt_rms(T21)                                  # (N_SHOW+1, n_model)
-t21_pct = np.percentile(t21_resid, [5, 50, 95], axis=1)    # (3, N_SHOW+1)'''
+t21_pct = np.percentile(t21_resid, [5, 50, 95], axis=1)    # (3, N_SHOW+1)
+t21_filt = filtered(T21, N_ANCHOR)                         # (n_model, n_f) residuals'''
 
-PLOT_SRC = r"""C_FG, C_SYS = "k", "#d55e00"
+PLOT_SRC = r'''C_FG, C_SYS = "k", "#d55e00"
 CLASS_C = ["#cc79a7", "#009e73", "#0072b2"]                 # destroyed -> survives
-
-fig, ax = plt.subplot_mosaic(
-    [["a1", "b"], ["a2", "b"]],
-    figsize=(7.3, 3.2), layout="constrained",
-    gridspec_kw=dict(width_ratios=[1, 1.2]),
-)
-
-for i, w in zip(show_idx, show_w):                          # (a1) in, (a2) out
-    c = CLASS_C[cls[i]]
-    ax["a1"].plot(freqs, T21[i] * 1e3, color=c, lw=1.1, label=f"{w:.0f} MHz wide")
-    ax["a2"].plot(freqs, filtered(T21[i], N_ANCHOR) * 1e3, color=c, lw=1.1)
-
-for key, lab, ylab in (("a1", "input", r"$T_{21}$ [mK]"),
-                       ("a2", f"after filtering {N_ANCHOR} modes", "Residual [mK]")):
-    ax[key].axhline(0, color="0.6", lw=0.6, ls="--", zorder=0)
-    ax[key].set_ylabel(ylab, fontsize=8)
-    ax[key].grid(alpha=0.2)
-    ax[key].tick_params(labelsize=7)
-    ax[key].text(0.03 if key == "a1" else 0.97, 0.06, lab,
-                 transform=ax[key].transAxes, fontsize=7,
-                 ha="left" if key == "a1" else "right", va="bottom")
-ax["a1"].tick_params(labelbottom=False)
-ax["a2"].set_xlabel("Frequency [MHz]", fontsize=8)
-ax["a1"].legend(fontsize=6, loc="lower right", framealpha=0.9, handlelength=1.4)
-
-b = ax["b"]
 rng = np.random.default_rng(0)                              # fixed draw, reproducible
 sub = rng.choice(t21_resid.shape[1], size=N_CURVES, replace=False)
-for k, lab in enumerate(class_labels):                      # colour by fate at N
-    kk = sub[cls[sub] == k]
-    b.plot(n_modes, t21_resid[:, kk], color=CLASS_C[k], lw=0.5,
-           alpha=CURVE_ALPHA, zorder=0)
-    b.plot([], [], color=CLASS_C[k], lw=1.2,                 # legend proxy
-           label=f"{lab} retained ({(cls == k).sum()})")
-for i in show_idx:                                           # the panel (a) models
-    b.plot(n_modes, t21_resid[:, i], color=CLASS_C[cls[i]], lw=1.6, zorder=2)
-b.plot(n_modes, fg_resid, color=C_FG, lw=1.5, label="foreground residual")
-b.plot(n_modes, sys_resid, color=C_SYS, lw=1.2, ls="--",
-       label="+1 m position error (worst LST)")
-b.axvline(N_ANCHOR, color="0.6", lw=0.8, ls=":", zorder=0)
-b.text(N_ANCHOR - 0.3, 1e0, f"$N = {N_ANCHOR}$", fontsize=7, color="0.35",
-       ha="right", va="center")
-b.set_yscale("log")
-b.set_xlim(0, N_SHOW)
-b.set_ylim(1e-5, 3e3)
-b.set_xlabel("Foreground modes filtered", fontsize=8)
-b.set_ylabel("RMS over band [K]", fontsize=8)
-b.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
-b.tick_params(labelsize=7)
-b.legend(fontsize=6.5, loc="upper right", framealpha=0.92)
 
-fig.savefig("signal_loss.pdf", bbox_inches="tight", dpi=600)"""
+
+def make_figure(path, show_all):
+    """Panel (a) shows either the three exemplars alone or the whole ensemble."""
+    fig, ax = plt.subplot_mosaic(
+        [["a1", "b"], ["a2", "b"]],
+        figsize=(7.3, 3.2), layout="constrained",
+        gridspec_kw=dict(width_ratios=[1, 1.2]),
+    )
+    b = ax["b"]
+    # Against the full ensemble the exemplars vanish into their own class,
+    # so give them a white halo there. Without it the exemplar-only figure
+    # is unchanged from the committed version.
+    ex_lw = 1.4 if show_all else 1.1
+    ex_kw = dict(lw=ex_lw)
+    b_kw = dict(lw=1.6, zorder=2)
+    if show_all:
+        halo = [pe.Stroke(linewidth=ex_lw + 1.4, foreground="w"), pe.Normal()]
+        ex_kw["path_effects"] = halo
+        b_kw["path_effects"] = [pe.Stroke(linewidth=3.0, foreground="w"), pe.Normal()]
+
+    for k, lab in enumerate(class_labels):                  # colour by fate at N
+        kk = np.nonzero(cls == k)[0]
+        if show_all:                                        # every model, left column
+            ax["a1"].plot(freqs, T21[kk].T * 1e3, color=CLASS_C[k], lw=0.4,
+                          alpha=ALL_ALPHA, zorder=0)
+            ax["a2"].plot(freqs, t21_filt[kk].T * 1e3, color=CLASS_C[k], lw=0.4,
+                          alpha=ALL_ALPHA, zorder=0)
+        sk = sub[cls[sub] == k]                             # subsample, right panel
+        b.plot(n_modes, t21_resid[:, sk], color=CLASS_C[k], lw=0.5,
+               alpha=CURVE_ALPHA, zorder=0)
+        b.plot([], [], color=CLASS_C[k], lw=1.2,            # legend proxy
+               label=f"{lab} retained ({kk.size})")
+
+    for i, w in zip(show_idx, show_w):                      # exemplars, both sides
+        c = CLASS_C[cls[i]]
+        ax["a1"].plot(freqs, T21[i] * 1e3, color=c, label=f"{w:.0f} MHz wide", **ex_kw)
+        ax["a2"].plot(freqs, t21_filt[i] * 1e3, color=c, **ex_kw)
+        b.plot(n_modes, t21_resid[:, i], color=c, **b_kw)
+
+    for key, lab, ylab in (("a1", "input", r"$T_{21}$ [mK]"),
+                           ("a2", f"after filtering {N_ANCHOR} modes",
+                            "Residual [mK]")):
+        ax[key].axhline(0, color="0.6", lw=0.6, ls="--", zorder=0)
+        ax[key].set_ylabel(ylab, fontsize=8)
+        ax[key].grid(alpha=0.2)
+        ax[key].tick_params(labelsize=7)
+        ax[key].text(0.03 if key == "a1" else 0.97, 0.06, lab,
+                     transform=ax[key].transAxes, fontsize=7,
+                     ha="left" if key == "a1" else "right", va="bottom")
+    ax["a1"].tick_params(labelbottom=False)
+    ax["a2"].set_xlabel("Frequency [MHz]", fontsize=8)
+    ax["a1"].legend(fontsize=6, loc="lower right", framealpha=0.9, handlelength=1.4)
+
+    b.plot(n_modes, fg_resid, color=C_FG, lw=1.5, label="foreground residual")
+    b.plot(n_modes, sys_resid, color=C_SYS, lw=1.2, ls="--",
+           label="+1 m position error (worst LST)")
+    b.axvline(N_ANCHOR, color="0.6", lw=0.8, ls=":", zorder=0)
+    b.text(N_ANCHOR - 0.3, 1e0, f"$N = {N_ANCHOR}$", fontsize=7, color="0.35",
+           ha="right", va="center")
+    b.set_yscale("log")
+    b.set_xlim(0, N_SHOW)
+    b.set_ylim(1e-5, 3e3)
+    b.set_xlabel("Foreground modes filtered", fontsize=8)
+    b.set_ylabel("RMS over band [K]", fontsize=8)
+    b.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
+    b.tick_params(labelsize=7)
+    b.legend(fontsize=6.5, loc="upper right", framealpha=0.92)
+
+    fig.savefig(path, bbox_inches="tight", dpi=600)
+
+
+make_figure("signal_loss.pdf", show_all=False)              # three exemplars
+make_figure("signal_loss_all.pdf", show_all=True)           # whole ensemble'''
 
 SUMMARY_SRC = """frac_above = (t21_resid > fg_resid[:, None]).mean(axis=1)
 print(f"{'N':>3} {'fgnd':>9} {'pos err':>9} {'21cm p50':>9} {'21cm p95':>9} "
@@ -317,7 +345,9 @@ def build_notebook():
         "from a common depth window (80-160 mK) so that trough *width*, not "
         "amplitude, is the visible difference -- before and after filtering "
         "$N$ modes. Each is highlighted as a thick curve of the same colour "
-        "in panel (b), so the two sides can be read against each other. What "
+        "in panel (b), so the two sides can be read against each other. "
+        "`signal_loss_all.pdf` is the same figure with the whole ensemble "
+        "drawn in the left column rather than the three exemplars. What "
         "survives is small but still "
         "structured -- note it is band-edge ringing from projecting onto a "
         "truncated smooth basis, not a residual trough, so retained RMS is "
