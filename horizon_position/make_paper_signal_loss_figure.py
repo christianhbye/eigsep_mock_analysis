@@ -64,7 +64,12 @@ MODELS_NPZ = Path(
 )
 
 N_ANCHOR = 10  # modes filtered at the quoted operating point
-TROUGH_TARGETS_MHZ = (65.0, 85.0, 110.0)  # models drawn in panels (a1)/(a2)
+# Class edges on retained RMS [mK] at N_ANCHOR. 1 and 5 mK split the
+# ensemble roughly into thirds; 10 mK would catch 2.6% and 25 mK nothing
+# at all (the most foreground-orthogonal model retains 16.4 mK).
+RET_EDGES_MK = (1.0, 5.0)
+CLASS_LABELS = ("< 1 mK", "1-5 mK", "> 5 mK")
+MATCH_DEPTH_MK = (80.0, 160.0)  # depth window the example models are drawn from
 
 
 def load_t21(freqs):
@@ -86,19 +91,40 @@ def retained_pct(T21, Vh, n_modes, pct=(5, 50, 95)):
     return np.percentile(rms, pct, axis=1)
 
 
-def pick_models(T21, freqs):
-    """Three models spanning trough frequency, at representative depth.
+def classify(T21, Vh, n_anchor=N_ANCHOR):
+    """Class index per model (0/1/2) from its retained RMS at `n_anchor`."""
+    c = T21 @ Vh.T
+    ret_mK = np.sqrt(np.sum(c[:, n_anchor:] ** 2, axis=1) / T21.shape[1]) * 1e3
+    return np.digitize(ret_mK, RET_EDGES_MK), ret_mK
 
-    Trough position drives the overlap with the smooth foreground modes,
-    so spanning it shows the range of filtering outcomes. Restricting to
-    the deeper half keeps the drawn curves legible.
-    """
-    depth = -T21.min(axis=1)
-    trough = freqs[np.argmin(T21, axis=1)]
-    deep = np.nonzero(depth > np.median(depth))[0]
-    return np.array(
-        [deep[np.argmin(np.abs(trough[deep] - t))] for t in TROUGH_TARGETS_MHZ]
+
+def trough_width(T21, freqs):
+    """Width [MHz] of each absorption trough at half its depth."""
+    return (T21 < T21.min(axis=1, keepdims=True) / 2).sum(axis=1) * (
+        freqs[1] - freqs[0]
     )
+
+
+def pick_models(T21, freqs, cls):
+    """One model per class, drawn from a common depth window.
+
+    At matched depth the classes separate almost entirely by trough
+    *width*: the smooth low-order foreground modes absorb broad troughs
+    and leave narrow ones (median width 73 / 30 / 17 MHz going from the
+    destroyed class to the surviving one). Selecting inside a common
+    depth window isolates that, rather than confounding it with
+    amplitude -- most of the destroyed class is simply faint to begin
+    with (median depth 2.7 mK).
+    """
+    depth = -T21.min(axis=1) * 1e3
+    width = trough_width(T21, freqs)
+    lo, hi = MATCH_DEPTH_MK
+    window = (depth > lo) & (depth < hi)
+    out = []
+    for k in range(len(CLASS_LABELS)):
+        m = np.nonzero(window & (cls == k))[0]
+        out.append(m[np.argmin(np.abs(width[m] - np.median(width[m])))])
+    return np.array(out)
 
 
 def build_data():
@@ -113,6 +139,8 @@ def build_data():
     s_fg = np.linalg.svd(t_ant, compute_uv=False)
 
     T21 = load_t21(freqs)  # (n_model, n_f) K
+    cls, _ = classify(T21, Vh)
+    show_idx = pick_models(T21, freqs, cls)
 
     np.savez_compressed(
         PAPER / "signal_loss.npz",
@@ -123,7 +151,10 @@ def build_data():
         dT_spectra=shift["dT_spectra"],
         labels=shift["labels"],
         T21_models=T21,
-        show_idx=pick_models(T21, freqs),
+        show_idx=show_idx,
+        cls=cls,
+        show_width_MHz=trough_width(T21, freqs)[show_idx],
+        class_labels=np.array(CLASS_LABELS),
         n_anchor=N_ANCHOR,
         description=(
             "Inputs for the 21 cm signal-loss figure. Vh (n_freq, n_freq) and "
@@ -154,6 +185,9 @@ n_time = int(d["n_time"])        # LST samples in that waterfall
 dT = d["dT_spectra"]             # (3, n_lst, n_f) +1 m E/N/U systematic [K]
 T21 = d["T21_models"]            # (n_model, n_f) global-signal ensemble [K]
 show_idx = d["show_idx"]         # the three models drawn in panels (a1)/(a2)
+cls = d["cls"]                   # (n_model,) class 0/1/2 by retained RMS at N_ANCHOR
+show_w = d["show_width_MHz"]     # trough width [MHz] of each drawn model
+class_labels = [str(x) for x in d["class_labels"]]
 n_f = freqs.size
 N_SHOW = 18                      # x-axis extent
 N_ANCHOR = int(d["n_anchor"])    # modes filtered at the quoted operating point
@@ -186,8 +220,8 @@ sys_resid = filt_rms(dT.reshape(-1, n_f)).max(axis=1)      # worst axis/LST
 t21_resid = filt_rms(T21)                                  # (N_SHOW+1, n_model)
 t21_pct = np.percentile(t21_resid, [5, 50, 95], axis=1)    # (3, N_SHOW+1)'''
 
-PLOT_SRC = r"""C_FG, C_SYS, C_21 = "k", "#d55e00", "#0072b2"
-MODEL_C = ["#0072b2", "#009e73", "#cc79a7"]
+PLOT_SRC = r"""C_FG, C_SYS = "k", "#d55e00"
+CLASS_C = ["#cc79a7", "#009e73", "#0072b2"]                 # destroyed -> survives
 
 fig, ax = plt.subplot_mosaic(
     [["a1", "b"], ["a2", "b"]],
@@ -195,9 +229,10 @@ fig, ax = plt.subplot_mosaic(
     gridspec_kw=dict(width_ratios=[1, 1.2]),
 )
 
-for k, i in enumerate(show_idx):                            # (a1) in, (a2) out
-    ax["a1"].plot(freqs, T21[i] * 1e3, color=MODEL_C[k], lw=1.0)
-    ax["a2"].plot(freqs, filtered(T21[i], N_ANCHOR) * 1e3, color=MODEL_C[k], lw=1.0)
+for i, w in zip(show_idx, show_w):                          # (a1) in, (a2) out
+    c = CLASS_C[cls[i]]
+    ax["a1"].plot(freqs, T21[i] * 1e3, color=c, lw=1.1, label=f"{w:.0f} MHz wide")
+    ax["a2"].plot(freqs, filtered(T21[i], N_ANCHOR) * 1e3, color=c, lw=1.1)
 
 for key, lab, ylab in (("a1", "input", r"$T_{21}$ [mK]"),
                        ("a2", f"after filtering {N_ANCHOR} modes", "Residual [mK]")):
@@ -205,17 +240,24 @@ for key, lab, ylab in (("a1", "input", r"$T_{21}$ [mK]"),
     ax[key].set_ylabel(ylab, fontsize=8)
     ax[key].grid(alpha=0.2)
     ax[key].tick_params(labelsize=7)
-    ax[key].text(0.97, 0.06, lab, transform=ax[key].transAxes,
-                 fontsize=7, ha="right", va="bottom")
+    ax[key].text(0.03 if key == "a1" else 0.97, 0.06, lab,
+                 transform=ax[key].transAxes, fontsize=7,
+                 ha="left" if key == "a1" else "right", va="bottom")
 ax["a1"].tick_params(labelbottom=False)
 ax["a2"].set_xlabel("Frequency [MHz]", fontsize=8)
+ax["a1"].legend(fontsize=6, loc="lower right", framealpha=0.9, handlelength=1.4)
 
 b = ax["b"]
 rng = np.random.default_rng(0)                              # fixed draw, reproducible
 sub = rng.choice(t21_resid.shape[1], size=N_CURVES, replace=False)
-b.plot(n_modes, t21_resid[:, sub], color=C_21, lw=0.5, alpha=CURVE_ALPHA, zorder=0)
-b.plot([], [], color=C_21, lw=1.0, alpha=0.6,                # legend proxy
-       label=f"21 cm signals ({N_CURVES} of {T21.shape[0]})")
+for k, lab in enumerate(class_labels):                      # colour by fate at N
+    kk = sub[cls[sub] == k]
+    b.plot(n_modes, t21_resid[:, kk], color=CLASS_C[k], lw=0.5,
+           alpha=CURVE_ALPHA, zorder=0)
+    b.plot([], [], color=CLASS_C[k], lw=1.2,                 # legend proxy
+           label=f"{lab} retained ({(cls == k).sum()})")
+for i in show_idx:                                           # the panel (a) models
+    b.plot(n_modes, t21_resid[:, i], color=CLASS_C[cls[i]], lw=1.6, zorder=2)
 b.plot(n_modes, fg_resid, color=C_FG, lw=1.5, label="foreground residual")
 b.plot(n_modes, sys_resid, color=C_SYS, lw=1.2, ls="--",
        label="+1 m position error (worst LST)")
@@ -247,7 +289,18 @@ print(f"\\nAt N = {N_ANCHOR}: median model keeps {np.median(keep)*100:.0f}% of i
       f"{fg_resid[N_ANCHOR]*1e3:.2f} mK and the worst-case +1 m position error is "
       f"{sys_resid[N_ANCHOR]*1e3:.2f} mK.")
 print(f"{frac_above[N_ANCHOR]*100:.0f}% of the {t21_resid.shape[1]} models retain "
-      f"more signal than the foreground residual.")"""
+      f"more signal than the foreground residual.")
+
+# What separates the classes: at matched depth it is trough width, not amplitude.
+width = (T21 < T21.min(axis=1, keepdims=True) / 2).sum(axis=1) * (freqs[1] - freqs[0])
+depth = -T21.min(axis=1) * 1e3
+window = (depth > 80) & (depth < 160)
+print()
+for k, lab in enumerate(class_labels):
+    m, mw = cls == k, (cls == k) & window
+    print(f"{lab:>6s} retained: {m.sum():4d} models, median depth "
+          f"{np.median(depth[m]):6.1f} mK; at matched depth (80-160 mK) "
+          f"n={mw.sum():3d}, median trough width {np.median(width[mw]):3.0f} MHz")"""
 
 
 def build_notebook():
@@ -260,16 +313,30 @@ def build_notebook():
         "through the *identical* projection onto the leading $N$ foreground "
         "modes and read the retained signal off the same axes as the "
         "residuals.\n\n"
-        "Panels (a1)/(a2) show three models spanning trough frequency before "
-        "and after filtering $N$ modes: what survives is small but still "
+        "Panels (a1)/(a2) show one model per outcome class -- all three drawn "
+        "from a common depth window (80-160 mK) so that trough *width*, not "
+        "amplitude, is the visible difference -- before and after filtering "
+        "$N$ modes. Each is highlighted as a thick curve of the same colour "
+        "in panel (b), so the two sides can be read against each other. What "
+        "survives is small but still "
         "structured -- note it is band-edge ringing from projecting onto a "
         "truncated smooth basis, not a residual trough, so retained RMS is "
         "not retained signal *shape*. Panel (b) "
         "puts the foreground residual, the worst-case $+1$ m position-error "
-        "systematic, and 500 individual retained-signal curves on one "
-        "set of axes. It supersedes "
+        "systematic, and 500 individual retained-signal curves coloured by "
+        "outcome class on one set of axes. It supersedes "
         "`foreground_svd_residual.pdf` -- the black curve is the same one, now "
         "never shown without the signal beside it.\n\n"
+        "Models are classed by the RMS they retain at $N = 10$: below 1 mK, "
+        "1-5 mK, and above 5 mK, which splits the ensemble roughly into "
+        "thirds. Higher cuts are not useful here -- 10 mK catches 2.6% of "
+        "models and 25 mK none, since the most foreground-orthogonal model "
+        "retains 16.4 mK. **The discriminator is trough width.** At matched "
+        "depth the median width runs 73 / 30 / 17 MHz from the destroyed "
+        "class to the surviving one: the smooth low-order foreground modes "
+        "absorb broad troughs and leave narrow ones. Amplitude matters too, "
+        "but most of the destroyed class is simply faint to begin with "
+        "(median depth 2.7 mK).\n\n"
         "$N = 10$ is the smallest $N$ at which *both* floors fall below the "
         "median retained signal. At $N = 8$ the foreground residual and the "
         "median signal are the same size.\n\n"
