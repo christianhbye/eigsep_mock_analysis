@@ -194,7 +194,7 @@ N_SHOW = 18                      # x-axis extent
 N_ANCHOR = int(d["n_anchor"])    # modes filtered at the quoted operating point
 N_CURVES = 500                   # individual signals drawn in panel (b)
 CURVE_ALPHA = 0.10               # opacity of those curves
-ALL_ALPHA = 0.05                 # opacity of the full ensemble in panel (a)
+ALL_ALPHA = 0.08                 # opacity of the full ensemble in panel (a)
 print(f"{T21.shape[0]} 21 cm models on {n_f} channels, "
       f"{freqs[0]:.0f}-{freqs[-1]:.0f} MHz")"""
 
@@ -224,8 +224,8 @@ t21_resid = filt_rms(T21)                                  # (N_SHOW+1, n_model)
 t21_pct = np.percentile(t21_resid, [5, 50, 95], axis=1)    # (3, N_SHOW+1)
 t21_filt = filtered(T21, N_ANCHOR)                         # (n_model, n_f) residuals'''
 
-PLOT_SRC = r'''C_FG, C_SYS = "k", "#d55e00"
-CLASS_C = ["#cc79a7", "#009e73", "#0072b2"]                 # destroyed -> survives
+PLOT_SRC = r'''C_FG, C_SYS = "k", "0.45"
+CLASS_C = ["#cc79a7", "#e69f00", "#0072b2"]                 # destroyed -> survives
 rng = np.random.default_rng(0)                              # fixed draw, reproducible
 sub = rng.choice(t21_resid.shape[1], size=N_CURVES, replace=False)
 
@@ -264,7 +264,7 @@ def make_figure(path, show_all):
 
     for i, w in zip(show_idx, show_w):                      # exemplars, both sides
         c = CLASS_C[cls[i]]
-        ax["a1"].plot(freqs, T21[i] * 1e3, color=c, label=f"{w:.0f} MHz wide", **ex_kw)
+        ax["a1"].plot(freqs, T21[i] * 1e3, color=c, label=f"{w:.0f} MHz", **ex_kw)
         ax["a2"].plot(freqs, t21_filt[i] * 1e3, color=c, **ex_kw)
         b.plot(n_modes, t21_resid[:, i], color=c, **b_kw)
 
@@ -280,11 +280,14 @@ def make_figure(path, show_all):
                      ha="left" if key == "a1" else "right", va="bottom")
     ax["a1"].tick_params(labelbottom=False)
     ax["a2"].set_xlabel("Frequency [MHz]", fontsize=8)
-    ax["a1"].legend(fontsize=6, loc="lower right", framealpha=0.9, handlelength=1.4)
+    ax["a1"].legend(fontsize=6, loc="lower right", framealpha=0.9,
+                    handlelength=1.4, title="highlighted model width",
+                    title_fontsize=6)
 
-    b.plot(n_modes, fg_resid, color=C_FG, lw=1.5, label="foreground residual")
-    b.plot(n_modes, sys_resid, color=C_SYS, lw=1.2, ls="--",
-           label="+1 m position error (worst LST)")
+    ref = [b.plot(n_modes, fg_resid, color=C_FG, lw=1.5,
+                  label="foreground residual")[0],
+           b.plot(n_modes, sys_resid, color=C_SYS, lw=1.4, ls="--",
+                  label="+1 m position error (worst LST)")[0]]
     b.axvline(N_ANCHOR, color="0.6", lw=0.8, ls=":", zorder=0)
     b.text(N_ANCHOR - 0.3, 1e0, f"$N = {N_ANCHOR}$", fontsize=7, color="0.35",
            ha="right", va="center")
@@ -295,7 +298,14 @@ def make_figure(path, show_all):
     b.set_ylabel("RMS over band [K]", fontsize=8)
     b.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
     b.tick_params(labelsize=7)
-    b.legend(fontsize=6.5, loc="upper right", framealpha=0.92)
+    cls_leg = b.legend(handles=[h for h in b.get_lines() if h.get_label()
+                                in [f"{x} retained ({(cls == k).sum()})"
+                                    for k, x in enumerate(class_labels)]],
+                       title=f"21 cm signal retained at $N = {N_ANCHOR}$",
+                       fontsize=6.5, title_fontsize=6.5, loc="upper right",
+                       framealpha=0.92)
+    b.add_artist(cls_leg)
+    b.legend(handles=ref, fontsize=6.5, loc="lower left", framealpha=0.92)
 
     fig.savefig(path, bbox_inches="tight", dpi=600)
 
