@@ -179,7 +179,10 @@ def build_data():
 # --- source shared by the notebook and the direct render (kept in sync) ---
 
 IMPORTS_SRC = """import numpy as np
-import matplotlib.pyplot as plt"""
+import matplotlib.pyplot as plt
+from matplotlib.cm import ScalarMappable
+from matplotlib.collections import LineCollection
+from matplotlib.colors import LogNorm"""
 
 LOAD_SRC = """d = np.load("signal_loss.npz", allow_pickle=True)
 freqs = d["freqs_MHz"]           # (n_f,) MHz
@@ -198,6 +201,7 @@ N_ANCHOR = int(d["n_anchor"])    # modes filtered at the quoted operating point
 N_CURVES = 500                   # individual signals drawn in panel (b)
 CURVE_ALPHA = 0.10               # opacity of those curves
 ALL_ALPHA = 0.08                 # opacity of the full ensemble in panel (a)
+CONT_CMAP = "viridis"            # continuous variant: colour = retained RMS
 print(f"{T21.shape[0]} 21 cm models on {n_f} channels, "
       f"{freqs[0]:.0f}-{freqs[-1]:.0f} MHz")"""
 
@@ -303,8 +307,81 @@ def make_figure(path, show_all):
     fig.savefig(path, bbox_inches="tight", dpi=600)
 
 
+def make_continuous(path):
+    """Colour every model by what it retains, with no class boundaries.
+
+    The three-class version cuts a continuum into bins, which invites
+    reading the bins as populations; they are not. Here the colour is the
+    retained RMS itself, on a log scale, and the colorbar replaces the
+    class legend. Exemplars are dropped -- nothing distinguishes those
+    three models once colour carries the quantity directly.
+    """
+    ret = t21_resid[N_ANCHOR] * 1e3                         # colour quantity [mK]
+    norm = LogNorm(vmin=ret[ret > 0].min(), vmax=ret.max())
+    order = np.argsort(-ret)                                # faintest drawn last
+
+    def segs(x, Y):
+        return np.stack([np.broadcast_to(np.asarray(x), Y.shape), Y], axis=-1)
+
+    fig, ax = plt.subplot_mosaic(
+        [["a1", "b"], ["a2", "b"]],
+        figsize=(7.6, 3.2), layout="constrained",
+        gridspec_kw=dict(width_ratios=[1, 1.2]),
+    )
+    for key, Y in (("a1", T21[order] * 1e3), ("a2", t21_filt[order] * 1e3)):
+        lc = LineCollection(segs(freqs, Y), cmap=CONT_CMAP, norm=norm,
+                            lw=0.4, alpha=ALL_ALPHA)
+        lc.set_array(ret[order])
+        ax[key].add_collection(lc)
+        ax[key].set_xlim(freqs[0], freqs[-1])
+        ax[key].set_ylim(Y.min() * 1.05, max(Y.max() * 1.05, 0.02 * abs(Y.min())))
+
+    b = ax["b"]
+    lc = LineCollection(segs(n_modes, t21_resid[:, order].T), cmap=CONT_CMAP,
+                        norm=norm, lw=0.5, alpha=CURVE_ALPHA)
+    lc.set_array(ret[order])
+    b.add_collection(lc)
+    ref = [b.plot(n_modes, fg_resid, color=C_FG, lw=1.5,
+                  label="foreground residual")[0],
+           b.plot(n_modes, sys_resid, color=C_SYS, lw=1.4, ls="--",
+                  label="+1 m position error (worst LST)")[0]]
+
+    for key, lab, ylab in (("a1", "input", r"$T_{21}$ [mK]"),
+                           ("a2", f"after filtering {N_ANCHOR} modes",
+                            "Residual [mK]")):
+        ax[key].axhline(0, color="0.6", lw=0.6, ls="--", zorder=0)
+        ax[key].set_ylabel(ylab, fontsize=8)
+        ax[key].grid(alpha=0.2)
+        ax[key].tick_params(labelsize=7)
+        ax[key].text(0.03, 0.06, lab, transform=ax[key].transAxes, fontsize=7,
+                     ha="left", va="bottom")
+    ax["a1"].tick_params(labelbottom=False)
+    ax["a2"].set_xlabel("Frequency [MHz]", fontsize=8)
+
+    b.axvline(N_ANCHOR, color="0.6", lw=0.8, ls=":", zorder=0)
+    b.text(N_ANCHOR - 0.3, 1e0, f"$N = {N_ANCHOR}$", fontsize=7, color="0.35",
+           ha="right", va="center")
+    b.set_yscale("log")
+    b.set_xlim(0, N_SHOW)
+    b.set_ylim(1e-5, 3e3)
+    b.set_xlabel("Foreground modes filtered", fontsize=8)
+    b.set_ylabel("RMS over band [K]", fontsize=8)
+    b.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
+    b.tick_params(labelsize=7)
+    b.legend(handles=ref, fontsize=6.5, loc="lower left", framealpha=0.92)
+
+    sm = ScalarMappable(norm=norm, cmap=CONT_CMAP)
+    cb = fig.colorbar(sm, ax=b, pad=0.015, fraction=0.045)
+    cb.set_label(f"21 cm RMS retained at $N = {N_ANCHOR}$ [mK]", fontsize=7.5)
+    cb.ax.tick_params(labelsize=6.5)
+    cb.solids.set_alpha(1.0)
+
+    fig.savefig(path, bbox_inches="tight", dpi=600)
+
+
 make_figure("signal_loss.pdf", show_all=False)              # three exemplars
-make_figure("signal_loss_all.pdf", show_all=True)           # whole ensemble'''
+make_figure("signal_loss_all.pdf", show_all=True)           # whole ensemble
+make_continuous("signal_loss_cont.pdf")                     # no class boundaries'''
 
 SUMMARY_SRC = """frac_above = (t21_resid > fg_resid[:, None]).mean(axis=1)
 print(f"{'N':>3} {'fgnd':>9} {'pos err':>9} {'21cm p50':>9} {'21cm p95':>9} "
