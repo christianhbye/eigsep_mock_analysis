@@ -9,6 +9,7 @@ their tests run in the main env.
 """
 
 import argparse
+import concurrent.futures as cf
 import multiprocessing as mp
 import sys
 from pathlib import Path
@@ -76,6 +77,11 @@ PACKAGES = (
     "pyfftw",
     "zeus21",
 )
+# generate.py imports provenance at module scope, and the recipe below tells
+# the reader to apply the reionization cut, which lives in selection.py --
+# so both must ship alongside priors.py/generate.py or the embedded source
+# cannot actually be run by someone holding only the npz.
+GENERATOR_SOURCE_FILES = ("priors.py", "provenance.py", "selection.py", "generate.py")
 
 _CTX = {}
 
@@ -149,6 +155,30 @@ def _batch_path(out_dir, start):
     return out_dir / f"batch_{start:05d}.npz"
 
 
+def _check_index_complete(index, n_models, work_dir):
+    """Guard the identity of ``work_dir``'s checkpoints.
+
+    The assembled ``index`` must be exactly ``0..n_models-1``: no
+    duplicates, no gaps, no reordering. Downstream, ``T21_native_mK`` and
+    ``xHI`` are never re-permuted -- they stay in load order -- so their
+    alignment with ``kept_index`` depends entirely on load order already
+    being ``0..n_models-1``. A work directory reused across a different
+    ``--seed`` or ``--batch-size`` breaks that silently (stale batches
+    accepted, or a batch's rows counted twice while another is skipped),
+    and neither ``rebuild_params`` nor a shape check catches it, because
+    ``kept_index`` is derived from the very same corrupted ``index``. This
+    is the loud failure that replaces that silent scramble.
+    """
+    if not np.array_equal(index, np.arange(n_models)):
+        raise RuntimeError(
+            f"batch index mismatch in {work_dir}: expected exactly "
+            f"0..{n_models - 1} with no duplicates, gaps or reordering, but "
+            "did not get it. This happens when checkpoints from a different "
+            "--seed or --batch-size share this work directory. Clear "
+            f"{work_dir} and rerun."
+        )
+
+
 def _run_batches(params, out_dir, batch_size, processes):
     """Run every batch, checkpointing each, and return per-model results."""
     ctx = mp.get_context("fork")  # workers inherit the built cosmology
@@ -161,8 +191,16 @@ def _run_batches(params, out_dir, batch_size, processes):
         items = [
             (i, params[i]) for i in range(start, min(start + batch_size, len(params)))
         ]
-        with ctx.Pool(processes=processes) as pool:
-            results = pool.map(_run_one, items)
+        # ProcessPoolExecutor, not mp.Pool: a worker killed by the OOM killer
+        # or a segfault inside CLASS/pyfftw leaves mp.Pool.map blocked forever
+        # -- the pool replaces the process but the lost task's result never
+        # arrives, so there is no exception, no timeout, nothing to restart.
+        # The executor instead raises BrokenProcessPool, turning the one
+        # crash mode checkpointing cannot rescue into a loud failure. Order
+        # is preserved just like Pool.map, so the alignment reasoning below
+        # is unchanged.
+        with cf.ProcessPoolExecutor(max_workers=processes, mp_context=ctx) as pool:
+            results = list(pool.map(_run_one, items))
         idx = np.array([r[0] for r in results])
         ok = np.array([r[1] is not None for r in results])
         good = [r[1] for r in results if r[1] is not None]
@@ -216,10 +254,18 @@ def main(argv=None):
     print(f"{len(params)} models, precisionboost={args.precisionboost}", flush=True)
 
     _setup(args.precisionboost)
-    work_dir = args.out.parent / f"batches_m{args.n_log2}_pb{args.precisionboost:g}"
+    # seed and batch_size are part of the identity: a work directory shared
+    # across two different draws or chunkings is exactly the corruption
+    # _check_index_complete exists to catch, and giving each combination its
+    # own directory avoids ever hitting that path in ordinary use.
+    work_dir = args.out.parent / (
+        f"batches_m{args.n_log2}_pb{args.precisionboost:g}"
+        f"_seed{args.seed}_bs{args.batch_size}"
+    )
     index, ok, t21_native, xhi, errors, z_native = _run_batches(
         params, work_dir, args.batch_size, args.processes
     )
+    _check_index_complete(index, len(params), work_dir)
 
     order = np.argsort(index)
     ok = ok[order]
@@ -278,10 +324,10 @@ def main(argv=None):
         param_names=np.array(priors.PARAM_NAMES),
         provenance=np.array(header),
         generator_source=np.array(
-            "\n\n# ---- priors.py ----\n"
-            + _read_text(here / "priors.py")
-            + "\n\n# ---- generate.py ----\n"
-            + _read_text(here / "generate.py")
+            "".join(
+                f"\n\n# ---- {name} ----\n{_read_text(here / name)}"
+                for name in GENERATOR_SOURCE_FILES
+            )
         ),
         env_lock=np.array(_read_text(here / "uv.lock")),
         regenerate_recipe=np.array(REGENERATE_RECIPE),
@@ -299,8 +345,8 @@ To regenerate this file with no access to the originating repository:
        header = json.loads(str(d["provenance"]))
 2. Recreate the environment from the `env_lock` key -- it is a uv lockfile
    pinning Zeus21 by commit along with classy, numpy and scipy.
-3. Write out the `generator_source` key; it contains priors.py and
-   generate.py verbatim as run.
+3. Write out the `generator_source` key; it contains priors.py,
+   provenance.py, selection.py and generate.py verbatim as run.
 4. Re-run the command in header["command_line"].
 
 `params` holds the sampled values in TRANSFORMED units: header["varied"]
@@ -308,7 +354,8 @@ gives each column's name, transform ("log10" or "linear") and bounds, in
 column order. A log10 column means Zeus21 received 10**value.
 
 The reionization cut in header["selection"] has NOT been applied to the
-stored arrays. Apply it with the stored `xHI` / `z_xHI`.
+stored arrays. Apply it with the stored `xHI` / `z_xHI` using
+selection.reionized() from the extracted selection.py.
 """
 
 

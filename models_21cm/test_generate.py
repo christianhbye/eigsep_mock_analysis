@@ -53,3 +53,18 @@ def test_interpolation_handles_a_batch_of_models():
     got = generate.interpolate_to_grid(z, native, generate.PAPER_FREQS)
     assert got.shape == (2, 201)
     assert np.allclose(got[0], 1.0) and np.allclose(got[1], -2.0)
+
+
+def test_index_completeness_invariant_fires_on_duplicates():
+    """A work directory reused across a different --seed/--batch-size can
+    leave the assembled index with duplicates and gaps instead of a clean
+    0..n_models-1 -- exactly the corruption that scrambles T21_native_mK
+    against kept_index downstream, silently, because kept_index is derived
+    from this same index. The guard must refuse to let that pass quietly."""
+    duplicated = np.array([0, 1, 1, 2])  # 1 appears twice; 3 is missing
+    with pytest.raises(RuntimeError, match="batch index mismatch"):
+        generate._check_index_complete(duplicated, 4, "some/work/dir")
+
+
+def test_index_completeness_invariant_passes_the_clean_case():
+    generate._check_index_complete(np.arange(8), 8, "some/work/dir")
