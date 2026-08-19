@@ -175,8 +175,7 @@ def build_data():
 # --- source shared by the notebook and the direct render (kept in sync) ---
 
 IMPORTS_SRC = """import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patheffects as pe"""
+import matplotlib.pyplot as plt"""
 
 LOAD_SRC = """d = np.load("signal_loss.npz", allow_pickle=True)
 freqs = d["freqs_MHz"]           # (n_f,) MHz
@@ -238,35 +237,28 @@ def make_figure(path, show_all):
         gridspec_kw=dict(width_ratios=[1, 1.2]),
     )
     b = ax["b"]
-    # Against the full ensemble the exemplars vanish into their own class,
-    # so give them a white halo there. Without it the exemplar-only figure
-    # is unchanged from the committed version.
-    ex_lw = 1.4 if show_all else 1.1
-    ex_kw = dict(lw=ex_lw)
-    b_kw = dict(lw=1.6, zorder=2)
-    if show_all:
-        halo = [pe.Stroke(linewidth=ex_lw + 1.4, foreground="w"), pe.Normal()]
-        ex_kw["path_effects"] = halo
-        b_kw["path_effects"] = [pe.Stroke(linewidth=3.0, foreground="w"), pe.Normal()]
 
     for k, lab in enumerate(class_labels):                  # colour by fate at N
         kk = np.nonzero(cls == k)[0]
+        # The destroyed class is the sparsest and the faintest, so draw it
+        # on top: class 0 gets the highest of these zorders.
+        z = 0.1 * (len(class_labels) - k)
         if show_all:                                        # every model, left column
             ax["a1"].plot(freqs, T21[kk].T * 1e3, color=CLASS_C[k], lw=0.4,
-                          alpha=ALL_ALPHA, zorder=0)
+                          alpha=ALL_ALPHA, zorder=z)
             ax["a2"].plot(freqs, t21_filt[kk].T * 1e3, color=CLASS_C[k], lw=0.4,
-                          alpha=ALL_ALPHA, zorder=0)
+                          alpha=ALL_ALPHA, zorder=z)
         sk = sub[cls[sub] == k]                             # subsample, right panel
         b.plot(n_modes, t21_resid[:, sk], color=CLASS_C[k], lw=0.5,
-               alpha=CURVE_ALPHA, zorder=0)
+               alpha=CURVE_ALPHA, zorder=z)
         b.plot([], [], color=CLASS_C[k], lw=1.2,            # legend proxy
                label=f"{lab} retained ({kk.size})")
 
     for i in show_idx:                                      # exemplars, both sides
         c = CLASS_C[cls[i]]
-        ax["a1"].plot(freqs, T21[i] * 1e3, color=c, **ex_kw)
-        ax["a2"].plot(freqs, t21_filt[i] * 1e3, color=c, **ex_kw)
-        b.plot(n_modes, t21_resid[:, i], color=c, **b_kw)
+        ax["a1"].plot(freqs, T21[i] * 1e3, color=c, lw=0.9)
+        ax["a2"].plot(freqs, t21_filt[i] * 1e3, color=c, lw=0.9)
+        b.plot(n_modes, t21_resid[:, i], color=c, lw=1.0, zorder=2)
 
     for key, lab, ylab in (("a1", "input", r"$T_{21}$ [mK]"),
                            ("a2", f"after filtering {N_ANCHOR} modes",
