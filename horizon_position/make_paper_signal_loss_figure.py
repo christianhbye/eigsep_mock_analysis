@@ -262,9 +262,9 @@ def make_figure(path, show_all):
         b.plot([], [], color=CLASS_C[k], lw=1.2,            # legend proxy
                label=f"{lab} retained ({kk.size})")
 
-    for i, w in zip(show_idx, show_w):                      # exemplars, both sides
+    for i in show_idx:                                      # exemplars, both sides
         c = CLASS_C[cls[i]]
-        ax["a1"].plot(freqs, T21[i] * 1e3, color=c, label=f"{w:.0f} MHz", **ex_kw)
+        ax["a1"].plot(freqs, T21[i] * 1e3, color=c, **ex_kw)
         ax["a2"].plot(freqs, t21_filt[i] * 1e3, color=c, **ex_kw)
         b.plot(n_modes, t21_resid[:, i], color=c, **b_kw)
 
@@ -280,9 +280,6 @@ def make_figure(path, show_all):
                      ha="left" if key == "a1" else "right", va="bottom")
     ax["a1"].tick_params(labelbottom=False)
     ax["a2"].set_xlabel("Frequency [MHz]", fontsize=8)
-    ax["a1"].legend(fontsize=6, loc="lower right", framealpha=0.9,
-                    handlelength=1.4, title="highlighted model width",
-                    title_fontsize=6)
 
     ref = [b.plot(n_modes, fg_resid, color=C_FG, lw=1.5,
                   label="foreground residual")[0],
@@ -329,6 +326,10 @@ print(f"\\nAt N = {N_ANCHOR}: median model keeps {np.median(keep)*100:.0f}% of i
 print(f"{frac_above[N_ANCHOR]*100:.0f}% of the {t21_resid.shape[1]} models retain "
       f"more signal than the foreground residual.")
 
+print()
+print("highlighted models: " + ", ".join(
+    f"{class_labels[cls[i]]} / {w:.0f} MHz wide" for i, w in zip(show_idx, show_w)))
+
 # What separates the classes: at matched depth it is trough width, not amplitude.
 width = (T21 < T21.min(axis=1, keepdims=True) / 2).sum(axis=1) * (freqs[1] - freqs[0])
 depth = -T21.min(axis=1) * 1e3
@@ -355,7 +356,10 @@ def build_notebook():
         "from a common depth window (80-160 mK) so that trough *width*, not "
         "amplitude, is the visible difference -- before and after filtering "
         "$N$ modes. Each is highlighted as a thick curve of the same colour "
-        "in panel (b), so the two sides can be read against each other. "
+        "in panel (b), so the two sides can be read against each other; "
+        "colour means outcome class throughout, so panel (a) carries no "
+        "legend of its own. Their trough widths are printed by the summary "
+        "cell, for the caption. "
         "`signal_loss_all.pdf` is the same figure with the whole ensemble "
         "drawn in the left column rather than the three exemplars. What "
         "survives is small but still "
