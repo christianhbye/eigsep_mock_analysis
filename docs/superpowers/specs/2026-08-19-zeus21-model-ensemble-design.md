@@ -228,14 +228,57 @@ publication, following the instrument paper's npz→Zenodo convention).
 | `T21_mK` | `(n_model, n_freq)`, spline-interpolated onto `freqs_MHz` |
 | `T21_native_mK`, `z_native` | uninterpolated output, so the ensemble can be regridded |
 | `xHI`, `z_xHI` | per-model neutral fraction, for the retunable cut |
-| `params`, `param_names` | `(n_model, 14)` and names — any model is reproducible |
-| `ranges`, `seed`, `sobol_m` | the sampling specification |
-| `zeus21_sha`, `cosmology`, `description` | the provenance block the current file lacks |
+| `params`, `param_names` | `(n_model, 14)` and names, in header column order |
+| `provenance` | JSON string; the self-describing header, below |
+| `generator_source` | literal text of `priors.py` + `generate.py` as run |
+| `env_lock` | literal text of `models_21cm/uv.lock` |
+| `regenerate_recipe` | human-readable instructions, readable without this repo |
+
+Written with `np.savez_compressed` (~18 MB uncompressed: 4096 x 201
+gridded, 4096 x 303 native, plus `xHI`).
 
 Storing `T21_mK` pre-interpolated reduces `load_t21()` to a load, a
 grid assertion, and a mK→K conversion, and removes the GHz/MHz trap in
 the current loader. Non-finite or failed draws are dropped before
 writing, with the count and the offending parameters recorded.
+
+### The self-describing header
+
+This ensemble will be referenced by future papers and proposals, not
+just PR #5. The failure mode being fixed is precisely that the *file
+outlived the script*, so the requirement is stronger than recording
+metadata:
+
+> Someone holding only this npz, with no access to this repository,
+> must be able to regenerate it.
+
+That is why `generator_source` and `env_lock` are embedded rather than
+referenced. Tens of kB against an ~18 MB file is a trivial cost, and it
+is the difference between a file that *describes* its provenance and
+one that *carries* it. A git SHA is a pointer, and pointers are what
+failed last time.
+
+`provenance` is a JSON string (not a pickled dict — it must be readable
+without `allow_pickle`) containing:
+
+- **When and where:** `created_utc`, `hostname`, `platform`,
+  `python_version`, the invoking command line.
+- **Code identity:** Zeus21 remote URL, commit SHA, and dirty flag;
+  the same three for this repository; the generator script path.
+- **Package versions:** `numpy`, `scipy`, `classy`, `astropy`, `mcfit`,
+  `powerbox`, `pyfftw`.
+- **Full Zeus21 configuration:** every `User_Parameters`,
+  `Cosmo_Parameters_Input`, and fixed `Astro_Parameters` keyword as
+  actually passed — including `precisionboost = 3`, `zmin_CLASS = 4.5`,
+  `zmin = 4.68`, `USE_POPIII`, `USE_LW_FEEDBACK` — not just the ones
+  that differ from defaults, since defaults drift between versions.
+- **Sampler:** kind, scrambling, seed, `m`, `n_models`, and the
+  `varied` list of `{name, transform, lo, hi}` in the column order of
+  `params`.
+- **Interpolation:** method, variable, and target grid.
+- **Selection:** the recommended cut and its reference, recorded as
+  *not applied* to the stored arrays.
+- **Citations:** the papers a user of this file owes.
 
 ## Components
 
@@ -290,6 +333,19 @@ trip over a nested project that is not a member.
 5. **Percentile convergence** — recompute the 5/50/95 retained-RMS
    percentiles from random subsets of 256/512/1024/2048/4096. If they
    are still drifting at 4096, extend the Sobol sequence to 8192.
+6. **Header sufficiency — machine-checked, not asserted.** A populated
+   header rots as silently as an absent one, so sufficiency is tested
+   directly:
+   - **Sampling half:** rebuild the Sobol draw from the stored
+     `provenance` header *alone* and assert bit-for-bit equality with
+     the stored `params`. An incomplete or wrong sampler spec fails.
+   - **Physics half:** re-run 3 randomly chosen models using only the
+     configuration in the header, and match them against their stored
+     rows to machine precision. Roughly 25 s at pb = 3.
+   Together these prove the header is sufficient rather than merely
+   present. This test is the direct countermeasure to the problem that
+   motivated the whole project and should be treated as a release gate
+   for the npz, not an optional check.
 
 ## Downstream changes
 
