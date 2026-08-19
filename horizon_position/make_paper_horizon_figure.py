@@ -123,7 +123,9 @@ N_SHOW = 18                       # foreground modes filtered (x-axis)
 print(dT.shape, "spectra at LSTs", np.round(lst, 1))"""
 
 PLOT_SRC = '''CMAP, norm = "twilight", Normalize(0, 24)
-C_21 = "#0072b2"                  # 21 cm band; matches signal_loss.pdf
+C_21 = "0.40"                     # 21 cm band: grey = the reference, not the
+                                  # panel subject (colour here is LST). Not blue:
+                                  # blue means "> 5 mK retained" in signal_loss.
 cmap = plt.get_cmap(CMAP)
 n_modes = np.arange(N_SHOW + 1)
 
@@ -152,8 +154,8 @@ for col, lab in enumerate(labels):
     rc = resid_curves(dT[col])                              # bottom: filtered residual
     for j in range(lst.size):
         ab.plot(n_modes, rc[:, j], color=cmap(norm(lst[j])), lw=0.7, alpha=0.9)
-    ab.fill_between(n_modes, t21[0], t21[2], color=C_21, alpha=0.2, lw=0, zorder=0)
-    ab.plot(n_modes, t21[1], color=C_21, lw=1.4, zorder=1)
+    ab.fill_between(n_modes, t21[0], t21[2], color=C_21, alpha=0.22, lw=0, zorder=0)
+    ab.plot(n_modes, t21[1], color=C_21, lw=1.4, ls="--", zorder=1)
     ab.set_yscale("log")
     ab.set_xlabel("Foreground modes filtered", fontsize=8)
     ab.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
