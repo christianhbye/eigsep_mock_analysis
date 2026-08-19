@@ -108,13 +108,17 @@ def trough_width(T21, freqs):
 def pick_models(T21, freqs, cls):
     """One model per class, drawn from a common depth window.
 
-    At matched depth the classes separate almost entirely by trough
-    *width*: the smooth low-order foreground modes absorb broad troughs
-    and leave narrow ones (median width 73 / 30 / 17 MHz going from the
-    destroyed class to the surviving one). Selecting inside a common
-    depth window isolates that, rather than confounding it with
-    amplitude -- most of the destroyed class is simply faint to begin
-    with (median depth 2.7 mK).
+    At matched depth the classes separate largely by trough *width*:
+        the smooth low-order foreground modes absorb broad troughs and leave
+        narrow ones (median width 73 / 30 / 17 MHz going from the destroyed
+        class to the surviving one). Selecting inside a common depth window
+        isolates that, rather than confounding it with amplitude.
+
+        That progression holds *within* this window only. Across the whole
+        ensemble neither statistic separates the classes: width tracks the
+        retained fraction (Spearman -0.44) while the absolute retained RMS
+        the class edges cut on is driven mainly by amplitude (+0.76), and
+        the > 5 mK and 1-5 mK families overlap heavily in both.
     """
     depth = -T21.min(axis=1) * 1e3
     width = trough_width(T21, freqs)
@@ -367,12 +371,24 @@ def build_notebook():
         "1-5 mK, and above 5 mK, which splits the ensemble roughly into "
         "thirds. Higher cuts are not useful here -- 10 mK catches 2.6% of "
         "models and 25 mK none, since the most foreground-orthogonal model "
-        "retains 16.4 mK. **The discriminator is trough width.** At matched "
-        "depth the median width runs 73 / 30 / 17 MHz from the destroyed "
-        "class to the surviving one: the smooth low-order foreground modes "
-        "absorb broad troughs and leave narrow ones. Amplitude matters too, "
-        "but most of the destroyed class is simply faint to begin with "
-        "(median depth 2.7 mK).\n\n"
+        "retains 16.4 mK.\n\n"
+        "**These are cuts on a continuum, not distinct populations, and no "
+        "single summary statistic separates them.** Retention is set by how "
+        "much of a model's spectral shape lies in the leading foreground "
+        "modes, which varies continuously. Splitting shape from amplitude "
+        "over the ensemble (Spearman): trough width correlates with the "
+        "retained *fraction* at -0.44 -- narrower troughs keep proportionally "
+        "more -- while the *absolute* retained RMS that the classes are cut "
+        "on is driven mainly by amplitude (depth, +0.76). The width "
+        "progression is therefore a trend, not a separator: the > 5 mK and "
+        "1-5 mK families have similar depths (median 147 vs 134 mK) and "
+        "heavily overlapping widths (p25-p75 of 15-34 vs 16-49 MHz). The "
+        "73 / 30 / 17 MHz progression quoted for the exemplars holds within "
+        "their common depth window (80-160 mK), where amplitude is "
+        "controlled for, and does not generalise. The dependence is also "
+        "non-monotonic: median retained fraction peaks near 15-25 MHz and "
+        "falls off on both sides, the narrowest bin being full of "
+        "edge-of-band troughs pinned at 50 MHz.\n\n"
         "$N = 10$ is the smallest $N$ at which *both* floors fall below the "
         "median retained signal. At $N = 8$ the foreground residual and the "
         "median signal are the same size.\n\n"
