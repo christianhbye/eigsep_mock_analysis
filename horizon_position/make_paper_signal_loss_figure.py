@@ -545,12 +545,13 @@ TEXT_TEMPLATE = r"""% signal_loss_text.tex -- GENERATED, do not edit by hand.
 %
 % Draft replacement text for the 21 cm signal-loss result. Regenerate with
 %     uv run python horizon_position/make_paper_signal_loss_figure.py
-% in the mock_analysis repo; every number in blocks 1 and 2 below is computed
-% at generation time from the same arrays the figure is drawn from, so
-% re-running after the 21 cm ensemble changes updates the prose and the figure
-% together and they cannot drift apart.
+% in the mock_analysis repo; every number in blocks 1, 2 and 4 below is
+% computed at generation time from the same arrays the figures are drawn from,
+% so re-running after the 21 cm ensemble changes updates the prose and the
+% figures together and they cannot drift apart. Block 3 is the exception and
+% says so.
 %
-% Paste the three blocks into rasti_template.tex as marked. Nothing here is
+% Paste the four blocks into rasti_template.tex as marked. Nothing here is
 % \input by the paper -- this file is a staging area, not a dependency, and
 % nothing in this repo writes to the paper .tex itself.
 %
@@ -692,6 +693,45 @@ Fig.~\ref{fig:singular_values} cannot exploit it, because the information lies
 in the correlation between pointings rather than within any one spectrum, and
 pooling the pointings into the projection basis only enlarges the subspace
 being removed. We defer this analysis to future work.
+
+
+% ===================================================================
+% BLOCK 4 -- caption for horizon_shift.pdf, replacing the existing one.
+% Keep \label{fig:horizon_shift} and the figure* environment.
+%
+% The caption being replaced describes a figure that no longer exists: it
+% promises a "dashed red line" at 10 mK, which was swapped for the retained
+% 21 cm band, and counts crossings as "within six modes", which was a
+% first-crossing count. Under the stays-below rule used throughout, the
+% per-axis answers are @@CLEAR_E@@ (east), @@CLEAR_N@@ (north) and
+% @@CLEAR_U@@ (up).
+% ===================================================================
+
+\caption{Change in the simulated antenna temperature,
+$\Delta T_{\text{ant}}$, when the suspended antenna is displaced by 1\,m to
+the east (left column), north (middle column), and up (right column). Each
+curve corresponds to a different LST (one per sidereal hour, @@NLST@@ in
+total), coloured as indicated by the colour bar. The displacement shifts the
+local horizon, shown in Fig.~\ref{fig:horizon}(b), thereby changing the
+fraction of sky occulted by the canyon walls and hence $T_{\text{ant}}$. The
+bottom row shows, for each LST, the RMS over frequency of the difference
+spectrum after filtering the eigenmodes of the unperturbed antenna temperature
+-- the same modes as Fig.~\ref{fig:singular_values} -- as a function of the
+number of modes filtered. The grey band is the 21 cm signal retained under
+that identical projection (5--95 per cent of the model ensemble of
+Fig.~\ref{fig:singular_values}, median dashed), which is the benchmark the
+systematic has to clear; the dotted vertical line marks the $N=@@NA@@$
+operating point adopted there. Counting the smallest $N$ beyond which the
+worst-LST residual stays below the median retained signal, the east and north
+displacements clear it after @@CLEAR_E@@ and @@CLEAR_N@@ modes; the upward
+displacement, which is both the largest (@@RAW_U@@\,mK RMS over all LSTs and
+channels, against @@RAW_E@@\,mK east and @@RAW_N@@\,mK north) and the most
+foreground-like in shape, requires @@CLEAR_U@@. Folding this systematic into
+the mode
+budget therefore costs one mode beyond the $N=@@NA@@$ set by the foregrounds
+alone: at $N=@@NA@@$ the worst case is @@SYSNA@@\,mK against @@MED@@\,mK
+retained, and at $N=@@CLEAR_U@@$ it is @@SYSNP1@@\,mK against
+@@MEDNP1@@\,mK.}
 """
 
 
@@ -724,11 +764,42 @@ def build_text():
     med = np.median(ret_all, axis=1)
     ret = ret_all[N_ANCHOR]
 
-    # worst-case +1 m position systematic, from the horizon figure's own npz
-    dT = np.load(SHIFT_NPZ, allow_pickle=True)["dT_spectra"].reshape(-1, n_f)
-    cs = dT @ Vh.T
-    sys_r = np.array(
-        [np.sqrt(np.sum(cs[:, N:] ** 2, axis=1) / n_f).max() * 1e3 for N in n_modes]
+    # +1 m position systematic, from the horizon figure's own npz. Block 4
+    # captions that figure, so the per-axis numbers are derived here too --
+    # by index into dT_spectra, with the label order asserted, so the caption
+    # cannot silently transpose east for up if TAGS is ever reordered.
+    shift = np.load(SHIFT_NPZ, allow_pickle=True)
+    dT3 = shift["dT_spectra"]  # (3, n_lst, n_f), axis order East/North/Up
+    assert [str(s) for s in shift["labels"]] == [
+        "East +1 m",
+        "North +1 m",
+        "Up +1 m",
+    ], "horizon_shift.npz axis order changed; block 4 wording assumes E/N/U"
+
+    def worst_lst(x):
+        """Worst-LST residual RMS [mK] vs modes filtered, for one axis."""
+        cx = np.atleast_2d(x) @ Vh.T
+        return np.array(
+            [np.sqrt(np.sum(cx[:, N:] ** 2, axis=1) / n_f).max() * 1e3 for N in n_modes]
+        )
+
+    per_axis = np.stack([worst_lst(dT3[k]) for k in range(3)])  # (3, N_SHOW+1)
+    sys_r = worst_lst(dT3.reshape(-1, n_f))  # worst over axis and LST
+
+    def stays_below(curve, ref):
+        """Smallest N with curve < ref there and at every larger N on the axis."""
+        below = curve < ref
+        return next(int(N) for N in n_modes if below[N:].all())
+
+    # Blocks 1 and 4 both say the fold-in "costs one mode" in prose, and quote
+    # the N + 1 figures to match. Nothing recomputes that phrase, so gate it:
+    # if the ensemble or the sims ever move the crossing, this fails here
+    # rather than shipping a caption whose words and numbers disagree.
+    cost = stays_below(sys_r, med) - N_ANCHOR
+    assert cost == 1, (
+        f"position systematic now clears the median {cost} modes after "
+        f"N_ANCHOR={N_ANCHOR}, not 1 -- reword blocks 1 and 4, which say "
+        "'one further mode' and 'costs one mode' in prose"
     )
 
     depth = -T21.min(axis=1) * 1e3
@@ -787,6 +858,17 @@ def build_text():
         "SEP1": f"{np.median(sep1):.1f}",
         "PAIR1": f"{(sep1 > 1).mean() * 100:.0f}",
         "PAIR2": f"{(sep1 > 2).mean() * 100:.0f}",
+        "NLST": dT3.shape[1],
+        "CLEAR_E": stays_below(per_axis[0], med),
+        "CLEAR_N": stays_below(per_axis[1], med),
+        "CLEAR_U": stays_below(per_axis[2], med),
+        # RMS over every LST and channel, NOT the worst-LST value the residual
+        # panels track. This is the statistic the surrounding body text already
+        # quotes for these three displacements, and a caption that switched to
+        # worst-LST would read as contradicting it.
+        "RAW_E": f"{np.sqrt(np.mean(dT3[0] ** 2)) * 1e3:.0f}",
+        "RAW_N": f"{np.sqrt(np.mean(dT3[1] ** 2)) * 1e3:.0f}",
+        "RAW_U": f"{np.sqrt(np.mean(dT3[2] ** 2)) * 1e3:.0f}",
     }
     out = TEXT_TEMPLATE
     for k, v in vals.items():
