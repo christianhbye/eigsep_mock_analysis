@@ -4,8 +4,11 @@ A 4096-model ensemble of global 21 cm signals generated with
 [Zeus21](https://github.com/JulianBMunoz/Zeus21), used by the EIGSEP
 instrument paper's signal-loss figure.
 
-It replaces `normalizing_flows/models_21cm.npz` (1135 models, Aug 2022),
-which had no surviving generating script and therefore could not be cited.
+It replaces `models_21cm.npz` from the sibling `normalizing_flows`
+project — **outside this repository**, at
+`~/Documents/research/eigsep/normalizing_flows/models_21cm.npz` on the
+machine this was written on — 1135 models, Aug 2022, which had no
+surviving generating script and therefore could not be cited.
 
 ## The ensemble
 
@@ -106,14 +109,16 @@ workspace member:
 
     uv run --project models_21cm python models_21cm/generate.py \
         --n-log2 12 --precisionboost 3 --seed 20260819 \
-        --out models_21cm/output/zeus21_models.npz
+        --out models_21cm/output/zeus21_models.npz \
+        --processes 3 --batch-size 64
 
-~4 hours at 3 workers on the production run. **Worker count is bounded
-by memory, not cores:** each worker needs ~2.78 GB of private peak RSS
-at `precisionboost = 3` (plus 0.47 GB shared via fork). An 8-worker
-attempt on a 15 GB machine was OOM-killed immediately; 3 workers
-(~8.8 GB total) is what worked. Size `--processes` to
-`(available_GB - 1) / 2.8`, **not** by core count.
+**`--processes` is not optional — it defaults to 8, which is an
+immediate OOM-kill on a 15 GB machine.** Worker count is bounded by
+memory, not cores: each worker needs ~2.78 GB of private peak RSS at
+`precisionboost = 3` (plus 0.47 GB shared via fork), so 8 workers wants
+~22.7 GB. 3 workers (~8.8 GB total) is what worked, at ~4 hours wall
+clock. Size `--processes` to `(available_GB - 1) / 2.8`, not by core
+count.
 
 Resumable: rerunning the identical command skips completed batches. The
 work directory is keyed on seed and batch size as well as model count and
@@ -163,8 +168,9 @@ pushes the anchor to `N = 10`.
   Pop III, Lyman-Werner feedback, relative velocities.
 - McGreer et al. 2015 — the xHI limit behind the reionization cut.
 - Planck 2018 — the fixed cosmology.
-- A link to the Zeus21 GitHub repository, per its citation policy.
+- [Zeus21 GitHub repository](https://github.com/JulianBMunoz/Zeus21), per its citation policy.
 
 ## Design
 
-`../docs/superpowers/specs/2026-08-19-zeus21-model-ensemble-design.md`
+Spec: `../docs/superpowers/specs/2026-08-19-zeus21-model-ensemble-design.md`
+Plan: `../docs/superpowers/plans/2026-08-19-zeus21-model-ensemble.md`

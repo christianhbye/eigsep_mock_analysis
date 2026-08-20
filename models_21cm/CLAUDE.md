@@ -12,7 +12,11 @@ instrument paper. Not a package; a self-contained generator, like
 
 - `priors.py`, `selection.py`, `provenance.py` are **pure** — numpy/scipy/
   stdlib only, never `zeus21`. Their tests run in the main env with
-  `uv run pytest models_21cm/`. Keep them that way.
+  `uv run pytest models_21cm/ --ignore=models_21cm/test_zeus21_fiducial.py`
+  (the `--ignore` is required: without it, `test_zeus21_fiducial.py`
+  collects and fails setup with `ModuleNotFoundError: No module named
+  'zeus21'`, since that module needs the pinned env below). Keep the
+  three pure modules that way.
 - `generate.py` and `verify_ensemble.py` need the pinned env:
   `uv run --project models_21cm python ...`. It carries `classy`, which
   compiles CLASS, and is excluded from the uv workspace so it never
@@ -31,8 +35,9 @@ instrument paper. Not a package; a self-contained generator, like
   `USE_RELATIVE_VELOCITIES=True`, or you get `KeyError: 'xi_RR_CF'`.
 - **Zeus21's `setup.py` omits `powerbox` and `pyfftw`** though
   `zeus21.maps` imports them at package import time.
-- The reionization cut is **posterior** and applied in `load_t21()`, once,
-  so the figure and the statistics cannot disagree.
+- The reionization cut is **posterior** and applied in `load_t21()` (in
+  `horizon_position/make_paper_signal_loss_figure.py`, not in this
+  directory), once, so the figure and the statistics cannot disagree.
 - The cut has **two parts**, both required: `xHI(z=5.9) < 0.1` (the
   McGreer reference point) AND `xHI(z=4.6816) < 0.05` (the band's top
   edge, `z(250 MHz)`). The second exists because Zeus21's Q-based
