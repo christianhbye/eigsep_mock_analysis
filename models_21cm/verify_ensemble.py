@@ -149,14 +149,25 @@ def main(path):
         f"[{troughs.min():.1f}, {troughs.max():.1f}] mK",
     )
 
-    keep = sel.reionized(d["xHI"], d["z_xHI"])
+    # `reionized` alone only tests xHI at the z=5.9 McGreer+2015 anchor, so
+    # it is fooled by models that pass that single check and then
+    # re-neutralise (Q rises again below z ~ 6) before the band's top edge
+    # at z=4.6816 (250 MHz) -- see selection.reionized_across_band. Both
+    # counts are reported so the effect of conjoining the band-top check
+    # is visible rather than silently baked into a single number.
+    keep_ref_only = sel.reionized(d["xHI"], d["z_xHI"])
+    keep = sel.reionized_across_band(d["xHI"], d["z_xHI"])
     gate(
         "reionized models vanish at the top of the band",
         bool(np.abs(T21_mK[keep][:, -1]).max() < 1.0),
         f"max |T21(250 MHz)| = {np.abs(T21_mK[keep][:, -1]).max():.3f} mK",
     )
     print(
-        f"       reionization cut keeps {keep.sum()}/{keep.size} "
+        f"       reionized at z=5.9 only: {keep_ref_only.sum()}/{keep_ref_only.size} "
+        f"({100 * keep_ref_only.mean():.1f}%)"
+    )
+    print(
+        f"       reionized across the whole band: {keep.sum()}/{keep.size} "
         f"({100 * keep.mean():.1f}%)"
     )
 
@@ -174,24 +185,30 @@ def main(path):
     interpolation_budget(header, d, keep, Vh, params)
 
     # --- Gate 5: percentile convergence ----------------------------------
+    # The ladder only includes subset sizes strictly below the survivor
+    # count, plus the full set -- comparing e.g. 2048 against a population
+    # of 1782 would silently draw the "subset" and the "full set" from the
+    # same 1782 rows, making the drift check trivially zero rather than a
+    # genuine subsample-vs-full comparison.
     print("\nPercentile convergence (retained RMS [mK] at N = 10):")
     print(f"{'n':>6}  {'p5':>8}  {'p50':>8}  {'p95':>8}")
     ref = np.percentile(rms, [5, 50, 95])
-    for n in (256, 512, 1024, 2048, rms.size):
-        sub = np.random.default_rng(1).choice(rms, size=min(n, rms.size), replace=False)
+    proper_sizes = [n for n in (256, 512, 1024, 2048) if n < rms.size]
+    ladder = proper_sizes + [rms.size]
+    for n in ladder:
+        sub = np.random.default_rng(1).choice(rms, size=n, replace=False)
         p = np.percentile(sub, [5, 50, 95])
         print(f"{n:>6}  {p[0]:>8.3f}  {p[1]:>8.3f}  {p[2]:>8.3f}")
+    largest_proper = proper_sizes[-1] if proper_sizes else rms.size
     drift = np.abs(
         np.percentile(
-            np.random.default_rng(1).choice(
-                rms, size=min(2048, rms.size), replace=False
-            ),
+            np.random.default_rng(1).choice(rms, size=largest_proper, replace=False),
             [5, 50, 95],
         )
         - ref
     )
     gate(
-        "percentiles converged by 2048",
+        f"percentiles converged by {largest_proper}",
         bool(np.all(drift < 0.1 * ref)),
         f"drift {drift.round(4).tolist()} vs {ref.round(4).tolist()}",
     )

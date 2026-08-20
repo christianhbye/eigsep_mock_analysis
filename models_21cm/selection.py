@@ -38,6 +38,41 @@ def reionized(xHI, z_xHI, z_ref=Z_REION_REF, x_max=XHI_MAX):
     return at_ref < x_max
 
 
+# The band's top edge (250 MHz) is an *observed* frequency, not merely a
+# reference point: a model kept for the analysis must be reionized there
+# too. z = 4.6816 is NU21 / 250 - 1 (see generate.NU21, generate.PAPER_FREQS),
+# the redshift corresponding to the top of the paper's 50-250 MHz band.
+Z_BAND_TOP = 4.6816
+XHI_MAX_BAND_TOP = 0.05
+
+
+def reionized_across_band(
+    xHI,
+    z_xHI,
+    z_ref=Z_REION_REF,
+    x_max=XHI_MAX,
+    z_top=Z_BAND_TOP,
+    x_max_top=XHI_MAX_BAND_TOP,
+):
+    """Boolean mask of models reionized at both ``z_ref`` and the band top.
+
+    ``reionized`` alone only tests xHI at the McGreer+2015 reference
+    redshift (z = 5.9) -- the observational anchor for the cut. That is
+    necessary but not sufficient: Zeus21's reionization model integrates
+    an ionized-fraction ODE (dQ/dt = ndot_ion - Q/t_rec) with a fixed
+    clumping factor, and for very low escape fractions recombination can
+    outrun the ionizing supply, so Q -- and hence xHI -- can *rise* again
+    below z ~ 6. A model can pass the z = 5.9 check and still carry
+    several mK of unphysical residual signal at the top of the observed
+    band (z = 4.6816, i.e. 250 MHz) because it re-neutralises in between.
+    This composes the two checks so a kept model stays reionized across
+    the whole band, not just at the single reference redshift.
+    """
+    return reionized(xHI, z_xHI, z_ref=z_ref, x_max=x_max) & reionized(
+        xHI, z_xHI, z_ref=z_top, x_max=x_max_top
+    )
+
+
 def figure_subsample(n_survivors, n_draw, seed):
     """Sorted indices of ``n_draw`` models drawn without replacement.
 
