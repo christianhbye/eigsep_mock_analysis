@@ -8,15 +8,19 @@ through the *identical* projection used for the foregrounds and the
 position-error systematic, so the residual and the retained signal are
 always read off the same axes.
 
-Writes three artifacts into the eigsep_instrument paper notebooks dir
+Writes four artifacts into the eigsep_instrument paper notebooks dir
 (repo convention: a gitignored npz + a committed notebook that
 regenerates the PDF, data archived to Zenodo separately):
 
 * ``signal_loss.npz``   -- foreground spectral modes ``Vh`` and singular
-  values, the +1 m position-error spectra, and the 21 cm model ensemble
-  interpolated onto the paper frequency grid.
+  values, and the 21 cm model ensemble interpolated onto the paper
+  frequency grid.
 * ``signal_loss.ipynb`` -- loads the npz and makes the figure.
 * ``signal_loss.pdf``   -- the rendered figure.
+* ``signal_loss_text.tex`` -- draft prose and caption for the paper,
+  with every quoted number computed at generation time from the arrays
+  above. It is a staging file to paste from, never included by the
+  paper; nothing in this repo writes to the paper's own .tex sources.
 
 Panels (a1)/(a2): a legibility subsample of the surviving ensemble
 before and after filtering ``N_ANCHOR`` modes (panel (b) draws every
@@ -26,11 +30,25 @@ What survives is band-edge ringing from projecting onto a truncated
 smooth basis, not a residual trough; retained RMS is not retained signal
 *shape*, which is why the panel is here at all. Panel (b): the same
 retained-signal curves against the number of modes filtered, with the
-foreground residual and the worst-case position-error systematic in
-greyscale. Colour marks the subject, greyscale the floors it is measured
-against. This panel supersedes ``foreground_svd_residual.pdf``: the
-foreground curve is the same one, now never shown without the signal
-beside it.
+foreground residual in black. Colour marks the subject, greyscale the
+one floor it is measured against here. This panel supersedes
+``foreground_svd_residual.pdf``: the foreground curve is the same one,
+now never shown without the signal beside it.
+
+Scope, deliberately narrow. This is the paper's *first* figure and it
+makes the smallest claim that supports the design argument: the
+beam-weighted foregrounds are spectrally low-dimensional, and a signal
+survives projecting that subspace out. Nothing else is folded in --
+no instrumental systematics, no noise, and no knowledge of the beam or
+the sky. The antenna-position systematic used to be drawn here as a
+second floor; it was removed because it is not defined until the
+forward-modelling section, and its own figure (``horizon_shift.pdf``)
+already carries the retained-signal band under the identical
+projection. Folding it in raises the mode count, and that section shows
+the cost is one mode. Read this figure as a statement about spectral
+shape overlap, not as the analysis EIGSEP will actually run: the
+planned analysis is a joint differentiable forward-model fit, in which
+beam chromaticity is modelled rather than filtered.
 
 The ensemble runs to z = 4.65 (251.4 MHz), below Zeus21's advertised
 z = 5-35 validity range. This is deliberate: it is what covers the
@@ -43,22 +61,46 @@ figure reports.
 
 Colouring is continuous rather than binned into classes on purpose.
 Retention varies smoothly and no single statistic predicts it: trough
-width tracks the retained *fraction* (Spearman -0.56) while the absolute
+width tracks the retained *fraction* (Spearman -0.59) while the absolute
 retained RMS correlates only moderately with amplitude (depth, Spearman
-+0.51), so any class edge would cut a continuum and invite reading the
-bins as populations. The norm is logarithmic -- 1.89 decades of range
-(0.22-17.1 mK), where a linear norm would put 45% of models in the
-bottom 10% of the colour range.
++0.53), so any class edge would cut a continuum and invite reading the
+bins as populations. The norm is logarithmic -- 1.54 decades of range
+(0.60-21.0 mK), where a linear norm would put 44% of models in the
+bottom 10% of the colour range against 2% for log.
 
-``N_ANCHOR = 10`` is the smallest N at which *both* floors -- the
-foreground residual and the worst-case position systematic -- fall below
-the median retained signal. At N = 9 the foreground residual alone has
-already dropped below the median (1.82 vs 3.01 mK), but the position
-systematic has not (3.20 mK); it is the conjunction of the two floors,
-not the foreground alone, that pushes the anchor to N = 10. Note there
-is no optimum to claim beyond this: the margin keeps improving with N
-while the absolute signal shrinks, and where to stop is set by thermal
-noise, which this calculation does not model.
+Curve opacity ramps with retained RMS (``ALPHA_LO`` to ``ALPHA_HI``,
+``RAMP_POW``) rather than being uniform. The high-retention tail is
+about 2% of the ensemble drawn under ~1700 other curves, and at any
+single alpha that reads as empty. Draw order was tried first and does
+not solve it: sorting by retention in either direction merely chooses
+which end of the colour scale to bury, and rendering the two changes
+separately shows the ramp alone reproduces the full effect. Order is
+therefore a seeded random permutation, which biases neither end.
+
+The ramp's cost is that opacity echoes the quantity colour already
+encodes, so the top of the scale looks more populated than it is. That
+is why ``RAMP_POW = 3`` rather than a linear ramp -- the median model
+takes under a tenth of the available range (alpha 0.12 against 0.63 at
+the top), so the boost stays confined to the genuinely extreme tail --
+and why the caption should
+quote the tail fraction (5.5% above 10 mK) rather than let the reader
+estimate it off the panel.
+
+``N_ANCHOR = 9`` is the smallest N at which the foreground residual
+falls below the median retained signal *and stays below* for every
+larger N (1.82 vs 3.01 mK; at N = 8 it is still above, 7.75 vs 4.94).
+The "stays below" clause is not decoration -- these curves cross more
+than once, because the median retained signal falls with N too, so a
+first-crossing rule can select an N the floor later climbs back above.
+``make_paper_horizon_figure.py`` applies the same rule to the position
+systematic, so the two figures cannot disagree about which N clears
+which floor.
+
+Note there is no optimum to claim beyond this: the margin keeps
+improving with N while the absolute signal shrinks, and where to stop is
+set by thermal noise, which this calculation does not model. N = 9 is
+the floor of the range, not a requirement -- each systematic folded in
+later can only push it up.
 
 Run in the mock_analysis env (numpy + matplotlib + nbformat):
     uv run python horizon_position/make_paper_signal_loss_figure.py
@@ -70,6 +112,7 @@ from pathlib import Path
 
 import nbformat as nbf
 import numpy as np
+from scipy.stats import spearmanr
 
 HERE = Path(__file__).resolve().parent
 PAPER = Path("/home/christian/Documents/research/papers/eigsep_instrument/notebooks")
@@ -89,14 +132,20 @@ MODELS_NPZ = Path(
     "models_21cm/output/zeus21_models.npz"
 )
 
-N_ANCHOR = 10  # modes filtered at the quoted operating point (unchanged
-# on the Zeus21 ensemble -- see recompute_operating_point.py's output)
-# Class edges on retained RMS [mK] at N_ANCHOR. 1.5 and 3.5 mK split the
-# Zeus21 ensemble into thirds (33.6% / 34.0% / 32.4%); 10 mK would catch
-# 2.0% and 25 mK nothing at all (the most foreground-orthogonal model
-# retains 17.1 mK).
-RET_EDGES_MK = (1.5, 3.5)
-CLASS_LABELS = ("< 1.5 mK", "1.5-3.5 mK", "> 3.5 mK")
+N_ANCHOR = 9  # modes filtered at the quoted operating point -- set by the
+# foreground residual alone; see recompute_operating_point.py
+# Class edges on retained RMS [mK] at N_ANCHOR. 2.0 and 4.5 mK split the
+# Zeus21 ensemble roughly into thirds (29.6% / 37.1% / 33.2%); 10 mK
+# would catch 5.5% and 25 mK nothing at all (the most foreground-
+# orthogonal model retains 21.0 mK).
+RET_EDGES_MK = (2.0, 4.5)
+CLASS_LABELS = ("< 2 mK", "2-4.5 mK", "> 4.5 mK")
+
+# Mirrors of two values that live inside the notebook source strings below.
+# build_text needs them as Python and asserts they still match, so the tex
+# cannot quote a figure width or mode range the figure no longer has.
+N_SHOW_TEXT = 18  # LOAD_SRC's N_SHOW
+FIG_W_IN = 7.6  # PLOT_SRC's figsize width [in]
 
 
 def load_t21(freqs):
@@ -161,8 +210,6 @@ def build_data():
         Vh=Vh,
         s_fg=s_fg,
         n_time=n_time,
-        dT_spectra=shift["dT_spectra"],
-        labels=shift["labels"],
         T21_models=T21,
         cls=cls,
         class_labels=np.array(CLASS_LABELS),
@@ -174,16 +221,18 @@ def build_data():
             "s_fg (n_freq,) are the right singular vectors and singular values "
             "of the nominal antenna-temperature waterfall (foreground_svd.npz "
             "t_sys minus the constant receiver temperature, n_time LST samples) "
-            "-- the same modes as Fig. 1. dT_spectra (3, n_lst, n_freq) [K] are "
-            "the +1 m East/North/Up antenna-temperature differences. T21_models "
+            "-- the same modes as Fig. 1. T21_models "
             "(n_model, n_freq) [K] is the full surviving 21 cm model ensemble "
             "(reionization cut applied) interpolated onto freqs_MHz; cls bins "
             "each model by the RMS it retains at N_ANCHOR, for the summary "
             "only. draw_idx (n_draw,) selects the subset of T21_models rows "
             "the figure actually draws as curves, for legibility -- every "
             "percentile, classification and summary statistic uses the full "
-            "T21_models, not the draw. All three quantities are filtered by "
-            "the same projection onto the leading modes of Vh."
+            "T21_models, not the draw. Signal and foregrounds are filtered by "
+            "the same projection onto the leading modes of Vh. The +1 m "
+            "antenna-position systematic is deliberately not here: it belongs "
+            "to horizon_shift.npz, which carries it against the same retained-"
+            "signal benchmark."
         ),
     )
     print(
@@ -205,7 +254,6 @@ freqs = d["freqs_MHz"]           # (n_f,) MHz
 Vh = d["Vh"]                     # (n_f, n_f) foreground spectral modes
 s_fg = d["s_fg"]                 # (n_f,) singular values of the T_ant waterfall
 n_time = int(d["n_time"])        # LST samples in that waterfall
-dT = d["dT_spectra"]             # (3, n_lst, n_f) +1 m E/N/U systematic [K]
 T21 = d["T21_models"]            # (n_model, n_f) global-signal ensemble [K]
 cls = d["cls"]                   # (n_model,) retained-RMS bin, for the summary
 class_labels = [str(x) for x in d["class_labels"]]
@@ -213,9 +261,18 @@ draw_idx = d["draw_idx"]         # (n_draw,) curves the figure draws
 n_f = freqs.size
 N_SHOW = 18                      # x-axis extent
 N_ANCHOR = int(d["n_anchor"])    # modes filtered at the quoted operating point
-CURVE_ALPHA = 0.10               # opacity of the curves in panel (b)
-ALL_ALPHA = 0.08                 # opacity of the full ensemble in panel (a)
-CONT_CMAP = "plasma"             # continuous variant: colour = retained RMS
+# Opacity ramps with retained RMS, from ALPHA_LO at the bottom of the colour
+# scale to ALPHA_HI at the top. At a single uniform alpha the sparse
+# high-retention tail is invisible: it is ~2% of the ensemble, drawn under
+# ~1700 other curves. The ramp, not the draw order, is what makes it legible
+# -- rendering the two effects separately shows the ramp alone reproduces the
+# result. The cost is that opacity now echoes the quantity colour already
+# carries, which exaggerates how much of the ensemble sits at the top end;
+# RAMP_POW > 1 keeps the boost confined to the genuinely extreme tail.
+ALPHA_LO, ALPHA_HI, RAMP_POW = 0.07, 0.63, 3.0   # panel (b)
+ALL_ALPHA_LO, ALL_ALPHA_HI = 0.07, 0.55          # panels (a1)/(a2)
+Z_SEED = 20260820                # seeds the draw order; see PLOT_SRC
+CONT_CMAP = "plasma"             # colour = retained RMS, continuous
 print(f"{T21.shape[0]} 21 cm models on {n_f} channels, "
       f"{freqs[0]:.0f}-{freqs[-1]:.0f} MHz")"""
 
@@ -240,12 +297,11 @@ def filtered(x, N):
     return (c[:, N:] @ Vh[N:]).reshape(np.shape(x))
 
 
-sys_resid = filt_rms(dT.reshape(-1, n_f)).max(axis=1)      # worst axis/LST
 t21_resid = filt_rms(T21)                                  # (N_SHOW+1, n_model)
 t21_pct = np.percentile(t21_resid, [5, 50, 95], axis=1)    # (3, N_SHOW+1)
 t21_filt = filtered(T21, N_ANCHOR)                         # (n_model, n_f) residuals'''
 
-PLOT_SRC = r'''C_FG, C_SYS = "k", "0.45"
+PLOT_SRC = r'''C_FG = "k"
 
 
 def make_figure(path):
@@ -259,13 +315,25 @@ def make_figure(path):
     """
     ret = t21_resid[N_ANCHOR] * 1e3                         # colour quantity [mK]
     norm = LogNorm(vmin=ret[ret > 0].min(), vmax=ret.max())
-    order = np.argsort(-ret)                                # faintest drawn last
+
+    # Draw order is randomised, not sorted by retention. Sorting either way
+    # puts one end of the colour scale underneath the whole ensemble; a seeded
+    # permutation biases neither end, so the rendered density is the
+    # ensemble's own. (The opacity ramp below, not this, is what actually
+    # rescues the high-retention tail -- order alone cannot, without burying
+    # the other end instead.)
+    rng = np.random.default_rng(Z_SEED)
+    order = rng.permutation(ret.size)
 
     # Panels (a1)/(a2) draw only the n_draw-model subsample, for legibility;
     # panel (b) below still draws every surviving model. Colour and the
     # colorbar (norm, above) are always keyed to the full ensemble.
     draw_ret = ret[draw_idx]
-    draw_order = np.argsort(-draw_ret)                      # faintest drawn last
+    draw_order = rng.permutation(draw_idx.size)
+
+    def alpha_for(r, lo, hi):
+        """Opacity rising with retained RMS, on the colour scale's own norm."""
+        return lo + (hi - lo) * np.clip(np.asarray(norm(r)), 0, 1) ** RAMP_POW
 
     def segs(x, Y):
         return np.stack([np.broadcast_to(np.asarray(x), Y.shape), Y], axis=-1)
@@ -278,8 +346,9 @@ def make_figure(path):
     panels = (("a1", T21[draw_idx][draw_order] * 1e3),
               ("a2", t21_filt[draw_idx][draw_order] * 1e3))
     for key, Y in panels:
-        lc = LineCollection(segs(freqs, Y), cmap=CONT_CMAP, norm=norm,
-                            lw=0.4, alpha=ALL_ALPHA)
+        lc = LineCollection(
+            segs(freqs, Y), cmap=CONT_CMAP, norm=norm, lw=0.4,
+            alpha=alpha_for(draw_ret[draw_order], ALL_ALPHA_LO, ALL_ALPHA_HI))
         lc.set_array(draw_ret[draw_order])
         ax[key].add_collection(lc)
         ax[key].set_xlim(freqs[0], freqs[-1])
@@ -287,13 +356,12 @@ def make_figure(path):
 
     b = ax["b"]
     lc = LineCollection(segs(n_modes, t21_resid[:, order].T), cmap=CONT_CMAP,
-                        norm=norm, lw=0.5, alpha=CURVE_ALPHA)
+                        norm=norm, lw=0.5,
+                        alpha=alpha_for(ret[order], ALPHA_LO, ALPHA_HI))
     lc.set_array(ret[order])
     b.add_collection(lc)
     ref = [b.plot(n_modes, fg_resid, color=C_FG, lw=1.5,
-                  label="foreground residual")[0],
-           b.plot(n_modes, sys_resid, color=C_SYS, lw=1.4, ls="--",
-                  label="+1 m position error (worst LST)")[0]]
+                  label="foreground residual")[0]]
 
     for key, lab, ylab in (("a1", "input", r"$T_{21}$ [mK]"),
                            ("a2", f"after filtering {N_ANCHOR} modes",
@@ -331,18 +399,17 @@ def make_figure(path):
 make_figure("signal_loss.pdf")'''
 
 SUMMARY_SRC = """frac_above = (t21_resid > fg_resid[:, None]).mean(axis=1)
-print(f"{'N':>3} {'fgnd':>9} {'pos err':>9} {'21cm p50':>9} {'21cm p95':>9} "
+print(f"{'N':>3} {'fgnd':>9} {'21cm p50':>9} {'21cm p95':>9} "
       f"{'frac>fgnd':>10}   (mK)")
-for N in (6, 8, N_ANCHOR, 12, 15):
-    print(f"{N:3d} {fg_resid[N]*1e3:9.3f} {sys_resid[N]*1e3:9.3f} "
+for N in (6, 8, N_ANCHOR, 10, 12, 15):
+    print(f"{N:3d} {fg_resid[N]*1e3:9.3f} "
           f"{t21_pct[1, N]*1e3:9.3f} {t21_pct[2, N]*1e3:9.3f} "
           f"{frac_above[N]:10.2f}")
 
 keep = t21_resid[N_ANCHOR] / t21_resid[0]
 print(f"\\nAt N = {N_ANCHOR}: median model keeps {np.median(keep)*100:.0f}% of its "
       f"RMS ({t21_pct[1, N_ANCHOR]*1e3:.2f} mK), while the foreground residual is "
-      f"{fg_resid[N_ANCHOR]*1e3:.2f} mK and the worst-case +1 m position error is "
-      f"{sys_resid[N_ANCHOR]*1e3:.2f} mK.")
+      f"{fg_resid[N_ANCHOR]*1e3:.2f} mK.")
 print(f"{frac_above[N_ANCHOR]*100:.0f}% of the {t21_resid.shape[1]} models retain "
       f"more signal than the foreground residual.")
 
@@ -376,34 +443,61 @@ def build_notebook():
         "structured; note it is band-edge ringing from projecting onto a "
         "truncated smooth basis, not a residual trough, so retained RMS is "
         "not retained signal *shape*. Panel (b) adds the foreground residual "
-        "and the worst-case $+1$ m position-error systematic in greyscale: "
-        "colour marks the subject, greyscale the floors it is measured "
-        "against. It supersedes `foreground_svd_residual.pdf` -- the black "
-        "curve is the same one, now never shown without the signal beside "
-        "it.\n\n"
+        "in black: colour marks the subject, greyscale the floor it is "
+        "measured against. It supersedes `foreground_svd_residual.pdf` -- the "
+        "black curve is the same one, now never shown without the signal "
+        "beside it.\n\n"
+        "**Scope.** This figure makes the smallest claim that supports the "
+        "design argument: the beam-weighted foregrounds are spectrally "
+        "low-dimensional, and a signal survives projecting that subspace "
+        "out. Nothing else is folded in -- no instrumental systematics, no "
+        "noise, and no knowledge of the beam or the sky. The $+1$ m "
+        "antenna-position systematic was previously drawn here as a second "
+        "floor and has been removed: it is not defined until the "
+        "forward-modelling section, and `horizon_shift.ipynb` already shows "
+        "it against this same retained-signal benchmark, where folding it in "
+        "costs one additional mode. Read this as a statement about spectral "
+        "shape overlap, not as the analysis EIGSEP will run -- the planned "
+        "analysis is a joint differentiable forward-model fit in which beam "
+        "chromaticity is modelled rather than filtered.\n\n"
         "**Retention is a continuum and no single summary statistic predicts "
         "it**, which is why the models are coloured continuously rather than "
         "binned into classes. It is set by how much of a model's spectral "
         "shape lies in the leading foreground modes. Separating shape from "
         "amplitude over the ensemble (Spearman): trough width correlates with "
-        "the retained *fraction* at -0.56 -- narrower troughs keep "
+        "the retained *fraction* at -0.59 -- narrower troughs keep "
         "proportionally more -- while the *absolute* retained RMS correlates "
-        "with amplitude only moderately (depth, +0.51). Neither predicts "
+        "with amplitude only moderately (depth, +0.53). Neither predicts "
         "retention alone: the three classes' median depths rise with "
-        "retained RMS (73, 103, 155 mK for < 1.5 mK, 1.5-3.5 mK and "
-        "> 3.5 mK) but even at matched depth (80-160 mK) they still separate "
+        "retained RMS (77, 92, 156 mK for < 2 mK, 2-4.5 mK and "
+        "> 4.5 mK) but even at matched depth (80-160 mK) they still separate "
         "by width -- median trough widths of 36, 20 and 18 MHz respectively. "
-        "The summary cell bins the distribution at 1.5 and 3.5 mK for the "
+        "The summary cell bins the distribution at 2 and 4.5 mK for the "
         "caption; those bins are a reporting convenience, not "
         "populations.\n\n"
-        "The colour scale is logarithmic. Retained RMS spans 1.89 decades "
-        "(0.22-17.1 mK), and a linear norm would put 45% of the models in "
-        "the bottom 10% of the colour range, against 0.2% for log.\n\n"
-        "$N = 10$ is the smallest $N$ at which *both* floors fall below the "
-        "median retained signal. At $N = 9$ the foreground residual alone "
-        "has already dropped below the median (1.82 vs 3.01 mK), but the "
-        "position systematic has not (3.20 mK); it is the conjunction of "
-        "the two floors that pushes the anchor to $N = 10$.\n\n"
+        "The colour scale is logarithmic. Retained RMS spans 1.54 decades "
+        "(0.60-21.0 mK), and a linear norm would put 44% of the models in "
+        "the bottom 10% of the colour range, against 2% for log.\n\n"
+        "Curve opacity ramps with retained RMS rather than being uniform: the "
+        "high-retention tail is ~2% of the ensemble drawn under ~1700 other "
+        "curves, and at any single alpha it reads as empty. Draw order alone "
+        "does not fix this -- sorting by retention just chooses which end of "
+        "the colour scale to bury -- so the order is a seeded random "
+        "permutation and the ramp does the work. Its cost is that opacity "
+        "echoes the quantity colour already encodes, making the top of the "
+        "scale look more populated than it is; the ramp is cubic to keep "
+        "the boost confined to the extreme tail, and the true tail fraction "
+        "(5.5% of models above 10 mK) is quoted rather than eyeballed.\n\n"
+        "$N = 9$ is the smallest $N$ at which the foreground residual falls "
+        "below the median retained signal *and stays below* for every larger "
+        "$N$ (1.82 vs 3.01 mK; at $N = 8$ it is still above, 7.75 vs "
+        "4.94 mK). The 'stays below' clause matters because both curves fall "
+        "with $N$ and cross more than once, so a first-crossing rule can "
+        "select an $N$ the floor later climbs back above; "
+        "`horizon_shift.ipynb` applies the same rule to the position "
+        "systematic. $N = 9$ is the floor of the range rather than a "
+        "requirement -- every systematic folded in later can only push it "
+        "up.\n\n"
         "**Limitations, to be stated wherever this result is used.** The "
         "modes come from a single simulated sky (GSM16) and beam, with no "
         "noise and no receiver systematics; in practice the basis would be "
@@ -447,6 +541,264 @@ def build_notebook():
     print(f"wrote {PAPER / 'signal_loss.ipynb'}")
 
 
+TEXT_TEMPLATE = r"""% signal_loss_text.tex -- GENERATED, do not edit by hand.
+%
+% Draft replacement text for the 21 cm signal-loss result. Regenerate with
+%     uv run python horizon_position/make_paper_signal_loss_figure.py
+% in the mock_analysis repo; every number in blocks 1 and 2 below is computed
+% at generation time from the same arrays the figure is drawn from, so
+% re-running after the 21 cm ensemble changes updates the prose and the figure
+% together and they cannot drift apart.
+%
+% Paste the three blocks into rasti_template.tex as marked. Nothing here is
+% \input by the paper -- this file is a staging area, not a dependency, and
+% nothing in this repo writes to the paper .tex itself.
+%
+% NOTE: signal_loss.pdf is @@FIGW@@in wide and must go in a `figure*'
+% (double-column) environment, not the `figure' that foreground_svd_residual
+% .pdf used -- at \linewidth in a single rasti column its tick labels render
+% at roughly 3pt.
+
+
+% ===================================================================
+% BLOCK 1 -- section "Minimising Covariance with the 21-cm Signal".
+% Replaces the sentence beginning "We emphasise that this analysis only
+% quantifies the spectral complexity ...".
+% ===================================================================
+
+This analysis quantifies the spectral complexity of the beam-weighted
+foregrounds; on its own it says nothing about whether the cosmological signal
+survives the same filter. We therefore passed an ensemble of @@NMODELS@@ global
+21-cm models through the identical projection, so that the retained signal and
+the foreground residual are read off the same axes
+(Fig.~\ref{fig:singular_values}). We adopt $N=@@NA@@$ filtered modes as a
+reference operating point: it is the smallest $N$ at which the foreground
+residual (@@FG@@\,mK) falls below the median retained signal and stays below it
+for every larger $N$; at $N=@@NAM1@@$ the residual is @@FGM1@@\,mK against a
+median retained signal of @@MEDM1@@\,mK. At the reference point the median
+model retains @@KEEPPCT@@ per cent of its band RMS, or @@MED@@\,mK, and
+@@ABOVE@@ per cent of the ensemble retains more than the foreground residual.
+Retention correlates with signal amplitude but is not determined by it
+(Spearman @@RHODEPTH@@ against trough depth): of the @@N150@@ models with an
+absorption trough of 140--160\,mK, the retained RMS has a median of
+@@RET150@@\,mK but an interquartile range of @@RET150LO@@--@@RET150HI@@\,mK.
+What separates them at matched depth is trough width, narrower troughs
+retaining the larger fraction (Spearman @@RHOWIDTH@@ between width and
+retained fraction), since a broad trough is the more nearly foreground-like
+shape.
+
+This operating point is set by the foregrounds alone, which is all that
+Fig.~\ref{fig:singular_values} is asked to establish. Instrumental systematics
+are folded in later and can only raise it. The 1\,m antenna displacement of
+section~\ref{subsec:fwd_modelling} is one such term: its worst-case residual is
+@@SYSNA@@\,mK at $N=@@NA@@$, comparable to the median retained signal there,
+and one further mode brings it to @@SYSNP1@@\,mK against @@MEDNP1@@\,mK
+retained (Fig.~\ref{fig:horizon_shift}). We report such crossings under a
+`stays below' rule -- the smallest $N$ beyond which the floor never rises above
+the median again -- because both quantities fall with $N$ and cross more than
+once, so a first-crossing count would be optimistic.
+
+Retained RMS understates what such a filter leaves measurable. The projection
+discards the components of a signal that lie along the foreground modes and
+keeps the orthogonal complement, so the relevant question is not how much
+amplitude survives but which models remain distinguishable within the subspace
+that does. Restricting to the @@NDEEP@@ ensemble members with absorption
+troughs deeper than 50\,mK and scoring over 70--130\,MHz, the median separation
+between a pair of models falls from @@SEP0@@\,mK to @@SEP1@@\,mK under the
+filter, yet @@PAIR1@@ per cent of pairs remain separated by more than 1\,mK and
+@@PAIR2@@ per cent by more than 2\,mK. A measurement in the filtered subspace
+therefore constrains the signal to a family of models differing by components
+that lie along the foreground modes, rather than collapsing the ensemble to an
+indistinguishable residual.
+
+These figures are a floor rather than a forecast. The filter used here is
+maximally agnostic: its modes are estimated from the antenna temperature
+itself, and no knowledge of the beam or the sky enters. EDGES
+\citep{2025PASP..137l5002C} and MIST \citep{2024MNRAS.530.4125M} instead divide
+out a simulated beam chromaticity correction before fitting, and REACH
+\citep{2022JAI....1150001C} marginalises over a parametrised beam within its
+forward model. EIGSEP is designed to do likewise, using the beam measurements
+of section~\ref{subsec:beam_mapping} and the forward model of
+section~\ref{subsec:fwd_modelling}; every mode of chromaticity that is modelled
+rather than filtered is one fewer mode removed from the signal. Filtering is
+also a hard projection, whereas a joint fit for the signal and the foregrounds
+recovers part of what a projection discards, and the rotational degrees of
+freedom described below provide further leverage that a per-spectrum filter
+cannot use. Finally, the calculation uses a single simulated sky and beam and
+contains no noise, so it describes spectral subspace overlap and not
+sensitivity; whether a retained amplitude is detectable is set by the thermal
+noise and integration time, which we do not model here.
+Fig.~\ref{fig:singular_values} should accordingly not be read as a requirement
+that EIGSEP calibrate at the millikelvin level to detect a typical signal. It
+is the residual left by the most conservative foreground filter available, and
+it sets the scale of the improvement that beam knowledge and joint fitting are
+required to deliver.
+
+
+% ===================================================================
+% BLOCK 2 -- caption for signal_loss.pdf, replacing the
+% foreground_svd_residual.pdf caption. Keep \label{fig:singular_values}:
+% the horizon_shift caption already refers to it. Use figure*, not figure.
+% ===================================================================
+
+\caption{Signal loss under foreground-mode filtering. An ensemble of
+@@NMODELS@@ global 21-cm models is passed through the same projection onto the
+leading $N$ eigenmodes of the simulated antenna temperature that is applied to
+the foregrounds. Panels (a1) and (a2) show a random subsample of the ensemble
+before and after filtering $N=@@NA@@$ modes, each coloured by the band RMS it
+retains at that operating point; the colour scale is logarithmic and shared
+with panel (b), so a curve's colour and its height in (b) agree. Curve opacity
+also rises with retained RMS, so that the sparse high-retention tail is
+visible; it is a small minority, @@TAIL10@@ per cent of models above 10\,mK.
+Panel (b) shows retained RMS against the number of modes filtered for every
+model, with the foreground residual in black. At $N=@@NA@@$ the foreground
+residual is @@FG@@\,mK while the median model retains @@MED@@\,mK, or
+@@KEEPPCT@@ per cent of its band RMS, and @@ABOVE@@ per cent of the ensemble
+retains more than the foreground residual. The structure surviving in (a2) is
+ringing from projecting onto a truncated smooth basis rather than a residual
+absorption trough, so retained RMS should not be read as retained signal shape.
+This filter uses no knowledge of the beam or the sky and is therefore the most
+conservative case; instrumental systematics are folded in at
+Fig.~\ref{fig:horizon_shift}. See the text.}
+
+
+% ===================================================================
+% BLOCK 3 -- section "Minimising Covariance", rotation paragraph.
+% Insert after "... we aim to use both to improve constraints."
+%
+% These numbers are NOT computed by this script. They come from a probe run
+% on horizon_chromaticity/output/chromaticity_eigsep.npz (t_sys, 1296 ori x
+% 1436 LST x 201 freq) on 2026-08-19, which is not checked in. Re-derive from
+% that cube if the ensemble or the beam changes.
+%
+% Read the "16 versus 10" carefully: both are matched-residual counts at a
+% 0.6 mK foreground residual, NOT operating points. The zenith figure happens
+% to be 10 because that is where the zenith residual reaches 0.6 mK; the
+% operating point in block 1 is N = @@NA@@, where the residual is @@FG@@ mK.
+% Do not let a reader conflate the two.
+% ===================================================================
+
+Rotation adds spectral diversity to the data, and it is worth asking what that
+diversity costs in model complexity. Repeating the eigenmode analysis over the
+full drive grid of 1296 pointings (36 elevations $\times$ 36 azimuths) rather
+than the zenith pointing alone, the pooled antenna temperature reaches a
+foreground residual of 0.6\,mK with 16 modes, against 10 for the zenith
+pointing at the same residual. The foregrounds seen across every accessible
+orientation therefore occupy a subspace only marginally larger than that of a
+single pointing. Realising the benefit of that diversity requires a joint fit
+in which the sky and the beam are shared parameters and the rotations are
+known; a per-spectrum projection of the kind used in
+Fig.~\ref{fig:singular_values} cannot exploit it, because the information lies
+in the correlation between pointings rather than within any one spectrum, and
+pooling the pointings into the projection basis only enlarges the subspace
+being removed. We defer this analysis to future work.
+"""
+
+
+def build_text():
+    """Regenerate the draft paper text, every block-1/2 number computed here.
+
+    The previous version of this file was written once and then went stale:
+    it still quoted a 1135-model ensemble and an N = 10 operating point set
+    partly by the position systematic, months after both had changed. Deriving
+    the numbers here, from the same arrays `build_data` saves, is what stops
+    that recurring -- the prose cannot drift from the figure without someone
+    editing a file that says it is generated.
+    """
+    assert f"N_SHOW = {N_SHOW_TEXT}" in LOAD_SRC, "N_SHOW_TEXT is stale"
+    assert f"figsize=({FIG_W_IN}," in PLOT_SRC, "FIG_W_IN is stale"
+
+    d = np.load(PAPER / "signal_loss.npz", allow_pickle=True)
+    freqs, Vh, s_fg = d["freqs_MHz"], d["Vh"], d["s_fg"]
+    T21, n_time = d["T21_models"], int(d["n_time"])
+    n_f = freqs.size
+    n_modes = np.arange(N_SHOW_TEXT + 1)
+
+    tail = np.concatenate([np.cumsum(s_fg[::-1] ** 2)[::-1], [0.0]])
+    fg_resid = np.sqrt(tail / (n_time * n_f))[: N_SHOW_TEXT + 1] * 1e3  # mK
+
+    c = T21 @ Vh.T
+    ret_all = np.array(
+        [np.sqrt(np.sum(c[:, N:] ** 2, axis=1) / n_f) * 1e3 for N in n_modes]
+    )
+    med = np.median(ret_all, axis=1)
+    ret = ret_all[N_ANCHOR]
+
+    # worst-case +1 m position systematic, from the horizon figure's own npz
+    dT = np.load(SHIFT_NPZ, allow_pickle=True)["dT_spectra"].reshape(-1, n_f)
+    cs = dT @ Vh.T
+    sys_r = np.array(
+        [np.sqrt(np.sum(cs[:, N:] ** 2, axis=1) / n_f).max() * 1e3 for N in n_modes]
+    )
+
+    depth = -T21.min(axis=1) * 1e3
+    near150 = (depth > 140) & (depth < 160)
+    # Trough width at half depth, the shape statistic that separates models of
+    # equal amplitude; correlated against the retained *fraction*, not the
+    # absolute RMS, so amplitude is divided out before shape is measured.
+    width = (T21 < T21.min(axis=1, keepdims=True) / 2).sum(axis=1) * (
+        freqs[1] - freqs[0]
+    )
+    rho_depth = spearmanr(depth, ret_all[N_ANCHOR]).statistic
+    rho_width = spearmanr(width, ret_all[N_ANCHOR] / ret_all[0]).statistic
+
+    # Distinguishability: pairwise RMS separation over 70-130 MHz, before and
+    # after the filter, among models with a trough deeper than 50 mK. Computed
+    # from the Gram matrix rather than an (n, n, n_band) difference array,
+    # which would not fit in memory at this ensemble size.
+    band = (freqs >= 70) & (freqs <= 130)
+    deep = depth > 50
+
+    def pair_sep(X):
+        """Upper-triangle pairwise RMS separations over the scoring band [mK]."""
+        A = X[deep][:, band] * 1e3
+        g = A @ A.T
+        dg = np.diag(g)
+        d2 = np.maximum(dg[:, None] + dg[None, :] - 2 * g, 0.0)
+        iu = np.triu_indices(A.shape[0], k=1)
+        return np.sqrt(d2[iu] / band.sum())
+
+    t21_filt = (c[:, N_ANCHOR:] @ Vh[N_ANCHOR:]).reshape(T21.shape)
+    sep0, sep1 = pair_sep(T21), pair_sep(t21_filt)
+
+    vals = {
+        "FIGW": f"{FIG_W_IN:g}",
+        "NMODELS": T21.shape[0],
+        "NA": N_ANCHOR,
+        "NAM1": N_ANCHOR - 1,
+        "FG": f"{fg_resid[N_ANCHOR]:.2f}",
+        "FGM1": f"{fg_resid[N_ANCHOR - 1]:.2f}",
+        "MEDM1": f"{med[N_ANCHOR - 1]:.2f}",
+        "MED": f"{med[N_ANCHOR]:.2f}",
+        "MEDNP1": f"{med[N_ANCHOR + 1]:.2f}",
+        "KEEPPCT": f"{np.median(ret_all[N_ANCHOR] / ret_all[0]) * 100:.0f}",
+        "ABOVE": f"{(ret > fg_resid[N_ANCHOR]).mean() * 100:.0f}",
+        "N150": int(near150.sum()),
+        "RET150": f"{np.median(ret[near150]):.1f}",
+        "RET150LO": f"{np.percentile(ret[near150], 25):.1f}",
+        "RET150HI": f"{np.percentile(ret[near150], 75):.1f}",
+        "RHODEPTH": f"{rho_depth:+.2f}",
+        "RHOWIDTH": f"{rho_width:+.2f}",
+        "SYSNA": f"{sys_r[N_ANCHOR]:.2f}",
+        "SYSNP1": f"{sys_r[N_ANCHOR + 1]:.2f}",
+        "TAIL10": f"{(ret > 10).mean() * 100:.1f}",
+        "NDEEP": int(deep.sum()),
+        "SEP0": f"{np.median(sep0):.0f}",
+        "SEP1": f"{np.median(sep1):.1f}",
+        "PAIR1": f"{(sep1 > 1).mean() * 100:.0f}",
+        "PAIR2": f"{(sep1 > 2).mean() * 100:.0f}",
+    }
+    out = TEXT_TEMPLATE
+    for k, v in vals.items():
+        out = out.replace(f"@@{k}@@", str(v))
+    assert "@@" not in out, "unsubstituted token left in signal_loss_text.tex"
+
+    (PAPER / "signal_loss_text.tex").write_text(out)
+    print(f"wrote {PAPER / 'signal_loss_text.tex'}")
+    for k, v in vals.items():
+        print(f"    {k:9s} {v}")
+
+
 def render_pdf():
     """Run the notebook's source here so the PDF and notebook stay identical."""
     ns = {}
@@ -466,6 +818,7 @@ def main():
             raise SystemExit(f"{p} not found")
     build_data()
     build_notebook()
+    build_text()
     render_pdf()
 
 

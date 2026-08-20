@@ -2,10 +2,19 @@
 
     uv run python horizon_position/recompute_operating_point.py
 
-N_ANCHOR is defined as the smallest N at which both floors -- the
-foreground residual and the position systematic -- fall below the median
-retained 21 cm signal. That definition is unchanged; the ensemble it is
-evaluated against is not, so the answer may move.
+N_ANCHOR is the smallest N at which the foreground residual falls below
+the median retained 21 cm signal *and stays below* for every larger N in
+the scan. Only the foreground floor enters the criterion: Fig. 1 is
+scoped to foreground dimensionality alone, and the position systematic
+belongs to the forward-modelling section, where horizon_shift.pdf shows
+it against the same benchmark.
+
+The "stays below" clause is load-bearing. Both curves fall with N, and
+they cross more than once, so a first-crossing rule can select an N that
+the floor later climbs back above -- which is exactly what happens to
+the position systematic (below the median at N = 7 and 8, above it again
+at N = 9). The position systematic is still reported here, under the
+same rule, so the two figures cannot disagree about which N clears it.
 """
 
 import make_paper_signal_loss_figure as mp
@@ -60,28 +69,51 @@ def main():
         """
         return np.sqrt(np.sum(c[:, N:] ** 2) / (n_rows * n_f)) * 1e3
 
+    scan = list(N_SCAN)
+    fg_r = np.array([rms_pooled(fg_c, N, n_time) for N in scan])
+    sys_r = np.array([rms(dT, N).max() for N in scan])
+    med = np.array([np.median(rms(t21_c, N)) for N in scan])
+
+    def first_stable(floor):
+        """Smallest scanned N with floor < median there and at every larger N."""
+        below = floor < med
+        for i in range(len(scan)):
+            if below[i:].all():
+                return scan[i]
+        return None
+
+    chosen, sys_n = first_stable(fg_r), first_stable(sys_r)
+
     print(f"{len(T21)} models on {n_f} channels, {freqs[0]:.0f}-{freqs[-1]:.0f} MHz\n")
     print(
         f"{'N':>3}  {'fg resid':>9}  {'pos sys':>9}  {'21cm med':>9}  {'above fg':>9}"
     )
-    chosen = None
-    for N in N_SCAN:
-        f_r, s_r = rms_pooled(fg_c, N, n_time), rms(dT, N).max()
-        med = np.median(rms(t21_c, N))
-        above = (rms(t21_c, N) > f_r).mean()
+    for i, N in enumerate(scan):
+        above = (rms(t21_c, N) > fg_r[i]).mean()
         flag = ""
-        if chosen is None and f_r < med and s_r < med:
-            chosen, flag = N, "  <- smallest N with both floors below the median"
+        if N == chosen:
+            flag = "  <- N_ANCHOR: foreground floor below the median from here on"
+        elif N == sys_n:
+            flag = "  <- position systematic below the median from here on"
         print(
-            f"{N:>3}  {f_r:>9.3f}  {s_r:>9.3f}  {med:>9.3f}  {100 * above:>8.1f}%{flag}"
+            f"{N:>3}  {fg_r[i]:>9.3f}  {sys_r[i]:>9.3f}  {med[i]:>9.3f}  "
+            f"{100 * above:>8.1f}%{flag}"
         )
 
     # Without this, `chosen` stays None and `rms(t21_c, None)` silently
     # slices every column (no filtering at all) below, printing plausible
     # but meaningless percentiles instead of failing loudly.
     assert chosen is not None, (
-        f"no N in {N_SCAN} satisfies both floors < median retained signal "
-        "-- widen N_SCAN"
+        f"no N in {N_SCAN} puts the foreground residual below the median "
+        "retained signal and keeps it there -- widen N_SCAN"
+    )
+    assert sys_n is not None, (
+        f"no N in {N_SCAN} puts the position systematic below the median "
+        "retained signal and keeps it there -- widen N_SCAN"
+    )
+    print(
+        f"\nfolding in the +1 m position systematic costs {sys_n - chosen} "
+        f"extra mode(s): N {chosen} -> {sys_n}"
     )
 
     print(f"\nN_ANCHOR = {chosen}")

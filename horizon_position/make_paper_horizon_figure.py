@@ -21,9 +21,24 @@ panel is styled like ``foreground_svd_residual.pdf`` (log-y Residual RMS
 retained 21 cm signal (5-95% band, median dashed) under the identical
 projection -- the same benchmark as ``signal_loss.pdf`` -- in place of
 an arbitrary 10 mK line. It shows the position-error signal is removed
-by the same low-order foreground filtering as the sky: every LST/axis
-drops below the median retained signal within 7 modes (Up, +1 m, is the
-slowest to clear it).
+by the same low-order foreground filtering as the sky.
+
+This figure is where the position systematic is folded into the mode
+budget, and it is deliberately the only place. ``signal_loss.pdf``
+(Fig. 1) sets its operating point ``N_ANCHOR`` on the foreground
+residual alone, because that is all Fig. 1 claims; the dotted line in
+the residual panels marks it here so the two figures read against a
+common reference. The cost of adding this systematic is one mode: at
+N_ANCHOR the worst-LST Up displacement still sits just above the median
+retained signal (3.20 vs 3.01 mK), and one further mode drops it an
+order of magnitude below (0.33 vs 2.18 mK).
+
+Crossings are counted with a *stays below* rule -- the smallest N at
+which the worst-LST residual is under the median retained signal and
+remains so for every larger N. Both curves fall with N, and they cross
+more than once: Up is below the median at N = 7 and N = 8 and back above
+it at N = 9, so a first-crossing rule would report 7 here while
+``recompute_operating_point.py`` reports 10, on identical arrays.
 
 Run in the mock_analysis env (numpy + matplotlib + astropy + nbformat):
     uv run python horizon_position/make_paper_horizon_figure.py
@@ -45,7 +60,7 @@ iers.conf.auto_max_age = None
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import analysis  # noqa: E402
-from make_paper_signal_loss_figure import load_t21, retained_pct  # noqa: E402
+from make_paper_signal_loss_figure import N_ANCHOR, load_t21, retained_pct  # noqa: E402
 
 SIMS = HERE / "output" / "position_sims.npz"
 PAPER = Path("/home/christian/Documents/research/papers/eigsep_instrument/notebooks")
@@ -96,13 +111,16 @@ def build_data():
         lst_hr=lst[idx],
         labels=labels,
         t21_pct=t21_pct,
+        n_anchor=N_ANCHOR,
         description=(
             "Uncorrected antenna-temperature differences dT_ant(nu) for +1 m "
             "East/North/Up antenna displacements at 24 LSTs (one per hour), and "
             "the foreground spectral modes Vh (right singular vectors of the "
             "nominal antenna-temperature waterfall = foreground_svd.npz system "
             "temperature minus the constant receiver). dT_spectra (3, 24, "
-            "n_freq) in K; axis order East/North/Up."
+            "n_freq) in K; axis order East/North/Up. n_anchor is the "
+            "operating point signal_loss.pdf sets on the foreground residual "
+            "alone, marked here so both figures read against one reference."
         ),
     )
     print(f"wrote {PAPER / 'horizon_shift.npz'}")
@@ -124,6 +142,7 @@ Vh = d["Vh"]                     # (n_freq, n_freq) foreground spectral modes
 labels = [str(s) for s in d["labels"]]
 n_f = freqs.size
 N_SHOW = 18                       # foreground modes filtered (x-axis)
+N_ANCHOR = int(d["n_anchor"])     # signal_loss.pdf's operating point
 print(dT.shape, "spectra at LSTs", np.round(lst, 1))"""
 
 PLOT_SRC = '''CMAP, norm = "twilight", Normalize(0, 24)
@@ -162,6 +181,7 @@ for col, lab in enumerate(labels):
         ab.plot(n_modes, rc[:, j], color=cmap(norm(lst[j])), lw=0.7, alpha=0.9)
     ab.fill_between(n_modes, t21[0], t21[2], color=C_21, alpha=0.22, lw=0, zorder=0)
     ab.plot(n_modes, t21[1], color=C_21, lw=1.4, ls="--", zorder=1)
+    ab.axvline(N_ANCHOR, color="0.6", lw=0.8, ls=":", zorder=0)
     ab.set_yscale("log")
     ab.set_xlabel("Foreground modes filtered", fontsize=8)
     ab.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
@@ -170,6 +190,8 @@ for col, lab in enumerate(labels):
 axes[0, 0].set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]", fontsize=8)
 axes[1, 0].set_ylabel("Residual RMS [K]", fontsize=8)
 axes[1, 2].text(N_SHOW, 2.5, "21 cm signal (5-95%)", color=C_21,
+                fontsize=6.5, va="top", ha="right")
+axes[1, 0].text(N_ANCHOR - 0.6, 2.5, f"$N = {N_ANCHOR}$", color="0.35",
                 fontsize=6.5, va="top", ha="right")
 for col in (1, 2):
     axes[1, col].tick_params(labelleft=False)
@@ -180,14 +202,32 @@ cb.set_label("LST [h]", fontsize=8); cb.set_ticks(np.arange(0, 25, 4))
 cb.ax.tick_params(labelsize=7)
 fig.savefig("horizon_shift.pdf", bbox_inches="tight", dpi=600)'''
 
-SUMMARY_SRC = """for col, lab in enumerate(labels):
-    rc = resid_curves(dT[col])               # (N_SHOW+1, n_lst)
-    worst = rc.max(axis=1)                    # worst LST at each N
-    below = int(np.nonzero(worst < t21[1])[0][0])
-    print(f"{lab:11s}  full RMS {worst[0]*1e3:7.1f} mK  ->  "
-          f"worst LST drops below the median retained 21 cm signal after "
-          f"{below} modes; residual after 10 modes {worst[10]*1e3:.2f} mK "
-          f"vs {t21[1, 10]*1e3:.2f} mK retained")"""
+SUMMARY_SRC = """def stays_below(curve, ref):
+    \"\"\"Smallest N with curve < ref there and at every larger N on the axis.
+
+    Not first-crossing: both fall with N and cross more than once, so a
+    first-crossing rule reports an N the curve later climbs back above.
+    \"\"\"
+    below = curve < ref
+    return next(N for N in n_modes if below[N:].all())
+
+
+worst_all = np.zeros(N_SHOW + 1)
+for col, lab in enumerate(labels):
+    worst = resid_curves(dT[col]).max(axis=1)      # worst LST at each N
+    worst_all = np.maximum(worst_all, worst)
+    print(f"{lab:11s}  full RMS {worst[0]*1e3:7.1f} mK  ->  worst LST stays "
+          f"below the median retained 21 cm signal from {stays_below(worst, t21[1])} "
+          f"modes on; at N = {N_ANCHOR} it is {worst[N_ANCHOR]*1e3:6.2f} mK "
+          f"vs {t21[1, N_ANCHOR]*1e3:.2f} mK retained")
+
+n_sys = stays_below(worst_all, t21[1])
+print(f"\\nFig. 1 sets N = {N_ANCHOR} on the foreground residual alone. Folding in "
+      f"the +1 m position systematic costs {n_sys - N_ANCHOR} further mode(s): "
+      f"worst axis/LST {worst_all[N_ANCHOR]*1e3:.2f} mK at N = {N_ANCHOR} "
+      f"(median retained {t21[1, N_ANCHOR]*1e3:.2f} mK), "
+      f"{worst_all[n_sys]*1e3:.2f} mK at N = {n_sys} "
+      f"(median retained {t21[1, n_sys]*1e3:.2f} mK).")"""
 
 
 def build_notebook():
@@ -205,9 +245,29 @@ def build_notebook():
         "The grey dashed band is the retained 21 cm signal (5-95% of the model "
         "ensemble, median dashed) under the *identical* projection -- the "
         "physical benchmark this residual has to beat, in place of an "
-        "arbitrary 10 mK line. By $N = 10$ the worst-LST systematic is below "
-        "the median retained signal on all three axes. See `signal_loss.ipynb` "
-        "for the full signal-loss calculation and its limitations."
+        "arbitrary 10 mK line.\n\n"
+        "**This is where the position systematic enters the mode budget.** "
+        "`signal_loss.ipynb` (Fig. 1) sets its operating point $N$ on the "
+        "foreground residual alone, because foreground dimensionality is all "
+        "that figure claims; the dotted vertical line marks that $N$ here, so "
+        "the two figures read against a common reference. Folding this "
+        "systematic in costs **one additional mode**: at Fig. 1's $N$ the "
+        "worst-LST Up displacement still sits just above the median retained "
+        "signal (3.20 vs 3.01 mK), and one further mode puts it an order of "
+        "magnitude below (0.33 vs 2.18 mK). That is the general pattern to "
+        "expect -- each systematic folded in raises the mode count, and the "
+        "increment here is small.\n\n"
+        "Crossings below use a *stays below* rule: the smallest $N$ at which "
+        "the worst-LST residual is under the median retained signal and "
+        "remains so for every larger $N$. Both curves fall with $N$ and cross "
+        "more than once -- Up is below the median at $N = 7$ and $N = 8$ and "
+        "back above it at $N = 9$ -- so a first-crossing rule would report a "
+        "different, over-optimistic answer from the same arrays.\n\n"
+        "See `signal_loss.ipynb` for the full signal-loss calculation and its "
+        "limitations. Both figures describe a blind eigenmode projection, "
+        "which is the most conservative filter available and not the analysis "
+        "EIGSEP plans to run; they bound spectral subspace overlap, not "
+        "sensitivity."
     )
     cells = [
         nbf.v4.new_markdown_cell(md),
