@@ -16,10 +16,14 @@ PDF, data archived to Zenodo):
 The figure (2 x 3, East/North/Up) pairs, per axis, the Delta T(nu)
 spectra (top, coloured by LST) with their residual after *filtering* the
 leading N foreground modes (bottom, same per-LST colours). The residual
-panel matches ``foreground_svd_residual.pdf``: log-y Residual RMS [K],
-10 mK red dashed reference, "Foreground modes filtered" x-axis. It shows
-the position-error signal is removed by the same low-order foreground
-filtering as the sky: every LST/axis drops below 10 mK within ~6 modes.
+panel is styled like ``foreground_svd_residual.pdf`` (log-y Residual RMS
+[K], "Foreground modes filtered" x-axis), but its reference is now the
+retained 21 cm signal (5-95% band, median dashed) under the identical
+projection -- the same benchmark as ``signal_loss.pdf`` -- in place of
+an arbitrary 10 mK line. It shows the position-error signal is removed
+by the same low-order foreground filtering as the sky: every LST/axis
+drops below the median retained signal within 7 modes (Up, +1 m, is the
+slowest to clear it).
 
 Run in the mock_analysis env (numpy + matplotlib + astropy + nbformat):
     uv run python horizon_position/make_paper_horizon_figure.py
