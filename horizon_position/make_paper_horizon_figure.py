@@ -123,9 +123,11 @@ N_SHOW = 18                       # foreground modes filtered (x-axis)
 print(dT.shape, "spectra at LSTs", np.round(lst, 1))"""
 
 PLOT_SRC = '''CMAP, norm = "twilight", Normalize(0, 24)
-C_21 = "0.40"                     # 21 cm band: grey = the reference, not the
-                                  # panel subject (colour here is LST). Not blue:
-                                  # blue means "> 5 mK retained" in signal_loss.
+C_21 = "0.40"                     # 21 cm band: grey and dashed because colour
+                                  # here is already spoken for by LST, and
+                                  # signal_loss now colours its curves by
+                                  # retained RMS on a continuous plasma scale
+                                  # with no fixed hue to match against anyway.
 cmap = plt.get_cmap(CMAP)
 n_modes = np.arange(N_SHOW + 1)
 
@@ -196,8 +198,8 @@ def build_notebook():
         "systematic sits in the same low-order foreground subspace: every LST "
         "and axis is driven down by the same low-order filtering that cleans "
         "the sky.\n\n"
-        "The blue band is the retained 21 cm signal (5-95% of the model "
-        "ensemble, median solid) under the *identical* projection -- the "
+        "The grey dashed band is the retained 21 cm signal (5-95% of the model "
+        "ensemble, median dashed) under the *identical* projection -- the "
         "physical benchmark this residual has to beat, in place of an "
         "arbitrary 10 mK line. By $N = 10$ the worst-LST systematic is below "
         "the median retained signal on all three axes. See `signal_loss.ipynb` "
