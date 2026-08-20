@@ -1611,10 +1611,16 @@ def load_t21(freqs):
     this only checks the grid and converts mK -> K. The reionization cut is
     posterior and is applied here, once, so the figure and the quoted
     statistics can never disagree about which models are in.
+
+    `reionized_across_band` (not plain `reionized`) is deliberate: it also
+    requires the model to be reionized at the top of the band, excluding 27
+    models whose Zeus21 Q-solution re-neutralises at low z and would
+    otherwise put several mK of unphysical signal at 250 MHz. Expect 1782
+    of 4096 models to survive.
     """
     m = np.load(MODELS_NPZ, allow_pickle=False)
     assert np.array_equal(m["freqs_MHz"], freqs), "frequency grid mismatch"
-    keep = selection.reionized(m["xHI"], m["z_xHI"])
+    keep = selection.reionized_across_band(m["xHI"], m["z_xHI"])
     return m["T21_mK"][keep] * 1e-3
 ```
 
