@@ -732,8 +732,9 @@ dark by magnitude, with all @@NLST@@ LSTs drawn for each. The colour encodings
 of the two rows are therefore different: LST above, displacement below, since
 after filtering the LSTs collapse into a single bundle. Grey shows the 21 cm
 signal retained under the identical projection (5--95 per cent of the model
-ensemble of Fig.~\ref{fig:singular_values}, median dashed); the dotted vertical
-line marks the $N=@@NA@@$ operating point adopted there.
+ensemble of Fig.~\ref{fig:singular_values}, median dashed), which is the
+benchmark the systematic is read against; $N=@@NA@@$ is the operating point
+adopted there.
 
 The displacements are large in amplitude -- up to @@MAXDT@@\,K at 50\,MHz for
 the $+@@TOPMAG@@$\,m upward shift -- but foreground-like, with @@LEADPCT@@ per

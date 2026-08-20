@@ -262,7 +262,6 @@ for col, lab in enumerate(labels):
             ab.plot(n_modes, rc[:, j], color=D_COL[k], lw=0.55, alpha=0.6)
     ab.fill_between(n_modes, t21[0], t21[2], color=C_21, alpha=0.25, lw=0, zorder=0)
     ab.plot(n_modes, t21[1], color=C_21, lw=1.4, ls="--", zorder=1)
-    ab.axvline(N_ANCHOR, color="0.55", lw=0.8, ls=":", zorder=0)
     ab.set_yscale("log")
     ab.set_xlabel("Foreground modes filtered", fontsize=8)
     ab.grid(True, which="both", ls=":", lw=0.5, alpha=0.55)
@@ -270,9 +269,10 @@ for col, lab in enumerate(labels):
 
 axes[0, 0].set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]", fontsize=8)
 axes[1, 0].set_ylabel("Residual RMS [K]", fontsize=8)
-# The dotted line is Fig. 1's operating point. It carried an "N = 9" tag, which
-# read as unexplained at a glance -- the number means nothing without the other
-# figure -- so the caption names it instead and the line stays unlabelled.
+# No marker for Fig. 1's operating point. A dotted line with an "N = 9" tag was
+# tried and dropped: the number is meaningless without the other figure, and
+# unlabelled it was just an unexplained rule. N_ANCHOR still governs the
+# summary below and the paper text, which is where the comparison belongs.
 handles = [Line2D([], [], color=D_COL[k], lw=2, label=f"{m:g} m")
            for k, m in enumerate(mags)]
 handles.append(Line2D([], [], color=C_21, lw=1.4, ls="--", label="21 cm models"))
