@@ -545,13 +545,19 @@ TEXT_TEMPLATE = r"""% signal_loss_text.tex -- GENERATED, do not edit by hand.
 %
 % Draft replacement text for the 21 cm signal-loss result. Regenerate with
 %     uv run python horizon_position/make_paper_signal_loss_figure.py
-% in the mock_analysis repo; every number in blocks 1, 2 and 4 below is
+% in the mock_analysis repo; every number in blocks 1, 2, 4 and 5 below is
 % computed at generation time from the same arrays the figures are drawn from,
 % so re-running after the 21 cm ensemble changes updates the prose and the
 % figures together and they cannot drift apart. Block 3 is the exception and
 % says so.
 %
-% Paste the four blocks into rasti_template.tex as marked. Nothing here is
+% Framing to preserve if these are edited: neither figure is a proposed
+% analysis. Both project onto eigenmodes of a *simulated* nominal instrument,
+% and block 5 gives the reason that matters -- an unmodelled 1 m displacement
+% puts signal-like power in the first mode past the filter. Nothing here may
+% be phrased so as to license reading a residual excess as a detection.
+%
+% Paste the five blocks into rasti_template.tex as marked. Nothing here is
 % \input by the paper -- this file is a staging area, not a dependency, and
 % nothing in this repo writes to the paper .tex itself.
 %
@@ -597,7 +603,11 @@ and one further mode brings it to @@SYSNP1@@\,mK against @@MEDNP1@@\,mK
 retained (Fig.~\ref{fig:horizon_shift}). We report such crossings under a
 `stays below' rule -- the smallest $N$ beyond which the floor never rises above
 the median again -- because both quantities fall with $N$ and cross more than
-once, so a first-crossing count would be optimistic.
+once, so a first-crossing count would be optimistic. We stress that $N$ is used
+here to characterise spectral overlap, and not as a filter depth we propose to
+apply to data and then interpret the residual of: an unmodelled displacement
+leaves signal-like power in precisely the first mode such a filter would keep,
+as section~\ref{subsec:fwd_modelling} sets out.
 
 Retained RMS understates what such a filter leaves measurable. The projection
 discards the components of a signal that lie along the foreground modes and
@@ -719,19 +729,76 @@ spectrum after filtering the eigenmodes of the unperturbed antenna temperature
 -- the same modes as Fig.~\ref{fig:singular_values} -- as a function of the
 number of modes filtered. The grey band is the 21 cm signal retained under
 that identical projection (5--95 per cent of the model ensemble of
-Fig.~\ref{fig:singular_values}, median dashed), which is the benchmark the
-systematic has to clear; the dotted vertical line marks the $N=@@NA@@$
-operating point adopted there. Counting the smallest $N$ beyond which the
-worst-LST residual stays below the median retained signal, the east and north
-displacements clear it after @@CLEAR_E@@ and @@CLEAR_N@@ modes; the upward
-displacement, which is both the largest (@@RAW_U@@\,mK RMS over all LSTs and
-channels, against @@RAW_E@@\,mK east and @@RAW_N@@\,mK north) and the most
-foreground-like in shape, requires @@CLEAR_U@@. Folding this systematic into
-the mode
-budget therefore costs one mode beyond the $N=@@NA@@$ set by the foregrounds
-alone: at $N=@@NA@@$ the worst case is @@SYSNA@@\,mK against @@MED@@\,mK
-retained, and at $N=@@CLEAR_U@@$ it is @@SYSNP1@@\,mK against
-@@MEDNP1@@\,mK.}
+Fig.~\ref{fig:singular_values}, median dashed); the dotted vertical line marks
+the $N=@@NA@@$ operating point adopted there. The displacements are large in
+amplitude -- up to @@MAXDT@@\,K at 50\,MHz, @@RAW_U@@\,mK RMS for the upward
+shift against @@RAW_E@@\,mK east and @@RAW_N@@\,mK north -- but they are
+foreground-like, with @@LEADPCT@@ per cent of that power in the two leading
+foreground modes, so the same low-order filtering that removes the sky removes
+almost all of them: the east and north residuals stay below the median
+retained signal from @@CLEAR_E@@ and @@CLEAR_N@@ modes on. What survives is
+narrow rather than smooth. After @@NA@@ modes are filtered, @@SPIKEPCT@@ per
+cent of the upward displacement's remaining power sits in mode @@SPIKE@@
+alone, at @@SPIKESYS@@\,mK -- above that mode's nominal foreground content
+(@@SPIKEFG@@\,mK) and above the median model's 21 cm content there
+(@@SPIKE21@@\,mK), and resembling the retained signal in shape (cosine
+similarity up to @@COSMAX@@). We therefore do not treat this filter as an
+analysis that could be run on data and its residual attributed to cosmology;
+see the text.}
+
+
+% ===================================================================
+% BLOCK 5 -- section "Forward Modelling", after the existing discussion of
+% the horizon_shift results ("... Motion up or down produces the largest
+% change in antenna temperature ...").
+%
+% This is the paragraph that keeps the two figures from being read as a
+% proposed pipeline. Both of them project onto eigenmodes of a *simulated*
+% nominal instrument; neither is the analysis EIGSEP intends to run, and the
+% numbers below are the reason why.
+% ===================================================================
+
+Two things follow from Fig.~\ref{fig:horizon_shift}, and they pull in opposite
+directions. The reassuring one is that a position error does not introduce a
+new class of spectral structure. The induced $\Delta T_{\text{ant}}$ is large
+in amplitude, but @@LEADPCT@@ per cent of its power lies in the two leading
+eigenmodes of the unperturbed antenna temperature: it is, to that accuracy,
+more foreground. Low-order filtering of the kind that motivates the EIGSEP
+design in section~\ref{subsec:covariance} therefore removes almost all of it,
+and the eastward and northward displacements fall below the median retained
+21 cm signal after @@CLEAR_E@@ and @@CLEAR_N@@ modes respectively.
+
+The cautionary one concerns what is left. Filtering @@NA@@ modes -- the
+operating point Fig.~\ref{fig:singular_values} adopts from the foregrounds
+alone -- leaves the upward displacement with @@SYSNA@@\,mK, of which
+@@SPIKEPCT@@ per cent is concentrated in a single mode, mode @@SPIKE@@. That
+one mode carries more power from a 1\,m displacement (@@SPIKESYS@@\,mK) than
+it does from the nominal foregrounds (@@SPIKEFG@@\,mK) or from the median
+21 cm model (@@SPIKE21@@\,mK); @@SPIKEBELOW@@ per cent of the ensemble has
+less signal in that mode than a 1\,m shift would put there, and the leftover
+resembles the retained signal in shape closely enough to be confused with it
+(cosine similarity up to @@COSMAX@@, median @@COSMED@@). The response is
+linear in displacement, so holding the injected power to a tenth of the median
+retained signal requires the vertical position to be known to roughly
+@@SPECM@@\,m -- a requirement on position monitoring, which we adopt.
+
+The wider point is methodological. An unmodelled displacement of the size we
+must anticipate deposits power that is signal-like in both amplitude and
+shape, at exactly the mode boundary where filtering stops. A residual left by
+a filter of fixed depth is therefore not evidence of a cosmological signal:
+excess with respect to a foreground model is only as trustworthy as the
+instrument model behind it, a lesson the field has already drawn from the
+scrutiny of published detections
+\citep{2018Natur.564E..32H, 2019ApJ...874..153B, 2019ApJ...880...26S}.
+Figs.~\ref{fig:singular_values} and~\ref{fig:horizon_shift} should accordingly
+be read as characterisations of spectral structure -- how many modes the
+instrument-weighted foregrounds occupy, and how a position error compares with
+the signal within that basis -- and not as a proposed pipeline. EIGSEP's
+analysis instead forward-models the instrument (this section), with the
+antenna position among the parameters that are fitted and marginalised over
+rather than assumed. The differentiable forward model makes that
+marginalisation tractable, and the position sensitivities computed here are
+what set the priors it needs.
 """
 
 
@@ -802,6 +869,37 @@ def build_text():
         "'one further mode' and 'costs one mode' in prose"
     )
 
+    # --- anatomy of what the displacement leaves behind ------------------
+    # Both halves of the horizon figure's message are quantified here. The
+    # reassuring half: nearly all of a displacement's power lands in the two
+    # leading foreground modes, so it is more foreground, not a new kind of
+    # structure. The cautionary half: what survives the filter is not a smooth
+    # tail but a spike in one mode, at the amplitude and roughly the shape of
+    # the signal -- which is why a residual excess cannot be read as cosmology.
+    up = dT3[2]  # worst axis at every N; see per_axis above
+    cu = up @ Vh.T
+    j = int(np.argmax(np.sqrt(np.sum(cu[:, N_ANCHOR:] ** 2, axis=1))))  # worst LST
+    mode_mK = np.abs(cu[j]) / np.sqrt(n_f) * 1e3  # per-mode RMS contribution
+    lead_frac = np.sum(cu[j, :2] ** 2) / np.sum(cu[j] ** 2)
+    spike = int(np.argmax(mode_mK[N_ANCHOR:])) + N_ANCHOR  # 0-indexed
+    tail_pow = np.sum(mode_mK[N_ANCHOR:] ** 2)
+
+    # the same mode's nominal-foreground and 21 cm content, for comparison
+    fg_mode_mK = s_fg / np.sqrt(n_time * n_f) * 1e3
+    sig_mode_mK = np.abs(c[:, spike]) / np.sqrt(n_f) * 1e3
+
+    # shape confusion between the leftover systematic and the retained signal
+    resid_sys = cu[j, N_ANCHOR:] @ Vh[N_ANCHOR:]
+    r21 = c[:, N_ANCHOR:] @ Vh[N_ANCHOR:]
+    cos = np.abs(r21 @ resid_sys) / (
+        np.linalg.norm(r21, axis=1) * np.linalg.norm(resid_sys)
+    )
+
+    # The effect is linear in displacement (checked against the 0.1/1/10 m
+    # sims), so the position knowledge that holds the injected power to a tenth
+    # of the median retained signal follows by scaling the 1 m case.
+    spec_m = 0.1 * med[N_ANCHOR] / mode_mK[spike]
+
     depth = -T21.min(axis=1) * 1e3
     near150 = (depth > 140) & (depth < 160)
     # Trough width at half depth, the shape statistic that separates models of
@@ -869,6 +967,17 @@ def build_text():
         "RAW_E": f"{np.sqrt(np.mean(dT3[0] ** 2)) * 1e3:.0f}",
         "RAW_N": f"{np.sqrt(np.mean(dT3[1] ** 2)) * 1e3:.0f}",
         "RAW_U": f"{np.sqrt(np.mean(dT3[2] ** 2)) * 1e3:.0f}",
+        "MAXDT": f"{np.abs(dT3[2]).max():.1f}",
+        "LEADPCT": f"{lead_frac * 100:.1f}",
+        "SPIKE": spike + 1,  # 1-indexed for the prose
+        "SPIKEPCT": f"{mode_mK[spike] ** 2 / tail_pow * 100:.0f}",
+        "SPIKESYS": f"{mode_mK[spike]:.2f}",
+        "SPIKEFG": f"{fg_mode_mK[spike]:.2f}",
+        "SPIKE21": f"{np.median(sig_mode_mK):.2f}",
+        "SPIKEBELOW": f"{(sig_mode_mK < mode_mK[spike]).mean() * 100:.0f}",
+        "COSMED": f"{np.median(cos):.2f}",
+        "COSMAX": f"{cos.max():.2f}",
+        "SPECM": f"{spec_m:.1f}",
     }
     out = TEXT_TEMPLATE
     for k, v in vals.items():

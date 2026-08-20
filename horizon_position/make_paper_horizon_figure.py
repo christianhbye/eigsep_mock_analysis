@@ -20,8 +20,38 @@ panel is styled like ``foreground_svd_residual.pdf`` (log-y Residual RMS
 [K], "Foreground modes filtered" x-axis), but its reference is now the
 retained 21 cm signal (5-95% band, median dashed) under the identical
 projection -- the same benchmark as ``signal_loss.pdf`` -- in place of
-an arbitrary 10 mK line. It shows the position-error signal is removed
-by the same low-order foreground filtering as the sky.
+an arbitrary 10 mK line.
+
+The bottom row exists to make two points at once, and they pull opposite
+ways.
+
+*Reassuring.* A position error is not a new kind of spectral structure.
+The Delta T are large -- up to 8.9 K at 50 MHz, ~1 K RMS for the upward
+shift -- but 99.9% of that power lies in the two leading eigenmodes of
+the unperturbed antenna temperature. It is, to that accuracy, more
+foreground, and the same low-order filtering that removes the sky
+removes almost all of it; East and North clear the median retained
+21 cm signal after 3 and 2 modes.
+
+*Cautionary.* What survives is narrow, not smooth. After N_ANCHOR
+modes, 99% of the Up displacement's remaining power sits in mode 10
+alone, at 3.18 mK -- more than that mode holds from the nominal
+foregrounds (1.71 mK) or from the median 21 cm model (1.66 mK), and
+similar enough in shape to be confused with the retained signal (cosine
+similarity up to 0.99). 73% of the ensemble carries less signal in that
+mode than a 1 m shift would put there. The response is linear in
+displacement, so the position knowledge needed to hold the injection to
+a tenth of the median retained signal is about 0.1 m vertically.
+
+Hence the framing this figure must keep, and which the paper text
+(signal_loss_text.tex, block 5) states explicitly: neither this figure
+nor signal_loss.pdf is a proposed analysis. Both project onto
+eigenmodes of a *simulated* nominal instrument. An unmodelled
+displacement of the size we have to anticipate deposits signal-like
+power in the first mode past the filter, so a residual left by a filter
+of fixed depth is not evidence of a cosmological signal. These are
+characterisations of spectral structure; the analysis marginalises over
+antenna position inside a forward model instead.
 
 This figure is where the position systematic is folded into the mode
 budget, and it is deliberately the only place. ``signal_loss.pdf``
@@ -227,7 +257,25 @@ print(f"\\nFig. 1 sets N = {N_ANCHOR} on the foreground residual alone. Folding 
       f"worst axis/LST {worst_all[N_ANCHOR]*1e3:.2f} mK at N = {N_ANCHOR} "
       f"(median retained {t21[1, N_ANCHOR]*1e3:.2f} mK), "
       f"{worst_all[n_sys]*1e3:.2f} mK at N = {n_sys} "
-      f"(median retained {t21[1, n_sys]*1e3:.2f} mK).")"""
+      f"(median retained {t21[1, n_sys]*1e3:.2f} mK).")
+
+# The two halves of the message, as numbers. Reassuring: nearly all of the
+# displacement is in the leading modes, so it is more foreground rather than a
+# new kind of structure. Cautionary: what escapes the filter is not a smooth
+# tail but one mode, at the signal's amplitude -- which is why the residual of
+# a fixed-depth filter cannot be read as cosmology.
+cu = dT[2] @ Vh.T                                   # Up, every LST
+j = int(np.argmax(np.sqrt(np.sum(cu[:, N_ANCHOR:]**2, axis=1))))
+mode_mK = np.abs(cu[j]) / np.sqrt(n_f) * 1e3
+lead = np.sum(cu[j, :2]**2) / np.sum(cu[j]**2)
+spike = int(np.argmax(mode_mK[N_ANCHOR:])) + N_ANCHOR
+tail = np.sum(mode_mK[N_ANCHOR:]**2)
+print(f"\\nUp +1 m at LST {lst[j]:.0f} h: {lead*100:.1f}% of its power sits in the "
+      f"two leading foreground modes -- it is mostly just more foreground. But "
+      f"after filtering {N_ANCHOR} modes, {mode_mK[spike]**2/tail*100:.0f}% of what "
+      f"remains is mode {spike+1} alone, at {mode_mK[spike]:.2f} mK against a "
+      f"{t21[1, N_ANCHOR]*1e3:.2f} mK median retained signal. A fixed-depth "
+      f"filter would leave that in the residual, looking like signal.")"""
 
 
 def build_notebook():
@@ -246,17 +294,36 @@ def build_notebook():
         "ensemble, median dashed) under the *identical* projection -- the "
         "physical benchmark this residual has to beat, in place of an "
         "arbitrary 10 mK line.\n\n"
-        "**This is where the position systematic enters the mode budget.** "
-        "`signal_loss.ipynb` (Fig. 1) sets its operating point $N$ on the "
-        "foreground residual alone, because foreground dimensionality is all "
-        "that figure claims; the dotted vertical line marks that $N$ here, so "
-        "the two figures read against a common reference. Folding this "
-        "systematic in costs **one additional mode**: at Fig. 1's $N$ the "
-        "worst-LST Up displacement still sits just above the median retained "
-        "signal (3.20 vs 3.01 mK), and one further mode puts it an order of "
-        "magnitude below (0.33 vs 2.18 mK). That is the general pattern to "
-        "expect -- each systematic folded in raises the mode count, and the "
-        "increment here is small.\n\n"
+        "**The bottom row makes two points that pull opposite ways.**\n\n"
+        "*Reassuring.* A position error is not a new kind of spectral "
+        "structure. The $\\Delta T$ are large -- up to 8.9 K at 50 MHz, "
+        "~1 K RMS for the upward shift -- but 99.9% of that power lies in the "
+        "two leading eigenmodes of the unperturbed antenna temperature. It is, "
+        "to that accuracy, more foreground, and the same low-order filtering "
+        "that removes the sky removes almost all of it: East and North stay "
+        "below the median retained 21 cm signal from 3 and 2 modes on.\n\n"
+        "*Cautionary.* What survives is narrow, not smooth. `signal_loss.ipynb` "
+        "(Fig. 1) sets its operating point $N$ on the foreground residual "
+        "alone, and the dotted vertical line marks it here. Filter that many "
+        "modes and 99% of the Up displacement's remaining power sits in mode "
+        "10 alone, at 3.18 mK -- more than that mode holds from the nominal "
+        "foregrounds (1.71 mK) or from the median 21 cm model (1.66 mK), and "
+        "close enough in shape to be confused with the retained signal (cosine "
+        "similarity up to 0.99). 73% of the ensemble carries less signal in "
+        "that mode than a 1 m shift would put there. The response is linear in "
+        "displacement, so holding the injection to a tenth of the median "
+        "retained signal needs the vertical position known to about "
+        "0.1 m.\n\n"
+        "**Neither this figure nor `signal_loss.ipynb` is a proposed "
+        "analysis.** Both project onto eigenmodes of a *simulated* nominal "
+        "instrument. An unmodelled displacement of the size we must anticipate "
+        "deposits signal-like power in the first mode past the filter, so a "
+        "residual left by a filter of fixed depth is not evidence of a "
+        "cosmological signal -- excess with respect to a foreground model is "
+        "only as trustworthy as the instrument model behind it. These figures "
+        "characterise spectral structure; the analysis marginalises over "
+        "antenna position inside a differentiable forward model instead, and "
+        "the sensitivities here are what set its priors.\n\n"
         "Crossings below use a *stays below* rule: the smallest $N$ at which "
         "the worst-LST residual is under the median retained signal and "
         "remains so for every larger $N$. Both curves fall with $N$ and cross "
