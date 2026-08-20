@@ -50,7 +50,11 @@ def main():
     t_ant = fg["t_sys"] - fg["t_receiver"]
     n_time = t_ant.shape[0]
     fg_c = t_ant.reshape(-1, n_f) @ Vh.T
-    dT = shift["dT_spectra"].reshape(-1, n_f) @ Vh.T
+    # horizon_shift.npz now carries every simulated magnitude; the operating
+    # point is quoted against the one the figure's spectra row draws.
+    mags = shift["mags_m"]
+    i_top = int(np.argmin(np.abs(mags - float(shift["top_mag_m"]))))
+    dT = shift["dT_disp"][:, i_top].reshape(-1, n_f) @ Vh.T
     t21_c = T21 @ Vh.T
 
     def rms(c, N):
