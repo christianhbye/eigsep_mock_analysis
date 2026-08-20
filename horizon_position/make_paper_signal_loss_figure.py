@@ -32,6 +32,15 @@ against. This panel supersedes ``foreground_svd_residual.pdf``: the
 foreground curve is the same one, now never shown without the signal
 beside it.
 
+The ensemble runs to z = 4.65 (251.4 MHz), below Zeus21's advertised
+z = 5-35 validity range. This is deliberate: it is what covers the
+250 MHz band edge with computed values rather than extrapolated ones.
+Zero-padding above Zeus21's native top of range (z = 5, 236.7 MHz) was
+rejected instead, because late-reionization models still carry up to
+~14 mK of signal at 237 MHz, and the resulting step discontinuity would
+survive a smooth-mode filter and inflate the retained-RMS statistic this
+figure reports.
+
 Colouring is continuous rather than binned into classes on purpose.
 Retention varies smoothly and no single statistic predicts it: trough
 width tracks the retained *fraction* (Spearman -0.56) while the absolute
@@ -83,7 +92,7 @@ MODELS_NPZ = Path(
 N_ANCHOR = 10  # modes filtered at the quoted operating point (unchanged
 # on the Zeus21 ensemble -- see recompute_operating_point.py's output)
 # Class edges on retained RMS [mK] at N_ANCHOR. 1.5 and 3.5 mK split the
-# Zeus21 ensemble into thirds (33.6% / 34.1% / 32.3%); 10 mK would catch
+# Zeus21 ensemble into thirds (33.6% / 34.0% / 32.4%); 10 mK would catch
 # 2.0% and 25 mK nothing at all (the most foreground-orthogonal model
 # retains 17.1 mK).
 RET_EDGES_MK = (1.5, 3.5)
@@ -99,9 +108,9 @@ def load_t21(freqs):
     statistics can never disagree about which models are in.
 
     `reionized_across_band` (not plain `reionized`) is deliberate: it also
-    requires the model to be reionized at the top of the band, excluding 30
-    models whose Zeus21 Q-solution re-neutralises at low z; 27 of those 30
-    carry more than 1 mK of unphysical signal at 250 MHz. Expect 1782 of
+    requires the model to be reionized at the top of the band, excluding 43
+    models whose Zeus21 Q-solution re-neutralises at low z; 27 of those 43
+    carry more than 1 mK of unphysical signal at 250 MHz. Expect 1769 of
     4096 models to survive.
     """
     m = np.load(MODELS_NPZ, allow_pickle=False)
@@ -406,7 +415,7 @@ def build_notebook():
         "noise and integration time, which this calculation does not model. "
         "This is a statement about spectral subspace overlap, not a "
         "sensitivity forecast.\n\n"
-        "Ensemble: 1782 of 4096 Zeus21 models (Munoz 2023a, "
+        "Ensemble: 1769 of 4096 Zeus21 models (Munoz 2023a, "
         "arXiv:2302.08506, with Pop III and Lyman-Werner feedback, "
         "Cruz+2024, arXiv:2407.18294) survive a posterior reionization "
         "cut requiring xHI below threshold both at the McGreer+2015 "
@@ -414,6 +423,16 @@ def build_notebook():
         "4.6816, 250 MHz). The npz carries its own regeneration recipe "
         "(`provenance`, `generator_source`, `env_lock` keys); see "
         "`docs/superpowers/specs/2026-08-19-zeus21-model-ensemble-design.md`."
+        "\n\n"
+        "The ensemble runs to $z = 4.65$ (251.4 MHz), below Zeus21's "
+        "advertised $z = 5$-35 validity range. This is deliberate, so "
+        "the 250 MHz band edge is covered by computed values rather than "
+        "extrapolation; zero-padding above Zeus21's native top of range "
+        "($z = 5$, 236.7 MHz) was considered and rejected instead, "
+        "because late-reionization models still carry up to ~14 mK of "
+        "signal at 237 MHz and the resulting step discontinuity would "
+        "survive a smooth-mode filter and inflate the retained-RMS "
+        "statistic reported here."
     )
     nb = nbf.v4.new_notebook()
     nb.cells = [

@@ -39,15 +39,24 @@ instrument paper. Not a package; a self-contained generator, like
   `horizon_position/make_paper_signal_loss_figure.py`, not in this
   directory), once, so the figure and the statistics cannot disagree.
 - The cut has **two parts**, both required: `xHI(z=5.9) < 0.1` (the
-  McGreer reference point) AND `xHI(z=4.6816) < 0.05` (the band's top
+  McGreer reference point) AND `xHI(z=4.6816) < 0.01` (the band's top
   edge, `z(250 MHz)`). The second exists because Zeus21's Q-based
   reionization ODE can re-neutralize at very low escape fractions
   (recombination outruns the ionizing supply) — a real model limitation,
   not a numerical artifact, confirmed by re-running offenders at three
-  different `zmin` values with identical results. The `0.05` threshold is
-  a chosen value, not a derived one; alternatives are documented and
-  compared in `README.md`. Do not tighten or loosen it without recording
-  the new survivor count and re-running `verify_ensemble.py`.
+  different `zmin` values with identical results. The `0.01` threshold is
+  a chosen value, not a derived one (it replaced an earlier `0.05` whose
+  margin against `verify_ensemble.py`'s gate was uncomfortably thin);
+  alternatives are documented and compared in `README.md`. Do not
+  tighten or loosen it without recording the new survivor count and
+  re-running `verify_ensemble.py`.
+- **`Mc_III` (varied parameter #10, log₁₀ 5.5-8.0) is inert.**
+  `astro_fixed` fixes `alphastar_III = betastar_III = 0`, which collapses
+  Zeus21's `fstarofz_III` denominator to exactly `2` for every halo mass,
+  independent of `Mc_III` (`zeus21/sfrd.py`). The ensemble is effectively
+  **13** live dimensions, not 14 -- see `README.md` for the algebra and
+  the empirical confirmation. Do not reuse `priors.PARAMS` or the
+  header's `varied` table assuming all 14 columns matter.
 - **Worker count is bounded by memory, not cores.** Each `generate.py`
   worker costs ~2.78 GB private peak RSS at `precisionboost = 3`. Sizing
   `--processes` off `nproc` instead of available memory is how an 8-worker
