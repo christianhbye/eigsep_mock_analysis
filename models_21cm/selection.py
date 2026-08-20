@@ -43,7 +43,17 @@ def reionized(xHI, z_xHI, z_ref=Z_REION_REF, x_max=XHI_MAX):
 # too. z = 4.6816 is NU21 / 250 - 1 (see generate.NU21, generate.PAPER_FREQS),
 # the redshift corresponding to the top of the paper's 50-250 MHz band.
 Z_BAND_TOP = 4.6816
-XHI_MAX_BAND_TOP = 0.05
+# 0.01, not the 0.05 this project originally shipped with. 0.05 was picked
+# from a small candidate table (see README.md) but landed just under the
+# threshold of verify_ensemble.py's own `< 1.0 mK` gate -- written by the
+# same author, so the closeness was not independent evidence the choice was
+# sound. A whole-branch review argued for 0.01 instead: it needs no change
+# to that gate (unlike the monotonicity candidate, which would have),
+# widens the band-edge margin by roughly an order of magnitude, and costs
+# only 13 of 1782 previously-kept models (0.7%). The user agreed. Like the
+# 0.05 value before it, 0.01 is still a choice, not a derivation -- see
+# README.md for the candidate table it was picked from.
+XHI_MAX_BAND_TOP = 0.01
 
 
 def reionized_across_band(

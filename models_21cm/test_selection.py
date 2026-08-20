@@ -50,7 +50,7 @@ def _xhi_grid_band_top():
     z = np.array([4.0, 4.6816, 5.0, 5.9, 6.5, 10.0, 20.0, 30.0])
     both = np.array([0.0, 0.0, 0.0, 0.0, 0.05, 0.3, 0.8, 1.0])
     only_ref = np.array([0.2, 0.18, 0.1, 0.0, 0.02, 0.3, 0.8, 1.0])
-    only_top = np.array([0.02, 0.02, 0.05, 0.4, 0.6, 0.9, 1.0, 1.0])
+    only_top = np.array([0.005, 0.005, 0.05, 0.4, 0.6, 0.9, 1.0, 1.0])
     neither = np.array([0.5, 0.5, 0.5, 0.6, 0.7, 0.9, 1.0, 1.0])
     return np.vstack([both, only_ref, only_top, neither]), z
 
