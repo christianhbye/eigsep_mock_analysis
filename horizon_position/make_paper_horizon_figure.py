@@ -39,9 +39,14 @@ alone, at 3.18 mK -- more than that mode holds from the nominal
 foregrounds (1.71 mK) or from the median 21 cm model (1.66 mK), and
 similar enough in shape to be confused with the retained signal (cosine
 similarity up to 0.99). 73% of the ensemble carries less signal in that
-mode than a 1 m shift would put there. The response is linear in
-displacement, so the position knowledge needed to hold the injection to
-a tenth of the median retained signal is about 0.1 m vertically.
+mode than a 1 m shift would put there. The *vertical* response is linear
+in displacement (~2% per decade over +/-0.1 to +/-10 m) and symmetric in
+sign, because a vertical shift lowers the horizon by a near-uniform
+offset; East and North are neither, since a horizontal shift moves the
+horizon by an amount set by where the cliff edges fall in azimuth. Up is
+the binding axis at every N, so the extrapolation is sound and the
+requirement is a vertical one: about 0.1 m to hold the injection to a
+tenth of the median retained signal.
 
 Hence the framing this figure must keep, and which the paper text
 (signal_loss_text.tex, block 5) states explicitly: neither this figure
@@ -310,10 +315,15 @@ def build_notebook():
         "foregrounds (1.71 mK) or from the median 21 cm model (1.66 mK), and "
         "close enough in shape to be confused with the retained signal (cosine "
         "similarity up to 0.99). 73% of the ensemble carries less signal in "
-        "that mode than a 1 m shift would put there. The response is linear in "
-        "displacement, so holding the injection to a tenth of the median "
-        "retained signal needs the vertical position known to about "
-        "0.1 m.\n\n"
+        "that mode than a 1 m shift would put there. The *vertical* response is "
+        "linear in displacement (~2% per decade over $\\pm$0.1 to $\\pm$10 m) "
+        "and symmetric in sign, because a vertical shift lowers the horizon by "
+        "a near-uniform offset; East and North are neither, since a horizontal "
+        "shift moves the horizon by an amount set by where the cliff edges "
+        "fall in azimuth. Up is the binding axis at every $N$, so the "
+        "extrapolation is sound and the requirement is a vertical one: about "
+        "0.1 m, to hold the injection to a tenth of the median retained "
+        "signal.\n\n"
         "**Neither this figure nor `signal_loss.ipynb` is a proposed "
         "analysis.** Both project onto eigenmodes of a *simulated* nominal "
         "instrument. An unmodelled displacement of the size we must anticipate "

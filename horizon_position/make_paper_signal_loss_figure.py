@@ -777,10 +777,21 @@ it does from the nominal foregrounds (@@SPIKEFG@@\,mK) or from the median
 21 cm model (@@SPIKE21@@\,mK); @@SPIKEBELOW@@ per cent of the ensemble has
 less signal in that mode than a 1\,m shift would put there, and the leftover
 resembles the retained signal in shape closely enough to be confused with it
-(cosine similarity up to @@COSMAX@@, median @@COSMED@@). The response is
-linear in displacement, so holding the injected power to a tenth of the median
-retained signal requires the vertical position to be known to roughly
-@@SPECM@@\,m -- a requirement on position monitoring, which we adopt.
+(cosine similarity up to @@COSMAX@@, median @@COSMED@@).
+
+The vertical response scales predictably, which turns this into a
+specification. Over the two decades we simulated, $\pm0.1$ to $\pm10$\,m, the
+residual left at $N=@@NA@@$ by an upward displacement is linear in that
+displacement to within a few per cent and symmetric in its sign, because a
+vertical shift lowers the horizon by a near-uniform offset
+(Fig.~\ref{fig:horizon}b). Holding the injected power to a tenth of the median
+retained signal therefore requires the antenna's vertical position to be known
+to roughly @@SPECM@@\,m, and we adopt that as the position-monitoring
+requirement. The horizontal responses are neither linear nor symmetric --- a
+horizontal shift changes the horizon by an amount that depends on where the
+cliff edges fall in azimuth, which is why those curves in
+Fig.~\ref{fig:horizon}(b) are spiky --- but they are also the smaller terms,
+and the vertical axis sets the requirement.
 
 The wider point is methodological. An unmodelled displacement of the size we
 must anticipate deposits power that is signal-like in both amplitude and
@@ -895,9 +906,14 @@ def build_text():
         np.linalg.norm(r21, axis=1) * np.linalg.norm(resid_sys)
     )
 
-    # The effect is linear in displacement (checked against the 0.1/1/10 m
-    # sims), so the position knowledge that holds the injected power to a tenth
-    # of the median retained signal follows by scaling the 1 m case.
+    # Scaling the 1 m case is only legitimate for the vertical axis. Checked
+    # against the +/-0.1, 1, 10 m sims: Up is linear to ~2% per decade and
+    # symmetric in sign (a vertical shift lowers the horizon by a near-uniform
+    # offset), whereas East and North are neither -- a horizontal shift moves
+    # the horizon by an amount set by where the cliff edges fall in azimuth.
+    # Up is also the binding axis at every N, so the requirement is a vertical
+    # one and this extrapolation is sound; do not restate it as a general
+    # linearity in displacement.
     spec_m = 0.1 * med[N_ANCHOR] / mode_mK[spike]
 
     depth = -T21.min(axis=1) * 1e3
