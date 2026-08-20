@@ -1744,9 +1744,11 @@ workspace member:
 
     uv run --project models_21cm python models_21cm/generate.py \
         --n-log2 12 --precisionboost 3 --seed 20260819 \
-        --out models_21cm/output/zeus21_models.npz
+        --out models_21cm/output/zeus21_models.npz \
+        --processes 3 --batch-size 64
 
-~3.1 hours at 3 workers. **Worker count is bounded by memory, not cores:**
+`--processes 3` is not optional: it defaults to 8, which is an immediate
+OOM-kill on a 15 GB machine. ~3.1 hours at 3 workers. **Worker count is bounded by memory, not cores:**
 each worker needs ~2.8 GB of private peak RSS at `precisionboost = 3` (plus
 0.47 GB shared), so 8 workers on a 15 GB machine is an immediate OOM-kill.
 Size `--processes` to `(available_GB - 1) / 2.8`.
