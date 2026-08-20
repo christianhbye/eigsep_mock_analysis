@@ -34,20 +34,22 @@ beside it.
 
 Colouring is continuous rather than binned into classes on purpose.
 Retention varies smoothly and no single statistic predicts it: trough
-width tracks the retained *fraction* (Spearman -0.44) while the absolute
-retained RMS is driven mainly by amplitude (+0.76), so any class edge
-would cut a continuum and invite reading the bins as populations. The
-norm is logarithmic -- 3.4 decades of range, where a linear norm would
-put 47% of models in the bottom 10% of the colour range.
+width tracks the retained *fraction* (Spearman -0.56) while the absolute
+retained RMS correlates only moderately with amplitude (depth, Spearman
++0.51), so any class edge would cut a continuum and invite reading the
+bins as populations. The norm is logarithmic -- 1.89 decades of range
+(0.22-17.1 mK), where a linear norm would put 45% of models in the
+bottom 10% of the colour range.
 
 ``N_ANCHOR = 10`` is the smallest N at which *both* floors -- the
 foreground residual and the worst-case position systematic -- fall below
-the median retained signal. At N = 8 (the previous operating point) the
-foreground residual and the median signal are the same size, which is
-exactly the referee's objection. Note there is no optimum to claim
-beyond this: the margin keeps improving with N while the absolute signal
-shrinks, and where to stop is set by thermal noise, which this
-calculation does not model.
+the median retained signal. At N = 9 the foreground residual alone has
+already dropped below the median (1.82 vs 3.01 mK), but the position
+systematic has not (3.20 mK); it is the conjunction of the two floors,
+not the foreground alone, that pushes the anchor to N = 10. Note there
+is no optimum to claim beyond this: the margin keeps improving with N
+while the absolute signal shrinks, and where to stop is set by thermal
+noise, which this calculation does not model.
 
 Run in the mock_analysis env (numpy + matplotlib + nbformat):
     uv run python horizon_position/make_paper_signal_loss_figure.py
@@ -97,10 +99,10 @@ def load_t21(freqs):
     statistics can never disagree about which models are in.
 
     `reionized_across_band` (not plain `reionized`) is deliberate: it also
-    requires the model to be reionized at the top of the band, excluding 27
-    models whose Zeus21 Q-solution re-neutralises at low z and would
-    otherwise put several mK of unphysical signal at 250 MHz. Expect 1782
-    of 4096 models to survive.
+    requires the model to be reionized at the top of the band, excluding 30
+    models whose Zeus21 Q-solution re-neutralises at low z; 27 of those 30
+    carry more than 1 mK of unphysical signal at 250 MHz. Expect 1782 of
+    4096 models to survive.
     """
     m = np.load(MODELS_NPZ, allow_pickle=False)
     assert np.array_equal(m["freqs_MHz"], freqs), "frequency grid mismatch"
@@ -375,23 +377,24 @@ def build_notebook():
         "binned into classes. It is set by how much of a model's spectral "
         "shape lies in the leading foreground modes. Separating shape from "
         "amplitude over the ensemble (Spearman): trough width correlates with "
-        "the retained *fraction* at -0.44 -- narrower troughs keep "
-        "proportionally more -- while the *absolute* retained RMS is driven "
-        "mainly by amplitude (depth, +0.76). Width is a trend, not a "
-        "predictor: models retaining more than 5 mK and those retaining "
-        "1-5 mK have similar depths (median 147 vs 134 mK) and heavily "
-        "overlapping widths (p25-p75 of 15-34 vs 16-49 MHz). The dependence "
-        "is also non-monotonic -- median retained fraction peaks near "
-        "15-25 MHz and falls off on both sides, the narrowest bin being full "
-        "of edge-of-band troughs pinned at 50 MHz. The summary cell bins the "
-        "distribution at 1 and 5 mK for the caption; those bins are a "
-        "reporting convenience, not populations.\n\n"
-        "The colour scale is logarithmic. Retained RMS spans 3.4 decades "
-        "(0.007-16.4 mK), and a linear norm would put 47% of the models in "
-        "the bottom 10% of the colour range, against 2.9% for log.\n\n"
+        "the retained *fraction* at -0.56 -- narrower troughs keep "
+        "proportionally more -- while the *absolute* retained RMS correlates "
+        "with amplitude only moderately (depth, +0.51). Neither predicts "
+        "retention alone: the three classes' median depths rise with "
+        "retained RMS (73, 103, 155 mK for < 1.5 mK, 1.5-3.5 mK and "
+        "> 3.5 mK) but even at matched depth (80-160 mK) they still separate "
+        "by width -- median trough widths of 36, 20 and 18 MHz respectively. "
+        "The summary cell bins the distribution at 1.5 and 3.5 mK for the "
+        "caption; those bins are a reporting convenience, not "
+        "populations.\n\n"
+        "The colour scale is logarithmic. Retained RMS spans 1.89 decades "
+        "(0.22-17.1 mK), and a linear norm would put 45% of the models in "
+        "the bottom 10% of the colour range, against 0.2% for log.\n\n"
         "$N = 10$ is the smallest $N$ at which *both* floors fall below the "
-        "median retained signal. At $N = 8$ the foreground residual and the "
-        "median signal are the same size.\n\n"
+        "median retained signal. At $N = 9$ the foreground residual alone "
+        "has already dropped below the median (1.82 vs 3.01 mK), but the "
+        "position systematic has not (3.20 mK); it is the conjunction of "
+        "the two floors that pushes the anchor to $N = 10$.\n\n"
         "**Limitations, to be stated wherever this result is used.** The "
         "modes come from a single simulated sky (GSM16) and beam, with no "
         "noise and no receiver systematics; in practice the basis would be "

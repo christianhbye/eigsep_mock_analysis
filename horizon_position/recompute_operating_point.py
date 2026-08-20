@@ -13,6 +13,13 @@ import numpy as np
 
 PAPER = mp.PAPER
 
+# Scan range for N_ANCHOR. Starting at 4 rather than 0 is an assumption --
+# a reviewer's independent N = 0..19 sweep on the Zeus21 ensemble confirmed
+# no crossing exists below N = 4, but that isn't guaranteed to hold for a
+# future ensemble. Revisit (widen downward) if `chosen` below ever lands
+# suspiciously close to N_SCAN's lower bound.
+N_SCAN = range(4, 17)
+
 
 def main():
     fg = np.load(PAPER / "foreground_svd.npz")
@@ -58,7 +65,7 @@ def main():
         f"{'N':>3}  {'fg resid':>9}  {'pos sys':>9}  {'21cm med':>9}  {'above fg':>9}"
     )
     chosen = None
-    for N in range(4, 17):
+    for N in N_SCAN:
         f_r, s_r = rms_pooled(fg_c, N, n_time), rms(dT, N).max()
         med = np.median(rms(t21_c, N))
         above = (rms(t21_c, N) > f_r).mean()
@@ -68,6 +75,14 @@ def main():
         print(
             f"{N:>3}  {f_r:>9.3f}  {s_r:>9.3f}  {med:>9.3f}  {100 * above:>8.1f}%{flag}"
         )
+
+    # Without this, `chosen` stays None and `rms(t21_c, None)` silently
+    # slices every column (no filtering at all) below, printing plausible
+    # but meaningless percentiles instead of failing loudly.
+    assert chosen is not None, (
+        f"no N in {N_SCAN} satisfies both floors < median retained signal "
+        "-- widen N_SCAN"
+    )
 
     print(f"\nN_ANCHOR = {chosen}")
     ret = rms(t21_c, chosen)
