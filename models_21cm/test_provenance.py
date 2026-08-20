@@ -101,3 +101,12 @@ def test_package_versions_marks_missing_packages_as_none():
     got = provenance.package_versions(["numpy", "definitely-not-a-package"])
     assert got["numpy"] is not None
     assert got["definitely-not-a-package"] is None
+
+
+def test_build_header_uses_the_shared_citation_list():
+    """patch_npz_header.py refreshes this same list on an already-written
+    npz, so the two must read from one constant or an archived file can end
+    up citing a superseded constraint."""
+    header = provenance.parse_header(provenance.build_header(**_header_fields()))
+    assert header["citations"] == list(provenance.CITATIONS)
+    assert any("Davies et al. 2025" in c for c in header["citations"])

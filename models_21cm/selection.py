@@ -15,10 +15,34 @@ Pure module; imports numpy only.
 
 import numpy as np
 
-# McGreer+2015 dark-pixel limit is xHI < 0.06 at z = 5.9. The cut here is
-# deliberately looser, so it removes only unambiguously excluded models
-# rather than models sitting near the limit. Per-model xHI is stored in
-# the npz, so tightening this later costs nothing.
+# z = 5.9 is where the dark-pixel method is quoted, so it is the anchor.
+# McGreer+2015 gave xHI <= 0.06 + 0.05 (1 sigma) there, from 6 quasar
+# sightlines. That measurement has since been superseded: Davies et al.
+# 2025 (MNRAS 545, arXiv:2510.25829) redo it with 34 E-XQR-30 spectra and
+# find a *weaker* limit, xHI <= 0.191 + 0.056 at z = 5.831 from the
+# Lyb + Lyg forests, attributing the difference to cosmic variance across
+# McGreer's small sample. Reionization is now understood to finish near
+# z ~ 5.3-5.4 (Bosman+2022), not by z = 6.
+#
+# The direction of that move is what matters here. The current limit is
+# looser than the one this cut was built against, so 0.1 is now roughly
+# half of what the data require: the cut errs toward excluding histories
+# that are still allowed, never toward admitting ones that are ruled out.
+# It is deliberately conservative, and 0.1 is kept rather than relaxed
+# because the threshold turns out not to be load-bearing.
+#
+# It is not load-bearing because xHI(z=5.9) across the ensemble is
+# strongly bimodal -- 1765 of 4096 models fall below 0.06, 1812 below
+# 0.10, 1925 below 0.25 -- so 0.1 sits in a nearly empty valley, and only
+# 71 models lie in [0.1, 0.25) while also passing the band-top limb.
+# Sweeping the threshold across that whole range, or replacing it with
+# the four-redshift Davies+2025 ladder, leaves the operating point at
+# N = 9 and holds the paper's above-floor fraction within 0.8 points
+# (74.8-75.6%, against the adopted 75.4%).
+# See README.md, "Sensitivity to the threshold", and
+# `horizon_position/reionization_sensitivity.py`, which regenerates it.
+#
+# Per-model xHI is stored in the npz, so retuning this costs nothing.
 Z_REION_REF = 5.9
 XHI_MAX = 0.1
 
@@ -66,7 +90,7 @@ def reionized_across_band(
 ):
     """Boolean mask of models reionized at both ``z_ref`` and the band top.
 
-    ``reionized`` alone only tests xHI at the McGreer+2015 reference
+    ``reionized`` alone only tests xHI at the dark-pixel reference
     redshift (z = 5.9) -- the observational anchor for the cut. That is
     necessary but not sufficient: Zeus21's reionization model integrates
     an ionized-fraction ODE (dQ/dt = ndot_ion - Q/t_rec) with a fixed

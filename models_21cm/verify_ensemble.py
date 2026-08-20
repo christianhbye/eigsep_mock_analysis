@@ -149,7 +149,7 @@ def main(path):
         f"[{troughs.min():.1f}, {troughs.max():.1f}] mK",
     )
 
-    # `reionized` alone only tests xHI at the z=5.9 McGreer+2015 anchor, so
+    # `reionized` alone only tests xHI at the z=5.9 dark-pixel anchor, so
     # it is fooled by models that pass that single check and then
     # re-neutralise (Q rises again below z ~ 6) before the band's top edge
     # at z=4.6816 (250 MHz) -- see selection.reionized_across_band. Both

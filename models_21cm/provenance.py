@@ -24,6 +24,25 @@ from scipy.stats import qmc
 
 HEADER_VERSION = 1
 
+# Default ``citations`` for a generated header. Module-level rather than
+# inline in build_header because patch_npz_header.py refreshes this field
+# on an already-written npz, and the two must not drift -- an archived file
+# citing a superseded constraint is the same class of failure this whole
+# project exists to fix.
+CITATIONS = (
+    "Munoz 2023a, arXiv:2302.08506 (Zeus21)",
+    "Cruz et al. 2024, arXiv:2407.18294 (Pop III, LW, relative velocities)",
+    "Davies et al. 2025, MNRAS 545, arXiv:2510.25829 (current dark-pixel "
+    "xHI limits the reionization cut is justified against; supersedes "
+    "McGreer+2015 with a weaker limit, so the adopted cut is conservative)",
+    "McGreer et al. 2015 (the dark-pixel xHI limit the cut's threshold was "
+    "originally chosen against)",
+    "Bosman et al. 2022, MNRAS 514, 55 (reionization ends by z = 5.3; "
+    "context for the band-top limb of the cut)",
+    "Planck 2018 (Aghanim et al.), the fixed cosmology",
+    "https://github.com/JulianBMunoz/Zeus21",
+)
+
 
 def git_info(path):
     """Remote, commit and dirty flag for the repo containing ``path``.
@@ -70,16 +89,7 @@ def build_header(**fields):
     header["hostname"] = socket.gethostname()
     header["platform"] = platform.platform()
     header["python_version"] = platform.python_version()
-    header.setdefault(
-        "citations",
-        [
-            "Munoz 2023a, arXiv:2302.08506 (Zeus21)",
-            "Cruz et al. 2024, arXiv:2407.18294 (Pop III, LW, relative velocities)",
-            "McGreer et al. 2015 (xHI dark-pixel limit behind the cut)",
-            "Planck 2018 (Aghanim et al.), the fixed cosmology",
-            "https://github.com/JulianBMunoz/Zeus21",
-        ],
-    )
+    header.setdefault("citations", list(CITATIONS))
     return json.dumps(header, indent=2, sort_keys=True)
 
 

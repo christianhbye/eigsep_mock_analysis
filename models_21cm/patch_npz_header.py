@@ -19,6 +19,17 @@ actually does:
 * ``provenance["varied"]``'s ``Mc_III`` entry carried no note that the
   parameter is inert given ``alphastar_III = betastar_III = 0`` (see
   ``README.md``, "``Mc_III`` is sampled but has no effect").
+* ``provenance["selection"]["recommended"]``'s citation named only
+  McGreer et al. 2015, which has since been superseded by Davies et al.
+  2025 (arXiv:2510.25829) -- with a *weaker* limit, so the adopted
+  threshold is conservative rather than wrong. The archived file should
+  carry the current constraint, not just the one the threshold was
+  originally picked against (see ``README.md``, "The z = 5.9 limit has
+  moved").
+
+This script is **re-runnable**: every change it makes is derived from the
+current source tree at patch time, so running it again re-applies all of
+the above and refreshes ``generator_source`` from the current modules.
 
 ``patched_utc`` and ``patch_note`` are added to the header so the edit is
 auditable -- this file must never look like it was silently altered.
@@ -36,6 +47,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import provenance
 import selection as sel
 
 HERE = Path(__file__).resolve().parent
@@ -95,7 +107,14 @@ PATCH_NOTE = (
     "and .python-version appended, since env_lock alone cannot rebuild the "
     "generator environment; (4) regenerate_recipe corrected to point at "
     "reionized_across_band() and to describe the environment rebuild "
-    "correctly. See models_21cm/README.md and "
+    "correctly; (5) provenance.selection.reference and provenance.citations "
+    "updated to name Davies et al. 2025 (MNRAS 545, arXiv:2510.25829), "
+    "which supersedes the McGreer et al. 2015 dark-pixel limit the "
+    "threshold was originally chosen against -- with a weaker limit, so "
+    "the adopted xHI cut is conservative; the cut itself and every stored "
+    "array are unchanged. Items 1-4 were applied in a first pass on "
+    "2026-08-19 and are re-applied here; patched_utc reflects the latest "
+    "pass. See models_21cm/README.md and "
     ".superpowers/sdd/2026-08-19-zeus21-model-ensemble/final-fix-report.md."
 )
 
@@ -161,13 +180,24 @@ def patch_header(old_header):
             f"xHI(z={sel.Z_BAND_TOP}) < {sel.XHI_MAX_BAND_TOP}"
         ),
         "reference": (
-            "McGreer et al. 2015 dark-pixel limit at the z="
+            "dark-pixel xHI limit at the z="
             f"{sel.Z_REION_REF} reference redshift, plus reionization at "
             f"the band's top edge (z={sel.Z_BAND_TOP}, 250 MHz) to exclude "
             "models whose Zeus21 Q-based reionization ODE re-neutralizes "
-            "below z~6"
+            "below z~6. The threshold was chosen against McGreer et al. "
+            "2015 (xHI <= 0.06 + 0.05 at z=5.9, 6 sightlines), which is "
+            "superseded by Davies et al. 2025 (MNRAS 545, "
+            "arXiv:2510.25829): 34 E-XQR-30 spectra give a WEAKER limit, "
+            "xHI <= 0.191 + 0.056 at z=5.831 from Lyb+Lyg. The adopted "
+            f"{sel.XHI_MAX} is therefore roughly half what current data "
+            "require -- conservative, and not load-bearing: see "
+            "models_21cm/README.md, 'Sensitivity to the threshold'"
         ),
     }
+
+    # Refreshed from provenance.CITATIONS rather than edited in place, so a
+    # patched file and a freshly generated one cite the same sources.
+    header["citations"] = list(provenance.CITATIONS)
 
     varied = [dict(v) for v in header["varied"]]
     if not any(v["name"] == "Mc_III" for v in varied):

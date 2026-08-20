@@ -302,7 +302,10 @@ def main(argv=None):
         selection={
             "applied": False,
             "recommended": "xHI(z=5.9) < 0.1",
-            "reference": "McGreer et al. 2015 dark-pixel limit",
+            "reference": (
+                "dark-pixel xHI limit: Davies et al. 2025 "
+                "(arXiv:2510.25829), superseding McGreer et al. 2015"
+            ),
         },
         packages=provenance.package_versions(PACKAGES),
         code={"generator": provenance.git_info(here), "zeus21_pin": "see env_lock"},
