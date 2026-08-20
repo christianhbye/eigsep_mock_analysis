@@ -103,7 +103,14 @@ FG_NPZ = PAPER / "foreground_svd.npz"
 
 N_SHOW = 18  # modes on the residual-panel x-axis; matches LOAD_SRC
 
-TAGS = [("x_p_1", "East +1 m"), ("y_p_1", "North +1 m"), ("z_p_1", "Up +1 m")]
+AXES_ENU = [("x", "East"), ("y", "North"), ("z", "Up")]
+MAGS_M = (0.1, 1.0, 10.0)  # the positive displacements run_sims.py simulated
+TOP_MAG = 1.0  # the one the spectra row shows; must be in MAGS_M
+
+
+def _tag(axis, mag):
+    """run_sims.py's position name for a positive displacement, e.g. z_p_0p1."""
+    return f"{axis}_p_" + ("%g" % mag).replace(".", "p")
 
 
 def build_data():
@@ -130,8 +137,21 @@ def build_data():
         .hour
     )
     idx = [int(np.argmin(np.abs((lst - h + 12) % 24 - 12))) for h in range(24)]
-    dT_spectra = np.stack([dT[names.index(t)][idx] for t, _ in TAGS])  # (3, 24, n_f)
-    labels = np.array([lab for _, lab in TAGS])
+
+    # All three positive magnitudes, not just +1 m. The residual row encodes
+    # displacement rather than LST: after filtering, the 24 LSTs collapse into
+    # one bundle, so an LST colour scale there discriminates nothing, whereas
+    # the three magnitudes separate by decades and let the reader scale the
+    # result to whatever position knowledge they actually have. run_sims.py has
+    # always produced these; they were simply unused. (3, 3, 24, n_f)
+    dT_disp = np.stack(
+        [
+            np.stack([dT[names.index(_tag(ax, m))][idx] for m in MAGS_M])
+            for ax, _ in AXES_ENU
+        ]
+    )
+    labels = np.array([lab for _, lab in AXES_ENU])
+    assert TOP_MAG in MAGS_M, "TOP_MAG must be one of the simulated magnitudes"
 
     # retained 21 cm signal under the same projection -- the physical
     # benchmark the residual panel is read against (see signal_loss.pdf)
@@ -140,7 +160,9 @@ def build_data():
     PAPER.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         PAPER / "horizon_shift.npz",
-        dT_spectra=dT_spectra,
+        dT_disp=dT_disp,
+        mags_m=np.array(MAGS_M),
+        top_mag_m=TOP_MAG,
         Vh=Vh,
         freqs_MHz=freqs,
         lst_hr=lst[idx],
@@ -148,14 +170,17 @@ def build_data():
         t21_pct=t21_pct,
         n_anchor=N_ANCHOR,
         description=(
-            "Uncorrected antenna-temperature differences dT_ant(nu) for +1 m "
+            "Uncorrected antenna-temperature differences dT_ant(nu) for "
             "East/North/Up antenna displacements at 24 LSTs (one per hour), and "
             "the foreground spectral modes Vh (right singular vectors of the "
             "nominal antenna-temperature waterfall = foreground_svd.npz system "
-            "temperature minus the constant receiver). dT_spectra (3, 24, "
-            "n_freq) in K; axis order East/North/Up. n_anchor is the "
-            "operating point signal_loss.pdf sets on the foreground residual "
-            "alone, marked here so both figures read against one reference."
+            "temperature minus the constant receiver). dT_disp (3 axis, 3 "
+            "magnitude, 24 LST, n_freq) in K; axis order East/North/Up, "
+            "magnitudes mags_m in metres, all positive displacements. "
+            "top_mag_m is the magnitude the spectra row of the figure draws. "
+            "n_anchor is the operating point signal_loss.pdf sets on the "
+            "foreground residual alone, marked here so both figures read "
+            "against one reference."
         ),
     )
     print(f"wrote {PAPER / 'horizon_shift.npz'}")
@@ -166,26 +191,39 @@ def build_data():
 IMPORTS_SRC = """import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
-from matplotlib.colors import Normalize"""
+from matplotlib.colors import Normalize
+from matplotlib.lines import Line2D"""
 
 LOAD_SRC = """d = np.load("horizon_shift.npz", allow_pickle=True)
 freqs = d["freqs_MHz"]
 lst = d["lst_hr"]                 # LST [h] of each plotted spectrum
 t21 = d["t21_pct"]                # (3, N_SHOW+1) retained 21 cm RMS [K], 5/50/95
-dT = d["dT_spectra"]             # (3, n_lst, n_freq) uncorrected dT_ant [K]
-Vh = d["Vh"]                     # (n_freq, n_freq) foreground spectral modes
+dT_disp = d["dT_disp"]            # (3 axis, 3 mag, n_lst, n_freq) dT_ant [K]
+mags = d["mags_m"]                # displacement magnitudes [m]
+top_mag = float(d["top_mag_m"])   # the magnitude the spectra row draws
+Vh = d["Vh"]                      # (n_freq, n_freq) foreground spectral modes
 labels = [str(s) for s in d["labels"]]
 n_f = freqs.size
 N_SHOW = 18                       # foreground modes filtered (x-axis)
 N_ANCHOR = int(d["n_anchor"])     # signal_loss.pdf's operating point
-print(dT.shape, "spectra at LSTs", np.round(lst, 1))"""
+i_top = int(np.argmin(np.abs(mags - top_mag)))
+dT = dT_disp[:, i_top]            # (3, n_lst, n_freq), the spectra row
+print(dT_disp.shape, "at magnitudes", mags, "m; spectra row =", top_mag, "m")
+print("LSTs", np.round(lst, 1))"""
 
 PLOT_SRC = '''CMAP, norm = "twilight", Normalize(0, 24)
-C_21 = "0.40"                     # 21 cm band: grey and dashed because colour
-                                  # here is already spoken for by LST, and
-                                  # signal_loss now colours its curves by
-                                  # retained RMS on a continuous plasma scale
-                                  # with no fixed hue to match against anyway.
+C_21 = "0.40"                     # 21 cm band: grey and dashed, so it reads as
+                                  # a benchmark in both rows without competing
+                                  # with either row's colour encoding.
+
+# The two rows encode different variables on purpose. Above, LST: the spectra
+# fan out by time of day and the cyclic map is the honest one for a quantity
+# that wraps. Below, displacement: after filtering, the 24 LSTs collapse into a
+# single bundle, so an LST scale there would spend 24 colours discriminating
+# nothing, whereas the magnitudes separate by decades. Blues is single-hue and
+# sequential because displacement is ordered -- light to dark is more, and it
+# needs no legend lookup to read the ordering.
+D_COL = ["#6baed6", "#2171b5", "#08306b"]
 cmap = plt.get_cmap(CMAP)
 n_modes = np.arange(N_SHOW + 1)
 
@@ -198,8 +236,8 @@ def resid_curves(dT_axis):
 
 
 fig, axes = plt.subplots(
-    2, 3, figsize=(7.3, 3.5),
-    gridspec_kw=dict(height_ratios=[1.7, 1]),
+    2, 3, figsize=(7.3, 3.6),
+    gridspec_kw=dict(height_ratios=[1.6, 1.15]),
     layout="constrained",
 )
 for col, lab in enumerate(labels):
@@ -210,30 +248,38 @@ for col, lab in enumerate(labels):
     at.set_title(lab, fontsize=8.5)
     at.set_xlabel("Frequency [MHz]", fontsize=8)
     at.grid(alpha=0.2); at.tick_params(labelsize=7)
+    at.text(0.97, 0.93, f"$+{top_mag:g}$ m", transform=at.transAxes,
+            fontsize=6.5, color="0.35", ha="right", va="top")
 
-    rc = resid_curves(dT[col])                              # bottom: filtered residual
-    for j in range(lst.size):
-        ab.plot(n_modes, rc[:, j], color=cmap(norm(lst[j])), lw=0.7, alpha=0.9)
-    ab.fill_between(n_modes, t21[0], t21[2], color=C_21, alpha=0.22, lw=0, zorder=0)
+    for k in range(mags.size):                              # bottom: all magnitudes
+        rc = resid_curves(dT_disp[col, k])                  # (N_SHOW+1, n_lst)
+        for j in range(lst.size):
+            ab.plot(n_modes, rc[:, j], color=D_COL[k], lw=0.55, alpha=0.6)
+    ab.fill_between(n_modes, t21[0], t21[2], color=C_21, alpha=0.25, lw=0, zorder=0)
     ab.plot(n_modes, t21[1], color=C_21, lw=1.4, ls="--", zorder=1)
-    ab.axvline(N_ANCHOR, color="0.6", lw=0.8, ls=":", zorder=0)
+    ab.axvline(N_ANCHOR, color="0.55", lw=0.8, ls=":", zorder=0)
     ab.set_yscale("log")
     ab.set_xlabel("Foreground modes filtered", fontsize=8)
-    ab.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
-    ab.set_xlim(0, N_SHOW); ab.set_ylim(1e-4, 5); ab.tick_params(labelsize=7)
+    ab.grid(True, which="both", ls=":", lw=0.5, alpha=0.55)
+    ab.set_xlim(0, N_SHOW); ab.set_ylim(3e-5, 30); ab.tick_params(labelsize=7)
 
 axes[0, 0].set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]", fontsize=8)
 axes[1, 0].set_ylabel("Residual RMS [K]", fontsize=8)
-axes[1, 2].text(N_SHOW, 2.5, "21 cm signal (5-95%)", color=C_21,
+axes[1, 0].text(N_ANCHOR - 0.6, 15, f"$N = {N_ANCHOR}$", color="0.35",
                 fontsize=6.5, va="top", ha="right")
-axes[1, 0].text(N_ANCHOR - 0.6, 2.5, f"$N = {N_ANCHOR}$", color="0.35",
-                fontsize=6.5, va="top", ha="right")
+handles = [Line2D([], [], color=D_COL[k], lw=2, label=f"{m:g} m")
+           for k, m in enumerate(mags)]
+handles.append(Line2D([], [], color=C_21, lw=1.4, ls="--",
+                      label="21 cm median (5-95% shaded)"))
+axes[1, 0].legend(handles=handles, fontsize=5.8, loc="lower left", ncol=2,
+                  framealpha=0.9, handlelength=1.4, columnspacing=0.9,
+                  borderpad=0.3, labelspacing=0.25)
 for col in (1, 2):
     axes[1, col].tick_params(labelleft=False)
 
 sm = ScalarMappable(norm=norm, cmap=CMAP)
-cb = fig.colorbar(sm, ax=axes, pad=0.012, fraction=0.022)
-cb.set_label("LST [h]", fontsize=8); cb.set_ticks(np.arange(0, 25, 4))
+cb = fig.colorbar(sm, ax=axes[0, :], pad=0.012, fraction=0.03)
+cb.set_label("LST [h]", fontsize=8); cb.set_ticks(np.arange(0, 25, 6))
 cb.ax.tick_params(labelsize=7)
 fig.savefig("horizon_shift.pdf", bbox_inches="tight", dpi=600)'''
 
@@ -247,22 +293,44 @@ SUMMARY_SRC = """def stays_below(curve, ref):
     return next(N for N in n_modes if below[N:].all())
 
 
-worst_all = np.zeros(N_SHOW + 1)
-for col, lab in enumerate(labels):
-    worst = resid_curves(dT[col]).max(axis=1)      # worst LST at each N
-    worst_all = np.maximum(worst_all, worst)
-    print(f"{lab:11s}  full RMS {worst[0]*1e3:7.1f} mK  ->  worst LST stays "
-          f"below the median retained 21 cm signal from {stays_below(worst, t21[1])} "
-          f"modes on; at N = {N_ANCHOR} it is {worst[N_ANCHOR]*1e3:6.2f} mK "
-          f"vs {t21[1, N_ANCHOR]*1e3:.2f} mK retained")
+worst = np.array([[resid_curves(dT_disp[c, k]).max(axis=1)
+                   for k in range(mags.size)]
+                  for c in range(len(labels))])    # (axis, mag, N_SHOW+1)
 
+med21 = t21[1, N_ANCHOR] * 1e3
+print(f"worst-LST residual, median retained 21 cm at N={N_ANCHOR} is {med21:.2f} mK\\n")
+print(f"{'axis':7s}{'shift':>8s}{'unfiltered':>12s}{'at N=%d' % N_ANCHOR:>10s}"
+      f"{'stays below from':>18s}")
+for c, lab in enumerate(labels):
+    for k, m in enumerate(mags):
+        w = worst[c, k]
+        print(f"{lab if k == 0 else '':7s}{m:7g}m{w[0]*1e3:11.1f} mK"
+              f"{w[N_ANCHOR]*1e3:9.2f} mK{stays_below(w, t21[1]):15d} modes")
+
+i_top = int(np.argmin(np.abs(mags - top_mag)))
+worst_all = worst[:, i_top].max(axis=0)
 n_sys = stays_below(worst_all, t21[1])
 print(f"\\nFig. 1 sets N = {N_ANCHOR} on the foreground residual alone. Folding in "
-      f"the +1 m position systematic costs {n_sys - N_ANCHOR} further mode(s): "
-      f"worst axis/LST {worst_all[N_ANCHOR]*1e3:.2f} mK at N = {N_ANCHOR} "
-      f"(median retained {t21[1, N_ANCHOR]*1e3:.2f} mK), "
-      f"{worst_all[n_sys]*1e3:.2f} mK at N = {n_sys} "
-      f"(median retained {t21[1, n_sys]*1e3:.2f} mK).")
+      f"the +{top_mag:g} m position systematic costs {n_sys - N_ANCHOR} further "
+      f"mode(s): worst axis/LST {worst_all[N_ANCHOR]*1e3:.2f} mK at N = {N_ANCHOR} "
+      f"(median retained {med21:.2f} mK), {worst_all[n_sys]*1e3:.2f} mK at "
+      f"N = {n_sys} (median retained {t21[1, n_sys]*1e3:.2f} mK).")
+
+# Does the residual scale with displacement? Only on the vertical axis, where
+# the horizon drops by a near-uniform offset. The horizontal shifts move the
+# horizon by an amount set by where the cliff edges fall in azimuth, so they do
+# not scale -- which is why the requirement below is a vertical one.
+print()
+for c, lab in enumerate(labels):
+    r = worst[c, :, N_ANCHOR]
+    dev = np.abs((r[1:] / r[:-1]) / (mags[1:] / mags[:-1]) - 1) * 100
+    print(f"{lab:7s} deviation from proportionality per decade: "
+          + ", ".join(f"{x:.1f}%" for x in dev))
+i_up = labels.index("Up")
+spec = 0.1 * med21 / (worst[i_up, i_top, N_ANCHOR] * 1e3) * top_mag
+print(f"\\nUp is linear, and is the binding axis at every N. Holding its injection "
+      f"to a tenth of the median retained signal needs the vertical position "
+      f"known to {spec:.2f} m.")
 
 # The two halves of the message, as numbers. Reassuring: nearly all of the
 # displacement is in the leading modes, so it is more foreground rather than a
@@ -275,8 +343,8 @@ mode_mK = np.abs(cu[j]) / np.sqrt(n_f) * 1e3
 lead = np.sum(cu[j, :2]**2) / np.sum(cu[j]**2)
 spike = int(np.argmax(mode_mK[N_ANCHOR:])) + N_ANCHOR
 tail = np.sum(mode_mK[N_ANCHOR:]**2)
-print(f"\\nUp +1 m at LST {lst[j]:.0f} h: {lead*100:.1f}% of its power sits in the "
-      f"two leading foreground modes -- it is mostly just more foreground. But "
+print(f"\\nUp +{top_mag:g} m at LST {lst[j]:.0f} h: {lead*100:.1f}% of its power "
+      f"sits in the two leading foreground modes -- mostly just more foreground. But "
       f"after filtering {N_ANCHOR} modes, {mode_mK[spike]**2/tail*100:.0f}% of what "
       f"remains is mode {spike+1} alone, at {mode_mK[spike]:.2f} mK against a "
       f"{t21[1, N_ANCHOR]*1e3:.2f} mK median retained signal. A fixed-depth "

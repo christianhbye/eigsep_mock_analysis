@@ -545,8 +545,8 @@ TEXT_TEMPLATE = r"""% signal_loss_text.tex -- GENERATED, do not edit by hand.
 %
 % Draft replacement text for the 21 cm signal-loss result. Regenerate with
 %     uv run python horizon_position/make_paper_signal_loss_figure.py
-% in the mock_analysis repo; every number in blocks 1, 2, 4 and 5 below is
-% computed at generation time from the same arrays the figures are drawn from,
+% in the mock_analysis repo; every number in blocks 1, 2, 4, 5 and 6 below is
+% computed at generation time from the arrays the figures are drawn from,
 % so re-running after the 21 cm ensemble changes updates the prose and the
 % figures together and they cannot drift apart. Block 3 is the exception and
 % says so.
@@ -557,7 +557,7 @@ TEXT_TEMPLATE = r"""% signal_loss_text.tex -- GENERATED, do not edit by hand.
 % puts signal-like power in the first mode past the filter. Nothing here may
 % be phrased so as to license reading a residual excess as a detection.
 %
-% Paste the five blocks into rasti_template.tex as marked. Nothing here is
+% Paste the six blocks into rasti_template.tex as marked. Nothing here is
 % \input by the paper -- this file is a staging area, not a dependency, and
 % nothing in this repo writes to the paper .tex itself.
 %
@@ -718,33 +718,38 @@ being removed. We defer this analysis to future work.
 % ===================================================================
 
 \caption{Change in the simulated antenna temperature,
-$\Delta T_{\text{ant}}$, when the suspended antenna is displaced by 1\,m to
-the east (left column), north (middle column), and up (right column). Each
-curve corresponds to a different LST (one per sidereal hour, @@NLST@@ in
-total), coloured as indicated by the colour bar. The displacement shifts the
-local horizon, shown in Fig.~\ref{fig:horizon}(b), thereby changing the
-fraction of sky occulted by the canyon walls and hence $T_{\text{ant}}$. The
-bottom row shows, for each LST, the RMS over frequency of the difference
-spectrum after filtering the eigenmodes of the unperturbed antenna temperature
--- the same modes as Fig.~\ref{fig:singular_values} -- as a function of the
-number of modes filtered. The grey band is the 21 cm signal retained under
-that identical projection (5--95 per cent of the model ensemble of
-Fig.~\ref{fig:singular_values}, median dashed); the dotted vertical line marks
-the $N=@@NA@@$ operating point adopted there. The displacements are large in
-amplitude -- up to @@MAXDT@@\,K at 50\,MHz, @@RAW_U@@\,mK RMS for the upward
-shift against @@RAW_E@@\,mK east and @@RAW_N@@\,mK north -- but they are
-foreground-like, with @@LEADPCT@@ per cent of that power in the two leading
-foreground modes, so the same low-order filtering that removes the sky removes
-almost all of them: the east and north residuals stay below the median
-retained signal from @@CLEAR_E@@ and @@CLEAR_N@@ modes on. What survives is
-narrow rather than smooth. After @@NA@@ modes are filtered, @@SPIKEPCT@@ per
-cent of the upward displacement's remaining power sits in mode @@SPIKE@@
-alone, at @@SPIKESYS@@\,mK -- above that mode's nominal foreground content
+$\Delta T_{\text{ant}}$, when the suspended antenna is displaced to the east
+(left column), north (middle column), and up (right column). The displacement
+shifts the local horizon, shown in Fig.~\ref{fig:horizon}(b), thereby changing
+the fraction of sky occulted by the canyon walls and hence $T_{\text{ant}}$.
+\emph{Top row:} the difference spectra for a $+@@TOPMAG@@$\,m displacement,
+one curve per sidereal hour (@@NLST@@ in total), coloured by LST as indicated
+by the colour bar. \emph{Bottom row:} the RMS over frequency of those spectra
+after filtering the leading $N$ eigenmodes of the unperturbed antenna
+temperature -- the same modes as Fig.~\ref{fig:singular_values} -- for
+displacements of @@MAGLO@@, @@TOPMAG@@ and @@MAGHI@@\,m, coloured light to
+dark by magnitude, with all @@NLST@@ LSTs drawn for each. The colour encodings
+of the two rows are therefore different: LST above, displacement below, since
+after filtering the LSTs collapse into a single bundle. Grey shows the 21 cm
+signal retained under the identical projection (5--95 per cent of the model
+ensemble of Fig.~\ref{fig:singular_values}, median dashed); the dotted vertical
+line marks the $N=@@NA@@$ operating point adopted there.
+
+The displacements are large in amplitude -- up to @@MAXDT@@\,K at 50\,MHz for
+the $+@@TOPMAG@@$\,m upward shift -- but foreground-like, with @@LEADPCT@@ per
+cent of that power in the two leading foreground modes, so the same low-order
+filtering that removes the sky removes almost all of them. What survives is
+narrow rather than smooth: after @@NA@@ modes, @@SPIKEPCT@@ per cent of the
+upward displacement's remaining power sits in mode @@SPIKE@@ alone, at
+@@SPIKESYS@@\,mK, above that mode's nominal foreground content
 (@@SPIKEFG@@\,mK) and above the median model's 21 cm content there
-(@@SPIKE21@@\,mK), and resembling the retained signal in shape (cosine
-similarity up to @@COSMAX@@). We therefore do not treat this filter as an
-analysis that could be run on data and its residual attributed to cosmology;
-see the text.}
+(@@SPIKE21@@\,mK). Reading the bottom row down the magnitude sequence gives
+the position requirement directly: for the upward displacement, the smallest
+$N$ beyond which the worst-LST residual stays below the median retained signal
+is @@CLEARUPLO@@ modes at @@MAGLO@@\,m, @@CLEARUPMID@@ at @@TOPMAG@@\,m --- one
+past the operating point --- and @@CLEARUPHI@@ at @@MAGHI@@\,m. We do not
+treat this filter as an analysis that could be run on data and its residual
+attributed to cosmology; see the text.}
 
 
 % ===================================================================
@@ -780,18 +785,21 @@ resembles the retained signal in shape closely enough to be confused with it
 (cosine similarity up to @@COSMAX@@, median @@COSMED@@).
 
 The vertical response scales predictably, which turns this into a
-specification. Over the two decades we simulated, $\pm0.1$ to $\pm10$\,m, the
-residual left at $N=@@NA@@$ by an upward displacement is linear in that
-displacement to within a few per cent and symmetric in its sign, because a
-vertical shift lowers the horizon by a near-uniform offset
-(Fig.~\ref{fig:horizon}b). Holding the injected power to a tenth of the median
+specification. Over the two decades simulated, @@MAGLO@@ to @@MAGHI@@\,m, the
+residual left at $N=@@NA@@$ by an upward displacement is proportional to that
+displacement to within @@UPDEV@@ per cent per decade and symmetric in its sign,
+because a vertical shift lowers the horizon by a near-uniform offset
+(Fig.~\ref{fig:horizon}b); this is the parallel spacing of the three magnitude
+bundles in Fig.~\ref{fig:horizon_shift}. Holding the injected power to a tenth
+of the median
 retained signal therefore requires the antenna's vertical position to be known
 to roughly @@SPECM@@\,m, and we adopt that as the position-monitoring
 requirement. The horizontal responses are neither linear nor symmetric --- a
 horizontal shift changes the horizon by an amount that depends on where the
 cliff edges fall in azimuth, which is why those curves in
-Fig.~\ref{fig:horizon}(b) are spiky --- but they are also the smaller terms,
-and the vertical axis sets the requirement.
+Fig.~\ref{fig:horizon}(b) are spiky, and why the east and north bundles in
+Fig.~\ref{fig:horizon_shift} are not evenly spaced --- but they are also the
+smaller terms, and the vertical axis sets the requirement.
 
 The wider point is methodological. An unmodelled displacement of the size we
 must anticipate deposits power that is signal-like in both amplitude and
@@ -810,6 +818,27 @@ antenna position among the parameters that are fitted and marginalised over
 rather than assumed. The differentiable forward model makes that
 marginalisation tractable, and the position sensitivities computed here are
 what set the priors it needs.
+
+
+% ===================================================================
+% BLOCK 6 -- section "Forward Modelling". Replaces the sentence beginning
+% "To quantify the effect of the horizon coupling, we computed the change in
+% antenna temperature ... by 1 m to the east, north, and up ...".
+%
+% Needed because Fig.~\ref{fig:horizon_shift}'s residual row now shows three
+% displacement magnitudes, and only 1 m was previously introduced. No new
+% simulations: run_sims.py has always produced +/-0.1, 1 and 10 m for each
+% axis (see positions.py), and the other magnitudes were simply unplotted.
+% ===================================================================
+
+To quantify the effect of the horizon coupling, we computed the change in
+antenna temperature, $\Delta T_{\text{ant}}(\nu)$, caused by displacing the
+antenna to the east, north, and up, relative to the nominal position used for
+the horizon profile of Fig.~\ref{fig:horizon}. Each axis was displaced by
+@@MAGLO@@, @@TOPMAG@@ and @@MAGHI@@\,m, spanning the range from a
+displacement we expect to be able to monitor to one large enough to be
+obviously unacceptable, so that the dependence on displacement can be read
+off rather than inferred from a single case.
 """
 
 
@@ -847,12 +876,13 @@ def build_text():
     # by index into dT_spectra, with the label order asserted, so the caption
     # cannot silently transpose east for up if TAGS is ever reordered.
     shift = np.load(SHIFT_NPZ, allow_pickle=True)
-    dT3 = shift["dT_spectra"]  # (3, n_lst, n_f), axis order East/North/Up
-    assert [str(s) for s in shift["labels"]] == [
-        "East +1 m",
-        "North +1 m",
-        "Up +1 m",
-    ], "horizon_shift.npz axis order changed; block 4 wording assumes E/N/U"
+    assert [str(s) for s in shift["labels"]] == ["East", "North", "Up"], (
+        "horizon_shift.npz axis order changed; blocks 4 and 5 assume E/N/U"
+    )
+    mags = shift["mags_m"]
+    top_mag = float(shift["top_mag_m"])
+    dT_disp = shift["dT_disp"]  # (3 axis, 3 mag, n_lst, n_f)
+    dT3 = dT_disp[:, int(np.argmin(np.abs(mags - top_mag)))]  # the quoted case
 
     def worst_lst(x):
         """Worst-LST residual RMS [mK] vs modes filtered, for one axis."""
@@ -913,8 +943,21 @@ def build_text():
     # the horizon by an amount set by where the cliff edges fall in azimuth.
     # Up is also the binding axis at every N, so the requirement is a vertical
     # one and this extrapolation is sound; do not restate it as a general
-    # linearity in displacement.
-    spec_m = 0.1 * med[N_ANCHOR] / mode_mK[spike]
+    # linearity in displacement. The deviation is measured here rather than
+    # asserted, so the prose cannot outlive the fact.
+    spec_m = 0.1 * med[N_ANCHOR] / mode_mK[spike] * top_mag
+    up_curves = [worst_lst(dT_disp[2, k]) for k in range(mags.size)]
+    up_r = np.array([cur[N_ANCHOR] for cur in up_curves])
+    up_dev = np.abs((up_r[1:] / up_r[:-1]) / (mags[1:] / mags[:-1]) - 1) * 100
+    # Modes needed before each magnitude stays below the median retained
+    # signal. Generated rather than described, because the ladder is the whole
+    # point of the residual row and an asserted "never clears" was wrong.
+    up_clear = [stays_below(cur, med) for cur in up_curves]
+    lo, mid, hi = (
+        int(np.argmin(mags)),
+        int(np.argmin(np.abs(mags - top_mag))),
+        int(np.argmax(mags)),
+    )
 
     depth = -T21.min(axis=1) * 1e3
     near150 = (depth > 140) & (depth < 160)
@@ -994,6 +1037,13 @@ def build_text():
         "COSMED": f"{np.median(cos):.2f}",
         "COSMAX": f"{cos.max():.2f}",
         "SPECM": f"{spec_m:.1f}",
+        "UPDEV": f"{up_dev.max():.0f}",
+        "MAGLO": f"{mags.min():g}",
+        "MAGHI": f"{mags.max():g}",
+        "TOPMAG": f"{top_mag:g}",
+        "CLEARUPLO": up_clear[lo],
+        "CLEARUPMID": up_clear[mid],
+        "CLEARUPHI": up_clear[hi],
     }
     out = TEXT_TEMPLATE
     for k, v in vals.items():
