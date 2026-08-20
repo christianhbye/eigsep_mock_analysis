@@ -248,7 +248,12 @@ for col, lab in enumerate(labels):
     at.set_title(lab, fontsize=8.5)
     at.set_xlabel("Frequency [MHz]", fontsize=8)
     at.grid(alpha=0.2); at.tick_params(labelsize=7)
-    at.text(0.97, 0.93, f"$+{top_mag:g}$ m", transform=at.transAxes,
+    # Headroom for the magnitude tag. The three panels span very different
+    # ranges and the curves reach the top of a different one in each, so the
+    # tag needs space made for it rather than a corner that happens to be free.
+    lo, hi = dT[col].min(), dT[col].max()
+    at.set_ylim(lo - 0.05 * (hi - lo), hi + 0.30 * (hi - lo))
+    at.text(0.97, 0.94, f"$+{top_mag:g}$ m", transform=at.transAxes,
             fontsize=6.5, color="0.35", ha="right", va="top")
 
     for k in range(mags.size):                              # bottom: all magnitudes
@@ -265,13 +270,16 @@ for col, lab in enumerate(labels):
 
 axes[0, 0].set_ylabel(r"$\\Delta T_\\mathrm{ant}$ [K]", fontsize=8)
 axes[1, 0].set_ylabel("Residual RMS [K]", fontsize=8)
-axes[1, 0].text(N_ANCHOR - 0.6, 15, f"$N = {N_ANCHOR}$", color="0.35",
-                fontsize=6.5, va="top", ha="right")
+# The dotted line is Fig. 1's operating point. It carried an "N = 9" tag, which
+# read as unexplained at a glance -- the number means nothing without the other
+# figure -- so the caption names it instead and the line stays unlabelled.
 handles = [Line2D([], [], color=D_COL[k], lw=2, label=f"{m:g} m")
            for k, m in enumerate(mags)]
-handles.append(Line2D([], [], color=C_21, lw=1.4, ls="--",
-                      label="21 cm median (5-95% shaded)"))
-axes[1, 0].legend(handles=handles, fontsize=5.8, loc="lower left", ncol=2,
+handles.append(Line2D([], [], color=C_21, lw=1.4, ls="--", label="21 cm models"))
+# Upper right, not lower left: every curve descends with N, so the top-right
+# corner is the one reliably empty region in all three residual panels, while
+# the lower left still carries the 0.1 m tails.
+axes[1, 0].legend(handles=handles, fontsize=5.8, loc="upper right", ncol=2,
                   framealpha=0.9, handlelength=1.4, columnspacing=0.9,
                   borderpad=0.3, labelspacing=0.25)
 for col in (1, 2):
