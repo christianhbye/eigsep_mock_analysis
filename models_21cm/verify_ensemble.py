@@ -171,6 +171,38 @@ def main(path):
         f"({100 * keep.mean():.1f}%)"
     )
 
+    # --- Gate 3b: header's recommended cut has not drifted from selection.py
+    # This is the countermeasure to the failure this project exists to fix,
+    # replayed one level up: gates 1-2 prove the header can regenerate the
+    # ensemble; this proves the header's *description* of the cut still
+    # matches the cut the code actually applies. A header can pass both of
+    # those and still describe the wrong analysis, which is exactly what
+    # happened before models_21cm/patch_npz_header.py fixed it -- the header
+    # recommended the single-limb `xHI(z=5.9) < 0.1` while every quoted
+    # statistic used the two-limb `reionized_across_band`. Comparing against
+    # numeric fields (not parsing the "recommended" prose string) is
+    # deliberate: prose can be patched to read correctly while the numbers
+    # behind it drift again.
+    sel_header = header.get("selection", {})
+    expected_constants = {
+        "z_ref": sel.Z_REION_REF,
+        "x_max": sel.XHI_MAX,
+        "z_top": sel.Z_BAND_TOP,
+        "x_max_top": sel.XHI_MAX_BAND_TOP,
+    }
+    mismatches = {
+        k: {"header": sel_header.get(k), "selection.py": v}
+        for k, v in expected_constants.items()
+        if sel_header.get(k) != v
+    }
+    gate(
+        "header's recommended cut matches selection.py's constants",
+        not mismatches,
+        f"mismatches: {mismatches}"
+        if mismatches
+        else f"recommended={sel_header.get('recommended')!r}",
+    )
+
     # --- Gate 4 + 5 need the foreground modes ----------------------------
     shift = np.load(PAPER / "horizon_shift.npz")
     Vh, freqs = shift["Vh"], shift["freqs_MHz"]
@@ -187,8 +219,8 @@ def main(path):
     # --- Gate 5: percentile convergence ----------------------------------
     # The ladder only includes subset sizes strictly below the survivor
     # count, plus the full set -- comparing e.g. 2048 against a population
-    # of 1782 would silently draw the "subset" and the "full set" from the
-    # same 1782 rows, making the drift check trivially zero rather than a
+    # of 1769 would silently draw the "subset" and the "full set" from the
+    # same 1769 rows, making the drift check trivially zero rather than a
     # genuine subsample-vs-full comparison.
     print("\nPercentile convergence (retained RMS [mK] at N = 10):")
     print(f"{'n':>6}  {'p5':>8}  {'p50':>8}  {'p95':>8}")

@@ -65,6 +65,28 @@ def test_rebuild_params_rejects_an_unknown_sampler():
         provenance.rebuild_params(header)
 
 
+def test_rebuild_params_names_a_missing_top_level_key():
+    """Someone holding only the npz has no traceback context to guess from."""
+    header = provenance.parse_header(provenance.build_header(**_header_fields()))
+    del header["sampler"]
+    with pytest.raises(KeyError, match="'sampler'"):
+        provenance.rebuild_params(header)
+
+
+def test_rebuild_params_names_a_missing_sampler_field():
+    header = provenance.parse_header(provenance.build_header(**_header_fields()))
+    del header["sampler"]["seed"]
+    with pytest.raises(KeyError, match="'seed'"):
+        provenance.rebuild_params(header)
+
+
+def test_rebuild_params_names_a_missing_varied_bound():
+    header = provenance.parse_header(provenance.build_header(**_header_fields()))
+    del header["varied"][0]["lo"]
+    with pytest.raises(KeyError, match="'lo'"):
+        provenance.rebuild_params(header)
+
+
 def test_git_info_reports_this_repository():
     info = provenance.git_info(Path(__file__).resolve().parent)
     assert info["commit"] is not None and len(info["commit"]) == 40

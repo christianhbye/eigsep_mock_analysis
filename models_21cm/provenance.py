@@ -97,14 +97,44 @@ def rebuild_params(header):
     not guaranteed stable across scipy releases, which is why the header
     records the scipy version and the npz stores ``params`` outright. The
     stored array is ground truth; this function is the release-time gate.
+
+    Raises ``KeyError`` with a message naming the missing key, rather than
+    a bare one, whenever a required field is absent -- this is the path a
+    reader with only the npz and no access to this repository takes, so a
+    plain ``KeyError: 'sampler'`` traceback is not an acceptable failure
+    mode here.
     """
-    sampler = header["sampler"]
-    if sampler["kind"] != "sobol":
-        raise ValueError(f"unsupported sampler {sampler['kind']!r}")
-    varied = header["varied"]
-    lo = np.array([v["lo"] for v in varied])
-    hi = np.array([v["hi"] for v in varied])
-    unit = qmc.Sobol(
-        d=len(varied), scramble=sampler["scramble"], seed=sampler["seed"]
-    ).random_base2(sampler["m"])
+    sampler = _require(header, "sampler", "the Sobol sampler configuration")
+    kind = _require(sampler, "kind", "header['sampler']")
+    if kind != "sobol":
+        raise ValueError(f"unsupported sampler {kind!r}")
+    varied = _require(header, "varied", "the list of varied parameters")
+    try:
+        lo = np.array([v["lo"] for v in varied])
+        hi = np.array([v["hi"] for v in varied])
+    except KeyError as exc:
+        raise KeyError(
+            "every entry in header['varied'] must have 'lo' and 'hi' "
+            f"bounds; found an entry missing {exc.args[0]!r}"
+        ) from exc
+    scramble = _require(sampler, "scramble", "header['sampler']")
+    seed = _require(sampler, "seed", "header['sampler']")
+    m = _require(sampler, "m", "header['sampler']")
+    unit = qmc.Sobol(d=len(varied), scramble=scramble, seed=seed).random_base2(m)
     return lo + unit * (hi - lo)
+
+
+def _require(mapping, key, what):
+    """``mapping[key]``, or a ``KeyError`` that says what the key was for.
+
+    Someone holding only the npz has no traceback context to guess from;
+    the message has to carry the whole explanation.
+    """
+    try:
+        return mapping[key]
+    except KeyError as exc:
+        raise KeyError(
+            f"provenance header is missing {key!r} (needed: {what}); this "
+            "npz's header cannot regenerate its own parameter draw without "
+            "it -- the header is incomplete, not just this function's input"
+        ) from exc
