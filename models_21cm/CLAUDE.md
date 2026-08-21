@@ -35,9 +35,12 @@ instrument paper. Not a package; a self-contained generator, like
   `USE_RELATIVE_VELOCITIES=True`, or you get `KeyError: 'xi_RR_CF'`.
 - **Zeus21's `setup.py` omits `powerbox` and `pyfftw`** though
   `zeus21.maps` imports them at package import time.
-- The reionization cut is **posterior** and applied in `load_t21()` (in
-  `horizon_position/make_paper_signal_loss_figure.py`, not in this
-  directory), once, so the figure and the statistics cannot disagree.
+- The reionization cut is **posterior** and applied by the consumer, not
+  in this directory: both `horizon_position/notebooks/signal_loss.ipynb`
+  and `.../horizon_shift.ipynb` call `selection.reionized_across_band`
+  once, up front, and assert the survivor count against
+  `horizon_position/paper.py`'s `N_MODELS`, so the two figures and the
+  quoted statistics cannot disagree about which models are in.
 - The cut has **two parts**, both required: `xHI(z=5.9) < 0.1` (the
   dark-pixel reference redshift) AND `xHI(z=4.6816) < 0.01` (the band's
   top edge, `z(250 MHz)`). The `0.1` was chosen against McGreer+2015,

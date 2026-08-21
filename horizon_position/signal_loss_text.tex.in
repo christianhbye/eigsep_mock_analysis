@@ -1,8 +1,9 @@
 % signal_loss_text.tex -- GENERATED, do not edit by hand.
 %
-% Draft replacement text for the 21 cm signal-loss result. Regenerate with
-%     uv run python horizon_position/make_paper_signal_loss_figure.py
-% in the mock_analysis repo; every number in blocks 1, 2, 4, 5 and 6 below is
+% Draft replacement text for the 21 cm signal-loss result. Regenerate by
+% running horizon_position/notebooks/signal_loss.ipynb in the mock_analysis
+% repo; it is generated from the template signal_loss_text.tex.in by
+% substituting its placeholders. Every number in blocks 1, 2, 4, 5 and 6 is
 % computed at generation time from the arrays the figures are drawn from,
 % so re-running after the 21 cm ensemble changes updates the prose and the
 % figures together and they cannot drift apart. Block 3 is the exception and

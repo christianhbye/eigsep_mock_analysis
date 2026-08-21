@@ -38,9 +38,8 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   full-sphere beam integral, so a fractional `W` flows through correctly.
 - Set `os.environ.setdefault("JAX_ENABLE_X64", "1")` before any
   jax/s2fft/croissant/eigsim/eigsep_terrain import.
-- `output/` is gitignored. The notebook loads npz + `analysis.py` +
-  `../models_21cm/selection.py`, and imports `make_paper_signal_loss_figure`
-  only to assert consistency with Fig. 1 (see below).
+- `output/` is gitignored. The notebooks load npz + `analysis.py` +
+  `paper.py` + `../models_21cm/selection.py`, and nothing else.
 
 ## Files
 
@@ -49,35 +48,49 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 - `run_sims.py` -> `output/position_sims.npz` (eigsim env; resumable
   per-position checkpoints `pos*_batch_*.npz`; `pos_sha` guards against a
   stale `horizons_position.npz`).
-- `notebooks/horizon_shift.ipynb` — **the** analysis. See below.
-- `make_paper_signal_loss_figure.py` — the paper's Fig. 1
-  (`signal_loss.pdf`), a separate figure. Reads `horizon_shift.npz` for
-  `Vh`, so the notebook must run first.
+- `notebooks/horizon_shift.ipynb`, `notebooks/signal_loss.ipynb` — **the**
+  analysis. See below.
+- `paper.py` — artifact locations + the constants the two figures share
+  (`N_ANCHOR`, `N_SHOW`, `N_MODELS`). No analysis, by design.
+- `signal_loss_text.tex.in` — LaTeX template for the draft prose.
 - `reionization_sensitivity.py` — one-off audit of `models_21cm`'s
   reionization threshold; settled, not part of the figure pipeline.
+- `rotation_dimensionality.py` — mode count over the full drive grid vs
+  zenith; a by-product, not a figure.
 
-## The notebook is the only figure producer
+## The notebooks are the only figure producers
 
-`notebooks/horizon_shift.ipynb` is the paper trail for both horizon
-figures. There are no `make_*_figure.py` scripts — do not add one. It goes
-raw inputs -> `dT_ant` -> foreground eigenbasis -> operating point ->
-figures -> paper-repo export, deriving everything in-notebook rather than
-importing it.
+Two notebooks produce all three paper figures. There are no
+`make_*_figure.py` scripts — do not add one. Each goes raw inputs ->
+derived quantities -> figures -> paper-repo export, deriving everything
+in-notebook rather than importing it.
 
-- Inputs: `output/position_sims.npz`, `output/horizons_position.npz`,
-  `../models_21cm/output/zeus21_models.npz`. Nothing else is *derived* from
-  another module; the one script import is assert-only.
-- Exports into the paper's `notebooks/` dir: `horizon_shift.{npz,ipynb,pdf}`
-  and `horizon_perturbations.{npz,ipynb}` + `horizon_perturbations_1col.pdf`.
+- `horizon_shift.ipynb` -> `horizon_perturbations_1col.pdf` and
+  `horizon_shift.pdf`. Inputs: `output/position_sims.npz`,
+  `output/horizons_position.npz`, the Zeus21 ensemble.
+- `signal_loss.ipynb` -> `signal_loss.pdf` and `signal_loss_text.tex`.
+  Inputs: the paper's `foreground_svd.npz`, the Zeus21 ensemble, and
+  `horizon_shift.npz` (§7 only, for the caption blocks).
+- **Run `horizon_shift.ipynb` first** — `signal_loss.ipynb` asserts its
+  eigenbasis against the `Vh` that one publishes.
+- Neither notebook imports the other. Shared values live in `paper.py` as
+  constants; each notebook re-derives them and asserts. Do not move a
+  derivation into `paper.py` — that is what makes the assert meaningful.
+- Exports into the paper's `notebooks/` dir:
+  `horizon_shift.{npz,ipynb,pdf}`, `horizon_perturbations.{npz,ipynb}` +
+  `horizon_perturbations_1col.pdf`, `signal_loss.{npz,ipynb,pdf}` and
+  `signal_loss_text.tex`.
 - The exported notebooks must be **standalone** (Zenodo convention: they
   load the committed npz and import nothing from this repo). Their code is
   lifted from the live kernel with `inspect.getsource`, so there is exactly
   one copy of every plotting function. Change a figure by editing the
   function in the notebook and re-running — never by editing the export.
-- Three asserts keep this figure and Fig. 1 consistent; do not remove them:
-  the 21 cm selection matches `make_paper_signal_loss_figure.load_t21`, the
-  baseline waterfall matches the paper's `foreground_svd.npz`, and the
-  recomputed `N_ANCHOR` matches `make_paper_signal_loss_figure.N_ANCHOR`.
+- Several asserts keep the figures consistent; do not remove them. Both
+  notebooks check their survivor count against `paper.N_MODELS` and their
+  recomputed anchor against `paper.N_ANCHOR`; `horizon_shift` checks its
+  baseline against `foreground_svd.npz`; `signal_loss` checks its
+  eigenbasis against `horizon_shift.npz` and gates the "costs one mode"
+  phrasing its caption uses.
 - `N_ANCHOR` is *recomputed*, not imported: the smallest N at which the
   foreground floor drops below the median retained 21 cm signal **and stays
   below** for every larger N. A first-crossing rule gives a different,
