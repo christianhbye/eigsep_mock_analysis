@@ -6,6 +6,10 @@ requires-python = ">=3.12"
 
 [tool.uv.workspace]
 members = ["eigsim", "rotis"]
+# models_21cm is a standalone project, not a member: it depends on classy,
+# which compiles CLASS from source and has no place in the workspace lock
+# or in CI. Run it with `uv run --project models_21cm ...`.
+exclude = ["models_21cm"]
 
 [tool.uv.sources]
 eigsim = { workspace = true }
