@@ -40,10 +40,20 @@ HORIZONS_NPZ = HERE / "output" / "horizons_position.npz"
 # docs/superpowers/specs/2026-08-19-zeus21-model-ensemble-design.md
 MODELS_NPZ = ROOT / "models_21cm" / "output" / "zeus21_models.npz"
 
-# Modes filtered at the quoted operating point. Set by the foreground residual
-# alone -- the smallest N at which it falls below the median retained 21 cm
-# signal and *stays* below for every larger N. Both notebooks re-derive this
-# and assert it still equals this value.
+# The subspace dimension the figures illustrate at. NOT a filter depth anyone
+# proposes to apply to data: signal_loss.pdf needs *a* depth to draw panel (a2)
+# and to colour by, and this is it. Derived as the smallest N at which the
+# foreground residual falls below the median retained 21 cm signal and *stays*
+# below for every larger N -- a legibility criterion, not a policy, because
+# that residual is an in-sample optimum (horizon_shift.ipynb, section 6) and so
+# not a benchmark real data could be held to.
+#
+# It happens to land where horizon_shift.ipynb shows the limit changing hands:
+# below N ~ 8 the foregrounds are the larger term by 2-6x, from N ~ 9 they are
+# comparable to what a 1 m vertical position error leaves, and beyond N ~ 12
+# the position error is consistently larger. That is the meaningful landmark,
+# it is a result of the horizon analysis rather than of this criterion, and it
+# is stated there. Both notebooks re-derive this value and assert it.
 N_ANCHOR = 9
 
 # Foreground modes on the residual panels' x-axis, in both figures.
