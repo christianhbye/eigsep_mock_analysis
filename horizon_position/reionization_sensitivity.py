@@ -17,7 +17,7 @@ that are still allowed, never toward admitting ones that are ruled out.
 This script quantifies what that choice costs, by re-cutting the stored
 per-model xHI(z) -- no regeneration -- and recomputing, for each variant,
 the operating point under the same stays-below rule
-`recompute_operating_point.py` uses, plus the retained-RMS percentiles
+`notebooks/horizon_shift.ipynb` uses, plus the retained-RMS percentiles
 and the above-floor fraction the paper quotes.
 
 The band-top limb of the cut (xHI(z=4.6816) < 0.01) is held fixed in
@@ -65,8 +65,10 @@ def main():
     xHI, z_xHI = m["xHI"], m["z_xHI"]
     T21 = m["T21_mK"] * 1e-3  # K
 
-    # Foreground floor, in the basis Vh was built for -- see the long note
-    # in recompute_operating_point.main about dropping t_receiver first.
+    # Foreground floor, in the basis Vh was built for. Dropping the constant
+    # receiver temperature first is load-bearing: Vh was derived by SVD of
+    # t_sys - t_receiver, and leaving the ~50 K offset in inflates the
+    # apparent residual by orders of magnitude (see notebooks/horizon_shift.ipynb).
     t_ant = fg["t_sys"] - fg["t_receiver"]
     n_time = t_ant.shape[0]
     s_fg = np.linalg.svd(t_ant, compute_uv=False)

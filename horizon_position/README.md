@@ -31,13 +31,44 @@ uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
 # 2. per-position waterfalls (mock_analysis env, from monorepo root)
 uv run python horizon_position/run_sims.py          # -> output/position_sims.npz
 
-# 3. analysis
-#    open notebooks/horizon_position.ipynb
+# 3. the analysis + both paper figures
+uv run jupyter lab horizon_position/notebooks/horizon_shift.ipynb
+#    or headless:
+uv run jupyter nbconvert --to notebook --execute --inplace \
+    horizon_position/notebooks/horizon_shift.ipynb
+
+# 4. Fig. 1 -- reads the Vh that step 3 writes, so it must come after
+uv run python horizon_position/make_paper_signal_loss_figure.py
 
 # tests
 uv run pytest horizon_position/ -v                  # pure-module unit tests
 EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 ```
+
+## The notebook
+
+`notebooks/horizon_shift.ipynb` is the paper trail for both horizon
+figures, end to end: it loads the raw simulation output and the Zeus21
+21 cm ensemble, computes `dT_ant`, builds the foreground eigenbasis
+explicitly, re-derives the operating point `N_ANCHOR`, renders the
+figures, prints every number the paper quotes, and exports the paper
+repo's committed npz + standalone notebook + PDF.
+
+There are no figure scripts. It imports `make_paper_signal_loss_figure`
+in one place only, to assert that Fig. 1 and this figure cut the same
+21 cm models and agree on `N_ANCHOR` — nothing is derived from it.
+
+The plotting code is lifted into the exported standalone notebooks with
+`inspect.getsource`, so the version archived with the paper is always
+byte-identical to the version that produced the PDF.
+
+Figures produced (written into the paper's `notebooks/` directory):
+
+- `horizon_perturbations_1col.pdf` — the horizon geometry: `alpha_h(az)`
+  and `Delta alpha_h(az)` for +1 m East/North/Up.
+- `horizon_shift.pdf` — `dT_ant(nu)` at 24 LSTs (top) and its residual
+  after filtering the leading N foreground modes, against the retained
+  21 cm signal (bottom).
 
 ## Outputs (`output/`, gitignored)
 
@@ -47,7 +78,17 @@ EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 ## Analysis modes
 
 `analysis.delta_waterfall(..., mode)` with `mode` in:
-- `uncorrected` (default) — raw `t_sys` difference.
+- `uncorrected` (default) — raw `t_sys` difference. What the paper
+  figure uses: the position error is by hypothesis unknown, so the
+  observer cannot apply the displaced position's own `fgnd`.
 - `oracle` — ground-loss corrected with each position's true `fgnd`.
 - `miscorrected` — corrected with the *nominal* `fgnd` (position error
   unknown); equals `uncorrected / (1 - fgnd_nominal)`.
+
+## Other scripts
+
+- `make_paper_signal_loss_figure.py` — the paper's Fig. 1
+  (`signal_loss.pdf`), a different figure. Reads `horizon_shift.npz`
+  for the foreground modes, so run the notebook first.
+- `reionization_sensitivity.py` — one-off audit of how much
+  `models_21cm`'s reionization threshold moves the reported numbers.

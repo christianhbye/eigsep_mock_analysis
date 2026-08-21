@@ -304,8 +304,8 @@ conjunction that also required the worst-case position systematic to fall
 below the median retained signal. That floor was dropped from the figure,
 which is scoped to foreground dimensionality alone; the position
 systematic is shown against the same benchmark in `horizon_shift.pdf`
-instead. `horizon_position/recompute_operating_point.py` re-derives the
-anchor independently of any hardcoded constant.
+instead. `horizon_position/notebooks/horizon_shift.ipynb` re-derives the
+anchor from the raw inputs, independently of any hardcoded constant.
 
 ## What to cite
 

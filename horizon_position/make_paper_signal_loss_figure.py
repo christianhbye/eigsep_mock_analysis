@@ -92,7 +92,7 @@ larger N (1.82 vs 3.01 mK; at N = 8 it is still above, 7.75 vs 4.94).
 The "stays below" clause is not decoration -- these curves cross more
 than once, because the median retained signal falls with N too, so a
 first-crossing rule can select an N the floor later climbs back above.
-``make_paper_horizon_figure.py`` applies the same rule to the position
+``notebooks/horizon_shift.ipynb`` applies the same rule to the position
 systematic, so the two figures cannot disagree about which N clears
 which floor.
 
@@ -133,7 +133,8 @@ MODELS_NPZ = Path(
 )
 
 N_ANCHOR = 9  # modes filtered at the quoted operating point -- set by the
-# foreground residual alone; see recompute_operating_point.py
+# foreground residual alone. notebooks/horizon_shift.ipynb re-derives this
+# from the raw inputs and asserts it still equals this constant.
 # Class edges on retained RMS [mK] at N_ANCHOR. 2.0 and 4.5 mK split the
 # Zeus21 ensemble roughly into thirds (29.6% / 37.1% / 33.2%); 10 mK
 # would catch 5.5% and 25 mK nothing at all (the most foreground-
