@@ -24,23 +24,35 @@ import numpy as np
 # McGreer's small sample. Reionization is now understood to finish near
 # z ~ 5.3-5.4 (Bosman+2022), not by z = 6.
 #
-# The direction of that move is what matters here. The current limit is
-# looser than the one this cut was built against, so 0.1 is now roughly
-# half of what the data require: the cut errs toward excluding histories
-# that are still allowed, never toward admitting ones that are ruled out.
-# It is deliberately conservative, and 0.1 is kept rather than relaxed
-# because the threshold turns out not to be load-bearing.
+# 0.1 is kept, and is NOT defended as tracking the current constraint.
+# Two things make the naive "the limit loosened, so this cut is
+# conservative" reading wrong:
 #
-# It is not load-bearing because xHI(z=5.9) across the ensemble is
+#   - A single threshold at one redshift is not comparable to Davies'
+#     four-redshift ladder. It is looser than 0.1 at the anchor but
+#     *tighter* at z = 5.481 (0.030 + 0.048), where this cut tests
+#     nothing; applied as a conjunction over all four redshifts the
+#     current data keep 1750 models, *fewer* than this cut's 1769.
+#   - Being stricter than the data is not automatically conservative for
+#     what the paper reports. It does guarantee no kept model is
+#     observationally excluded -- a statement about the kept set's
+#     validity -- but the models it drops that Davies+2025 would allow
+#     retain *less* signal, so the cut raises the reported above-floor
+#     fraction by 0.6 points.
+#
+# What justifies keeping 0.1 is that it changes nothing. xHI(z=5.9) is
 # strongly bimodal -- 1765 of 4096 models fall below 0.06, 1812 below
 # 0.10, 1925 below 0.25 -- so 0.1 sits in a nearly empty valley, and only
-# 71 models lie in [0.1, 0.25) while also passing the band-top limb.
-# Sweeping the threshold across that whole range, or replacing it with
-# the four-redshift Davies+2025 ladder, leaves the operating point at
-# N = 9 and holds the paper's above-floor fraction within 0.8 points
-# (74.8-75.6%, against the adopted 75.4%).
-# See README.md, "Sensitivity to the threshold", and
-# `horizon_position/reionization_sensitivity.py`, which regenerates it.
+# 71 models lie in [0.1, 0.25) while also passing the band-top limb. The
+# cut is almost entirely separating "reionizes" from "never reionizes":
+# 52.9% of the 2327 dropped models never reach xHI < 0.5 anywhere on the
+# grid, down to z = 4.65. Sweeping the threshold across the whole allowed
+# range, or replacing it with the Davies+2025 ladder, leaves the
+# operating point at N = 9 and holds the paper's above-floor fraction
+# within 0.8 points (74.8-75.6%, against the adopted 75.4%).
+# See README.md, "Provenance of the z = 5.9 anchor" and "Sensitivity to
+# the threshold", and `horizon_position/reionization_sensitivity.py`,
+# which regenerates the numbers.
 #
 # Per-model xHI is stored in the npz, so retuning this costs nothing.
 Z_REION_REF = 5.9

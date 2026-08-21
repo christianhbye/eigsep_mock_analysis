@@ -10,9 +10,15 @@ E-XQR-30 spectra with a *weaker* limit, xHI <= 0.191 + 0.056 at
 z = 5.831 from the Lyb+Lyg forests, attributing the difference to cosmic
 variance across McGreer's small sample.
 
-The direction matters: the current limit is looser, so 0.1 is now roughly
-half of what the data require. The cut errs toward excluding histories
-that are still allowed, never toward admitting ones that are ruled out.
+0.1 is kept, but not because the newer limit makes it conservative --
+that reading does not survive contact with the numbers. The Davies ladder
+is looser than 0.1 at the anchor yet tighter at z = 5.481, and applied as
+a conjunction over all four redshifts it keeps *fewer* models (1750) than
+the adopted cut (1769). Nor is being stricter than the data conservative
+for the statistic the paper reports: the models the cut drops retain
+less signal, so it raises the above-floor fraction slightly. What
+justifies 0.1 is that it changes nothing -- which is what this script
+measures.
 
 This script quantifies what that choice costs, by re-cutting the stored
 per-model xHI(z) -- no regeneration -- and recomputing, for each variant,

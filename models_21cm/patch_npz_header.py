@@ -21,11 +21,9 @@ actually does:
   ``README.md``, "``Mc_III`` is sampled but has no effect").
 * ``provenance["selection"]["recommended"]``'s citation named only
   McGreer et al. 2015, which has since been superseded by Davies et al.
-  2025 (arXiv:2510.25829) -- with a *weaker* limit, so the adopted
-  threshold is conservative rather than wrong. The archived file should
-  carry the current constraint, not just the one the threshold was
-  originally picked against (see ``README.md``, "The z = 5.9 limit has
-  moved").
+  2025 (arXiv:2510.25829). The archived file should carry the current
+  constraint, not just the one the threshold was originally picked
+  against (see ``README.md``, "Provenance of the z = 5.9 anchor").
 
 This script is **re-runnable**: every change it makes is derived from the
 current source tree at patch time, so running it again re-applies all of
@@ -110,9 +108,8 @@ PATCH_NOTE = (
     "correctly; (5) provenance.selection.reference and provenance.citations "
     "updated to name Davies et al. 2025 (MNRAS 545, arXiv:2510.25829), "
     "which supersedes the McGreer et al. 2015 dark-pixel limit the "
-    "threshold was originally chosen against -- with a weaker limit, so "
-    "the adopted xHI cut is conservative; the cut itself and every stored "
-    "array are unchanged. Items 1-4 were applied in a first pass on "
+    "threshold was originally chosen against; the cut itself and every "
+    "stored array are unchanged. Items 1-4 were applied in a first pass on "
     "2026-08-19 and are re-applied here; patched_utc reflects the latest "
     "pass. See models_21cm/README.md and "
     ".superpowers/sdd/2026-08-19-zeus21-model-ensemble/final-fix-report.md."
@@ -189,9 +186,12 @@ def patch_header(old_header):
             "superseded by Davies et al. 2025 (MNRAS 545, "
             "arXiv:2510.25829): 34 E-XQR-30 spectra give a WEAKER limit, "
             "xHI <= 0.191 + 0.056 at z=5.831 from Lyb+Lyg. The adopted "
-            f"{sel.XHI_MAX} is therefore roughly half what current data "
-            "require -- conservative, and not load-bearing: see "
-            "models_21cm/README.md, 'Sensitivity to the threshold'"
+            f"{sel.XHI_MAX} is kept because it is not load-bearing -- "
+            "sweeping it, or substituting the Davies four-redshift "
+            "ladder, moves no reported number -- not because the newer "
+            "limit makes it conservative: see models_21cm/README.md, "
+            "'Provenance of the z = 5.9 anchor' and 'Sensitivity to the "
+            "threshold'"
         ),
     }
 

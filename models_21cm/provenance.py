@@ -33,8 +33,9 @@ CITATIONS = (
     "Munoz 2023a, arXiv:2302.08506 (Zeus21)",
     "Cruz et al. 2024, arXiv:2407.18294 (Pop III, LW, relative velocities)",
     "Davies et al. 2025, MNRAS 545, arXiv:2510.25829 (current dark-pixel "
-    "xHI limits the reionization cut is justified against; supersedes "
-    "McGreer+2015 with a weaker limit, so the adopted cut is conservative)",
+    "xHI limits; supersedes McGreer+2015, the constraint the cut's "
+    "threshold was originally chosen against. The threshold is kept "
+    "because it is not load-bearing, not because it is conservative)",
     "McGreer et al. 2015 (the dark-pixel xHI limit the cut's threshold was "
     "originally chosen against)",
     "Bosman et al. 2022, MNRAS 514, 55 (reionization ends by z = 5.3; "

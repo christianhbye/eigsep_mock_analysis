@@ -50,7 +50,36 @@ before 250 MHz; 27 of those 43 carry more than 1 mK of residual signal at
 250 MHz (worst case 4.76 mK) if the band-top check is skipped. Together,
 **1769/4096 (43.2%) survive.**
 
-### The z = 5.9 limit has moved, and `0.1` is now the conservative side
+### What the cut removes
+
+The 2327 dropped models are overwhelmingly *not* borderline. They are
+models that never reionize the universe at all within the simulated
+range:
+
+- **79.2% are more than half neutral at z = 5.9**, and 29.3% are more
+  than 90% neutral there.
+- **52.9% never reach xHI < 0.5 anywhere on the grid**, all the way down
+  to z = 4.65 (251 MHz), the bottom of the box.
+- 58.2% are still more than half neutral at z = 4.65. Only 23.1% get
+  below xHI = 0.1 by the bottom of the grid — reionizing late, but
+  completing.
+- Only **71 (3.1%)** sit anywhere near the threshold: in `[0.1, 0.25)` at
+  z = 5.9 while also passing the band-top limb.
+
+The driver is the ionizing budget. Dropped models have median
+`fesc10` = 0.024 and `epsstar` = 0.015, against 0.172 and 0.079 for the
+kept ones; no other sampled parameter separates the two populations. The
+priors (`priors.PARAMS`) span 2.5 decades in `fesc10` and 2 in `epsstar`
+with no requirement that the combination finish reionization, so more
+than half the Sobol cube simply doesn't. That is a prior-volume fact
+about a deliberately agnostic parameter space, not evidence about
+reionization.
+
+This is the real reason the threshold is not load-bearing: the cut is
+almost entirely separating *reionizes* from *never reionizes*, not
+adjudicating whether reionization ended at z = 6 or z = 5.4.
+
+### Provenance of the z = 5.9 anchor
 
 The threshold at the anchor redshift was chosen against McGreer et al.
 2015, `xHI ≤ 0.06 + 0.05` (1σ) at z = 5.9 from 6 quasar sightlines.
@@ -74,12 +103,30 @@ z > 6, while leaving room for an extended *soft landing* … down to
 z ∼ 5.4" — consistent with reionization ending by z = 5.3 (Bosman et al.
 2022).
 
-**The direction of the move matters more than the number.** The current
-limit is looser than the one this cut was built against, so `0.1` is now
-roughly half of what the data require: the cut errs toward excluding
-histories that are still allowed, never toward admitting ones that are
-ruled out. `0.1` is kept rather than relaxed because — see the next
-section — the threshold changes no reported statistic.
+`0.1` is kept, and is **not** defended as tracking the current
+constraint. Two things are worth stating precisely rather than appealing
+to the direction the limit moved:
+
+- **A single threshold at one redshift is not comparable to a
+  four-redshift ladder.** Davies+2025 is looser than `0.1` at the anchor,
+  but *tighter* at z = 5.481 (`0.030 + 0.048`), where this cut tests
+  nothing. Applied properly, as a conjunction over all four redshifts,
+  the current data keep **1750** models — *fewer* than the adopted cut's
+  1769. "Looser at the anchor" does not even fix the sign of the change
+  in the kept set.
+- **Being stricter than the data is not automatically conservative for
+  what the paper reports.** It does guarantee that no kept model is
+  observationally excluded, which is a statement about the kept set's
+  validity. It says nothing about the direction of bias in the
+  retained-signal statistic — and that bias runs the *other* way: the
+  models this cut drops but Davies+2025 would allow retain less signal,
+  so the cut raises the reported above-floor fraction by 0.6 points (see
+  "One honest asymmetry" below).
+
+What justifies keeping `0.1` is therefore not its direction but its
+irrelevance: every variant the current data admit — the Davies+2025
+ladder included — leaves every reported number where it is. See
+"Sensitivity to the threshold".
 
 **The band-top limb is untouched by this**, and if anything better
 supported: reionization finishing near z ≈ 5.3–5.4 sits comfortably above

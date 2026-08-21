@@ -40,13 +40,16 @@ instrument paper. Not a package; a self-contained generator, like
   directory), once, so the figure and the statistics cannot disagree.
 - The cut has **two parts**, both required: `xHI(z=5.9) < 0.1` (the
   dark-pixel reference redshift) AND `xHI(z=4.6816) < 0.01` (the band's
-  top edge, `z(250 MHz)`). The `0.1` was chosen against McGreer+2015 but
-  is justified against **Davies et al. 2025** (arXiv:2510.25829), which
-  supersedes it with a *weaker* limit — so `0.1` is now the conservative
-  side, and the threshold is not load-bearing (`README.md`,
-  "Sensitivity to the threshold";
-  `horizon_position/reionization_sensitivity.py` regenerates that
-  table). The second part exists because Zeus21's Q-based
+  top edge, `z(250 MHz)`). The `0.1` was chosen against McGreer+2015,
+  since superseded by **Davies et al. 2025** (arXiv:2510.25829). It is
+  kept because it is **not load-bearing**, *not* because the newer limit
+  makes it conservative — that reading does not survive the numbers: the
+  Davies ladder is looser at the anchor but tighter at z = 5.481 and
+  keeps *fewer* models (1750 vs 1769), and the models this cut drops
+  retain *less* signal, so it nudges the reported fraction up rather than
+  down (`README.md`, "Provenance of the z = 5.9 anchor" and "Sensitivity
+  to the threshold"; `horizon_position/reionization_sensitivity.py`
+  regenerates that table). The second part exists because Zeus21's Q-based
   reionization ODE can re-neutralize at very low escape fractions
   (recombination outruns the ionizing supply) — a real model limitation,
   not a numerical artifact, confirmed by re-running offenders at three
