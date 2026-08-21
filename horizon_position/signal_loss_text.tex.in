@@ -1,0 +1,299 @@
+% signal_loss_text.tex -- GENERATED, do not edit by hand.
+%
+% Draft replacement text for the 21 cm signal-loss result. Regenerate with
+%     uv run python horizon_position/make_paper_signal_loss_figure.py
+% in the mock_analysis repo; every number in blocks 1, 2, 4, 5 and 6 below is
+% computed at generation time from the arrays the figures are drawn from,
+% so re-running after the 21 cm ensemble changes updates the prose and the
+% figures together and they cannot drift apart. Block 3 is the exception and
+% says so.
+%
+% Framing to preserve if these are edited: neither figure is a proposed
+% analysis. Both project onto eigenmodes of a *simulated* nominal instrument,
+% and block 5 gives the reason that matters -- an unmodelled 1 m displacement
+% puts signal-like power in the first mode past the filter. Nothing here may
+% be phrased so as to license reading a residual excess as a detection.
+%
+% Paste the six blocks into rasti_template.tex as marked. Nothing here is
+% \input by the paper -- this file is a staging area, not a dependency, and
+% nothing in this repo writes to the paper .tex itself.
+%
+% NOTE: signal_loss.pdf is @@FIGW@@in wide and must go in a `figure*'
+% (double-column) environment, not the `figure' that foreground_svd_residual
+% .pdf used -- at \linewidth in a single rasti column its tick labels render
+% at roughly 3pt.
+
+
+% ===================================================================
+% BLOCK 1 -- section "Minimising Covariance with the 21-cm Signal".
+% Replaces the sentence beginning "We emphasise that this analysis only
+% quantifies the spectral complexity ...".
+% ===================================================================
+
+This analysis quantifies the spectral complexity of the beam-weighted
+foregrounds; on its own it says nothing about whether the cosmological signal
+survives the same filter. We therefore passed an ensemble of @@NMODELS@@ global
+21-cm models through the identical projection, so that the retained signal and
+the foreground residual are read off the same axes
+(Fig.~\ref{fig:singular_values}). We adopt $N=@@NA@@$ filtered modes as a
+reference operating point: it is the smallest $N$ at which the foreground
+residual (@@FG@@\,mK) falls below the median retained signal and stays below it
+for every larger $N$; at $N=@@NAM1@@$ the residual is @@FGM1@@\,mK against a
+median retained signal of @@MEDM1@@\,mK. At the reference point the median
+model retains @@KEEPPCT@@ per cent of its band RMS, or @@MED@@\,mK, and
+@@ABOVE@@ per cent of the ensemble retains more than the foreground residual.
+Retention correlates with signal amplitude but is not determined by it
+(Spearman @@RHODEPTH@@ against trough depth): of the @@N150@@ models with an
+absorption trough of 140--160\,mK, the retained RMS has a median of
+@@RET150@@\,mK but an interquartile range of @@RET150LO@@--@@RET150HI@@\,mK.
+What separates them at matched depth is trough width, narrower troughs
+retaining the larger fraction (Spearman @@RHOWIDTH@@ between width and
+retained fraction), since a broad trough is the more nearly foreground-like
+shape.
+
+This operating point is set by the foregrounds alone, which is all that
+Fig.~\ref{fig:singular_values} is asked to establish. Instrumental systematics
+are folded in later and can only raise it. The 1\,m antenna displacement of
+section~\ref{subsec:fwd_modelling} is one such term: its worst-case residual is
+@@SYSNA@@\,mK at $N=@@NA@@$, comparable to the median retained signal there,
+and one further mode brings it to @@SYSNP1@@\,mK against @@MEDNP1@@\,mK
+retained (Fig.~\ref{fig:horizon_shift}). We report such crossings under a
+`stays below' rule -- the smallest $N$ beyond which the floor never rises above
+the median again -- because both quantities fall with $N$ and cross more than
+once, so a first-crossing count would be optimistic. We stress that $N$ is used
+here to characterise spectral overlap, and not as a filter depth we propose to
+apply to data and then interpret the residual of: an unmodelled displacement
+leaves signal-like power in precisely the first mode such a filter would keep,
+as section~\ref{subsec:fwd_modelling} sets out.
+
+Retained RMS understates what such a filter leaves measurable. The projection
+discards the components of a signal that lie along the foreground modes and
+keeps the orthogonal complement, so the relevant question is not how much
+amplitude survives but which models remain distinguishable within the subspace
+that does. Restricting to the @@NDEEP@@ ensemble members with absorption
+troughs deeper than 50\,mK and scoring over 70--130\,MHz, the median separation
+between a pair of models falls from @@SEP0@@\,mK to @@SEP1@@\,mK under the
+filter, yet @@PAIR1@@ per cent of pairs remain separated by more than 1\,mK and
+@@PAIR2@@ per cent by more than 2\,mK. A measurement in the filtered subspace
+therefore constrains the signal to a family of models differing by components
+that lie along the foreground modes, rather than collapsing the ensemble to an
+indistinguishable residual.
+
+These figures are a floor rather than a forecast. The filter used here is
+maximally agnostic: its modes are estimated from the antenna temperature
+itself, and no knowledge of the beam or the sky enters. EDGES
+\citep{2025PASP..137l5002C} and MIST \citep{2024MNRAS.530.4125M} instead divide
+out a simulated beam chromaticity correction before fitting, and REACH
+\citep{2022JAI....1150001C} marginalises over a parametrised beam within its
+forward model. EIGSEP is designed to do likewise, using the beam measurements
+of section~\ref{subsec:beam_mapping} and the forward model of
+section~\ref{subsec:fwd_modelling}; every mode of chromaticity that is modelled
+rather than filtered is one fewer mode removed from the signal. Filtering is
+also a hard projection, whereas a joint fit for the signal and the foregrounds
+recovers part of what a projection discards, and the rotational degrees of
+freedom described below provide further leverage that a per-spectrum filter
+cannot use. Finally, the calculation uses a single simulated sky and beam and
+contains no noise, so it describes spectral subspace overlap and not
+sensitivity; whether a retained amplitude is detectable is set by the thermal
+noise and integration time, which we do not model here.
+Fig.~\ref{fig:singular_values} should accordingly not be read as a requirement
+that EIGSEP calibrate at the millikelvin level to detect a typical signal. It
+is the residual left by the most conservative foreground filter available, and
+it sets the scale of the improvement that beam knowledge and joint fitting are
+required to deliver.
+
+
+% ===================================================================
+% BLOCK 2 -- caption for signal_loss.pdf, replacing the
+% foreground_svd_residual.pdf caption. Keep \label{fig:singular_values}:
+% the horizon_shift caption already refers to it. Use figure*, not figure.
+% ===================================================================
+
+\caption{Signal loss under foreground-mode filtering. An ensemble of
+@@NMODELS@@ global 21-cm models is passed through the same projection onto the
+leading $N$ eigenmodes of the simulated antenna temperature that is applied to
+the foregrounds. Panels (a1) and (a2) show a random subsample of the ensemble
+before and after filtering $N=@@NA@@$ modes, each coloured by the band RMS it
+retains at that operating point; the colour scale is logarithmic and shared
+with panel (b), so a curve's colour and its height in (b) agree. Curve opacity
+also rises with retained RMS, so that the sparse high-retention tail is
+visible; it is a small minority, @@TAIL10@@ per cent of models above 10\,mK.
+Panel (b) shows retained RMS against the number of modes filtered for every
+model, with the foreground residual in black. At $N=@@NA@@$ the foreground
+residual is @@FG@@\,mK while the median model retains @@MED@@\,mK, or
+@@KEEPPCT@@ per cent of its band RMS, and @@ABOVE@@ per cent of the ensemble
+retains more than the foreground residual. The structure surviving in (a2) is
+ringing from projecting onto a truncated smooth basis rather than a residual
+absorption trough, so retained RMS should not be read as retained signal shape.
+This filter uses no knowledge of the beam or the sky and is therefore the most
+conservative case; instrumental systematics are folded in at
+Fig.~\ref{fig:horizon_shift}. See the text.}
+
+
+% ===================================================================
+% BLOCK 3 -- section "Minimising Covariance", rotation paragraph.
+% Insert after "... we aim to use both to improve constraints."
+%
+% These numbers are NOT computed by this script. They come from a probe run
+% on horizon_chromaticity/output/chromaticity_eigsep.npz (t_sys, 1296 ori x
+% 1436 LST x 201 freq) on 2026-08-19, which is not checked in. Re-derive from
+% that cube if the ensemble or the beam changes.
+%
+% Read the "16 versus 10" carefully: both are matched-residual counts at a
+% 0.6 mK foreground residual, NOT operating points. The zenith figure happens
+% to be 10 because that is where the zenith residual reaches 0.6 mK; the
+% operating point in block 1 is N = @@NA@@, where the residual is @@FG@@ mK.
+% Do not let a reader conflate the two.
+% ===================================================================
+
+Rotation adds spectral diversity to the data, and it is worth asking what that
+diversity costs in model complexity. Repeating the eigenmode analysis over the
+full drive grid of 1296 pointings (36 elevations $\times$ 36 azimuths) rather
+than the zenith pointing alone, the pooled antenna temperature reaches a
+foreground residual of 0.6\,mK with 16 modes, against 10 for the zenith
+pointing at the same residual. The foregrounds seen across every accessible
+orientation therefore occupy a subspace only marginally larger than that of a
+single pointing. Realising the benefit of that diversity requires a joint fit
+in which the sky and the beam are shared parameters and the rotations are
+known; a per-spectrum projection of the kind used in
+Fig.~\ref{fig:singular_values} cannot exploit it, because the information lies
+in the correlation between pointings rather than within any one spectrum, and
+pooling the pointings into the projection basis only enlarges the subspace
+being removed. We defer this analysis to future work.
+
+
+% ===================================================================
+% BLOCK 4 -- caption for horizon_shift.pdf, replacing the existing one.
+% Keep \label{fig:horizon_shift} and the figure* environment.
+%
+% The caption being replaced describes a figure that no longer exists: it
+% promises a "dashed red line" at 10 mK, which was swapped for the retained
+% 21 cm band, and counts crossings as "within six modes", which was a
+% first-crossing count. Under the stays-below rule used throughout, the
+% per-axis answers are @@CLEAR_E@@ (east), @@CLEAR_N@@ (north) and
+% @@CLEAR_U@@ (up).
+% ===================================================================
+
+\caption{Change in the simulated antenna temperature,
+$\Delta T_{\text{ant}}$, when the suspended antenna is displaced to the east
+(left column), north (middle column), and up (right column). The displacement
+shifts the local horizon, shown in Fig.~\ref{fig:horizon}(b), thereby changing
+the fraction of sky occulted by the canyon walls and hence $T_{\text{ant}}$.
+\emph{Top row:} the difference spectra for a $+@@TOPMAG@@$\,m displacement,
+one curve per sidereal hour (@@NLST@@ in total), coloured by LST as indicated
+by the colour bar. \emph{Bottom row:} the RMS over frequency of those spectra
+after filtering the leading $N$ eigenmodes of the unperturbed antenna
+temperature -- the same modes as Fig.~\ref{fig:singular_values} -- for
+displacements of @@MAGLO@@, @@TOPMAG@@ and @@MAGHI@@\,m, coloured light to
+dark by magnitude, with all @@NLST@@ LSTs drawn for each. The colour encodings
+of the two rows are therefore different: LST above, displacement below, since
+after filtering the LSTs collapse into a single bundle. Grey shows the 21 cm
+signal retained under the identical projection (5--95 per cent of the model
+ensemble of Fig.~\ref{fig:singular_values}, median dashed), which is the
+benchmark the systematic is read against; $N=@@NA@@$ is the operating point
+adopted there.
+
+The displacements are large in amplitude -- up to @@MAXDT@@\,K at 50\,MHz for
+the $+@@TOPMAG@@$\,m upward shift -- but foreground-like, with @@LEADPCT@@ per
+cent of that power in the two leading foreground modes, so the same low-order
+filtering that removes the sky removes almost all of them. What survives is
+narrow rather than smooth: after @@NA@@ modes, @@SPIKEPCT@@ per cent of the
+upward displacement's remaining power sits in mode @@SPIKE@@ alone, at
+@@SPIKESYS@@\,mK, above that mode's nominal foreground content
+(@@SPIKEFG@@\,mK) and above the median model's 21 cm content there
+(@@SPIKE21@@\,mK). Reading the bottom row down the magnitude sequence gives
+the position requirement directly: for the upward displacement, the smallest
+$N$ beyond which the worst-LST residual stays below the median retained signal
+is @@CLEARUPLO@@ modes at @@MAGLO@@\,m, @@CLEARUPMID@@ at @@TOPMAG@@\,m --- one
+past the operating point --- and @@CLEARUPHI@@ at @@MAGHI@@\,m. We do not
+treat this filter as an analysis that could be run on data and its residual
+attributed to cosmology; see the text.}
+
+
+% ===================================================================
+% BLOCK 5 -- section "Forward Modelling", after the existing discussion of
+% the horizon_shift results ("... Motion up or down produces the largest
+% change in antenna temperature ...").
+%
+% This is the paragraph that keeps the two figures from being read as a
+% proposed pipeline. Both of them project onto eigenmodes of a *simulated*
+% nominal instrument; neither is the analysis EIGSEP intends to run, and the
+% numbers below are the reason why.
+% ===================================================================
+
+Two things follow from Fig.~\ref{fig:horizon_shift}, and they pull in opposite
+directions. The reassuring one is that a position error does not introduce a
+new class of spectral structure. The induced $\Delta T_{\text{ant}}$ is large
+in amplitude, but @@LEADPCT@@ per cent of its power lies in the two leading
+eigenmodes of the unperturbed antenna temperature: it is, to that accuracy,
+more foreground. Low-order filtering of the kind that motivates the EIGSEP
+design in section~\ref{subsec:covariance} therefore removes almost all of it,
+and the eastward and northward displacements fall below the median retained
+21 cm signal after @@CLEAR_E@@ and @@CLEAR_N@@ modes respectively.
+
+The cautionary one concerns what is left. Filtering @@NA@@ modes -- the
+operating point Fig.~\ref{fig:singular_values} adopts from the foregrounds
+alone -- leaves the upward displacement with @@SYSNA@@\,mK, of which
+@@SPIKEPCT@@ per cent is concentrated in a single mode, mode @@SPIKE@@. That
+one mode carries more power from a 1\,m displacement (@@SPIKESYS@@\,mK) than
+it does from the nominal foregrounds (@@SPIKEFG@@\,mK) or from the median
+21 cm model (@@SPIKE21@@\,mK); @@SPIKEBELOW@@ per cent of the ensemble has
+less signal in that mode than a 1\,m shift would put there, and the leftover
+resembles the retained signal in shape closely enough to be confused with it
+(cosine similarity up to @@COSMAX@@, median @@COSMED@@).
+
+The vertical response scales predictably, which turns this into a
+specification. Over the two decades simulated, @@MAGLO@@ to @@MAGHI@@\,m, the
+residual left at $N=@@NA@@$ by an upward displacement is proportional to that
+displacement to within @@UPDEV@@ per cent per decade and symmetric in its sign,
+because a vertical shift lowers the horizon by a near-uniform offset
+(Fig.~\ref{fig:horizon}b); this is the parallel spacing of the three magnitude
+bundles in Fig.~\ref{fig:horizon_shift}. Holding the injected power to a tenth
+of the median
+retained signal therefore requires the antenna's vertical position to be known
+to roughly @@SPECM@@\,m, and we adopt that as the position-monitoring
+requirement. The horizontal responses are neither linear nor symmetric --- a
+horizontal shift changes the horizon by an amount that depends on where the
+cliff edges fall in azimuth, which is why those curves in
+Fig.~\ref{fig:horizon}(b) are spiky, and why the east and north bundles in
+Fig.~\ref{fig:horizon_shift} are not evenly spaced --- but they are also the
+smaller terms, and the vertical axis sets the requirement.
+
+The wider point is methodological. An unmodelled displacement of the size we
+must anticipate deposits power that is signal-like in both amplitude and
+shape, at exactly the mode boundary where filtering stops. A residual left by
+a filter of fixed depth is therefore not evidence of a cosmological signal:
+excess with respect to a foreground model is only as trustworthy as the
+instrument model behind it, a lesson the field has already drawn from the
+scrutiny of published detections
+\citep{2018Natur.564E..32H, 2019ApJ...874..153B, 2019ApJ...880...26S}.
+Figs.~\ref{fig:singular_values} and~\ref{fig:horizon_shift} should accordingly
+be read as characterisations of spectral structure -- how many modes the
+instrument-weighted foregrounds occupy, and how a position error compares with
+the signal within that basis -- and not as a proposed pipeline. EIGSEP's
+analysis instead forward-models the instrument (this section), with the
+antenna position among the parameters that are fitted and marginalised over
+rather than assumed. The differentiable forward model makes that
+marginalisation tractable, and the position sensitivities computed here are
+what set the priors it needs.
+
+
+% ===================================================================
+% BLOCK 6 -- section "Forward Modelling". Replaces the sentence beginning
+% "To quantify the effect of the horizon coupling, we computed the change in
+% antenna temperature ... by 1 m to the east, north, and up ...".
+%
+% Needed because Fig.~\ref{fig:horizon_shift}'s residual row now shows three
+% displacement magnitudes, and only 1 m was previously introduced. No new
+% simulations: run_sims.py has always produced +/-0.1, 1 and 10 m for each
+% axis (see positions.py), and the other magnitudes were simply unplotted.
+% ===================================================================
+
+To quantify the effect of the horizon coupling, we computed the change in
+antenna temperature, $\Delta T_{\text{ant}}(\nu)$, caused by displacing the
+antenna to the east, north, and up, relative to the nominal position used for
+the horizon profile of Fig.~\ref{fig:horizon}. Each axis was displaced by
+@@MAGLO@@, @@TOPMAG@@ and @@MAGHI@@\,m, spanning the range from a
+displacement we expect to be able to monitor to one large enough to be
+obviously unacceptable, so that the dependence on displacement can be read
+off rather than inferred from a single case.
