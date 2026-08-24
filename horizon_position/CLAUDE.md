@@ -95,6 +95,19 @@ in-notebook rather than importing it.
   foreground floor drops below the median retained 21 cm signal **and stays
   below** for every larger N. A first-crossing rule gives a different,
   over-optimistic answer — both curves cross more than once.
+- **Neither figure draws anything at `N_ANCHOR`.** It is the dimension the
+  *prose* quotes millikelvin numbers at, and the common dimension at which
+  `horizon_shift` compares the position systematic against the 21 cm
+  ensemble. `signal_loss.pdf` deliberately marks no dimension: a labelled N
+  in the figure reads as an adopted operating point, which is the misreading
+  the referee already made of the old 10 mK residual. Do not add a vertical
+  line, a colour scale keyed to one N, or a frequency-space panel drawn at
+  one — that is what the single-panel version exists to avoid.
+- The 21 cm ensemble is a grey (`C_21 = "0.40"`) 5–95 band with a dashed
+  median in **both** figures. Keep them identical; the reader learns the
+  artist in `signal_loss.pdf` and reads it again in `horizon_shift.pdf`.
+- `signal_loss.pdf` is single-column (3.4 in) and belongs in a `figure`, not
+  the `figure*` its three-panel predecessor needed.
 - Do not use `plt.rc_context` in a figure cell. It restores the `backend`
   rcParam on exit, which resets the inline backend's post-execute hook and
   silently stops every *later* cell from displaying its figure. Set font

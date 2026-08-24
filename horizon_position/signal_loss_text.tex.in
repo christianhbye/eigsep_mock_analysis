@@ -14,12 +14,19 @@
 % deliberately geometric -- subspace, orthogonal complement, outside N modes --
 % and NOT procedural (filter, remove, survive). That is what keeps a reader
 % from taking either figure for a pipeline, and it is why no caption carries a
-% disclaimer any more: the words no longer need one. The axis labels are
-% "Foreground subspace dimension N" and "RMS outside subspace", so no caption
-% may say "filtered" -- it would contradict the figure it sits under. Body
-% prose still says "retained signal" where that is the clearer noun; what it
-% must not do is describe N as a depth anyone applies to data, or phrase
+% disclaimer any more: the words no longer need one. Both figures label the
+% x-axis "Foreground subspace dimension N"; the y-axis is "RMS outside the
+% leading N modes" in signal_loss.pdf, which is where the reader first meets
+% these axes, and the short "RMS outside subspace" in horizon_shift.pdf. No
+% caption may say "filtered" -- it would contradict the figure it sits under.
+% Body prose still says "retained signal" where that is the clearer noun; what
+% it must not do is describe N as a depth anyone applies to data, or phrase
 % anything so as to license reading a residual excess as a detection.
+%
+% signal_loss.pdf marks NO dimension: no vertical line at N = NA, no colour
+% scale keyed to it, no frequency-space panel drawn at it. That is deliberate
+% -- see block 2's header. Blocks 1 and 5 still quote numbers at N = NA, but a
+% caption or sentence must never imply the figure singles that dimension out.
 %
 % Mode counts are near-useless here and blocks 1, 4 and 5 avoid quoting them as
 % results: at N = NA the vertical systematic and the median retained signal are
@@ -33,10 +40,11 @@
 % \input by the paper -- this file is a staging area, not a dependency, and
 % nothing in this repo writes to the paper .tex itself.
 %
-% NOTE: signal_loss.pdf is @@FIGW@@in wide and must go in a `figure*'
-% (double-column) environment, not the `figure' that foreground_svd_residual
-% .pdf used -- at \linewidth in a single rasti column its tick labels render
-% at roughly 3pt.
+% NOTE: signal_loss.pdf is @@FIGW@@in wide and goes in the ordinary `figure'
+% (single-column) environment that foreground_svd_residual.pdf already used,
+% at \columnwidth. The earlier three-panel version of this figure was @@FIGWOLD@@in
+% and needed `figure*'; this one does not, and block 2's caption is sized for
+% a single column accordingly.
 
 
 % ===================================================================
@@ -51,15 +59,17 @@ survives the same filter. We therefore passed an ensemble of @@NMODELS@@ global
 21-cm models through the identical projection, so that the retained signal and
 the foreground residual are read off the same axes
 (Fig.~\ref{fig:singular_values}). Quantities below are quoted at
-$N=@@NA@@$, the dimension that figure illustrates at: it is the smallest $N$ at
-which the foreground residual (@@FG@@\,mK) falls below the median retained
-signal and stays below it for every larger $N$; at $N=@@NAM1@@$ the residual is
-@@FGM1@@\,mK against a median retained signal of @@MEDM1@@\,mK. We stress that
-this is a depth at which to read the two curves, not a filter depth we propose
-to apply to data --- section~\ref{subsec:fwd_modelling} shows that it is also,
-to within a mode, where an unmodelled instrumental term overtakes the sky as
-the quantity that limits the residual, which is what makes it a landmark rather
-than an arbitrary choice. At that dimension the median
+$N=@@NA@@$, the smallest $N$ at which the foreground residual (@@FG@@\,mK)
+falls below the median retained signal and stays below it for every larger
+$N$; at $N=@@NAM1@@$ the residual is @@FGM1@@\,mK against a median retained
+signal of @@MEDM1@@\,mK, so at the dimension our earlier statement quoted the
+foregrounds are still the larger term. We stress that $N=@@NA@@$ is a
+dimension at which to read the two curves, not a filter depth we propose to
+apply to data; the figure accordingly marks no dimension at all, and plots the
+two quantities over the whole range. Section~\ref{subsec:fwd_modelling} shows
+that it is also, to within a mode, where an unmodelled instrumental term
+overtakes the sky as the quantity that limits the residual, which is what makes
+it a landmark rather than an arbitrary choice. At that dimension the median
 model retains @@KEEPPCT@@ per cent of its band RMS, or @@MED@@\,mK, and
 @@ABOVE@@ per cent of the ensemble retains more than the foreground residual.
 Retention correlates with signal amplitude but is not determined by it
@@ -131,26 +141,41 @@ required to deliver.
 % ===================================================================
 % BLOCK 2 -- caption for signal_loss.pdf, replacing the
 % foreground_svd_residual.pdf caption. Keep \label{fig:singular_values}:
-% the horizon_shift caption already refers to it. Use figure*, not figure.
+% the horizon_shift caption already refers to it. Single-column `figure',
+% the same environment foreground_svd_residual.pdf used.
+%
+% The figure is one panel and marks no dimension, so this caption must not
+% describe panels, colours, or a distinguished N. It replaced a three-panel
+% colour-coded version deliberately: the referee read the old 10 mK residual
+% as a sensitivity claim, and a labelled N = NA in the figure invites the same
+% misreading with no caption able to undo it.
+%
+% Two sentences here are load-bearing and must survive editing:
+%   - that the N = NAM1 residual is ABOVE the median retained signal. This is
+%     what retires the manuscript's old "eight modes reach 10 mK" claim, and
+%     the figure no longer carries a 10 mK line to make the point visually.
+%   - that retained RMS is not retained signal SHAPE. The frequency-space
+%     panel that used to show this is gone, so the words now carry it alone.
 % ===================================================================
 
-\caption{How much of the 21-cm signal lies outside the foreground subspace. An
-ensemble of @@NMODELS@@ global 21-cm models is decomposed on the same leading
-$N$ eigenmodes of the simulated antenna temperature as the foregrounds are.
-Panels (a1) and (a2) show a random subsample of the ensemble in full, and with
-the part accounted for by the leading @@NA@@ modes taken out; each curve is
-coloured by the band RMS it has left there, on a logarithmic scale shared with
-panel (b), so a curve's colour and its height in (b) agree. Opacity rises with
-the same quantity, so the sparse high-retention tail stays visible; it is a
-small minority, @@TAIL10@@ per cent of models above 10\,mK. Panel (b) shows
-that RMS against subspace dimension for every model, with the foregrounds in
-black. At $N=@@NA@@$ the foregrounds leave @@FG@@\,mK and the median model
-@@MED@@\,mK, or @@KEEPPCT@@ per cent of its band RMS; @@ABOVE@@ per cent of the
-ensemble leaves more than the foregrounds do. The structure in (a2) is ringing
-from a truncated smooth basis rather than a residual absorption trough, so this
-RMS should not be read as a recovered signal shape. The decomposition uses no
-knowledge of the beam or the sky and is in that sense the most conservative
-case; instrumental terms enter at Fig.~\ref{fig:horizon_shift}. See the text.}
+\caption{How much of the 21-cm signal lies outside the foreground subspace.
+Black: the RMS of the simulated antenna temperature left outside its own
+leading $N$ spectral eigenmodes, the quantity previously plotted alone. Grey:
+an ensemble of @@NMODELS@@ global 21-cm models decomposed on those identical
+modes (5--95 per cent of the ensemble shaded, median dashed), so that the
+signal and the foregrounds are read off the same axes. The two cross at
+$N=@@NA@@$, where the foregrounds leave @@FG@@\,mK against a median retained
+signal of @@MED@@\,mK, or @@KEEPPCT@@ per cent of its band RMS, and @@ABOVE@@
+per cent of the ensemble leaves more than the foregrounds do; at
+$N=@@NAM1@@$ the foreground residual is still the larger of the two
+(@@FGM1@@ against @@MEDM1@@\,mK). What lies outside the subspace is largely
+ringing from a truncated smooth basis rather than a residual absorption
+trough, so this RMS measures retained amplitude and not a recovered signal
+shape; the text quantifies how far the ensemble stays distinguishable. The
+decomposition uses no knowledge of the beam or the sky and is in that sense the
+most conservative case; instrumental terms enter at
+Fig.~\ref{fig:horizon_shift}, which draws the same grey ensemble on the same
+axes. See the text.}
 
 
 % ===================================================================
@@ -165,7 +190,7 @@ case; instrumental terms enter at Fig.~\ref{fig:horizon_shift}. See the text.}
 % Read the "16 versus 10" carefully: both are matched-residual counts at a
 % 0.6 mK foreground residual, NOT filter depths. The zenith figure happens
 % to be 10 because that is where the zenith residual reaches 0.6 mK; the
-% dimension blocks 1 and 4 illustrate at is N = @@NA@@, where the residual
+% dimension blocks 1 and 4 quote at is N = @@NA@@, where the residual
 % is @@FG@@ mK.
 % Do not let a reader conflate the two.
 % ===================================================================
@@ -214,10 +239,12 @@ antenna temperature -- the same modes as Fig.~\ref{fig:singular_values} -- for
 displacements of @@MAGLO@@, @@TOPMAG@@ and @@MAGHI@@\,m, coloured light to dark
 by magnitude, with all @@NLST@@ LSTs drawn for each. Grey shows the 21-cm
 ensemble of Fig.~\ref{fig:singular_values} in the same orthogonal complement
-(5--95 per cent, median dashed), which sets the scale these millikelvin numbers
-are read against. A @@TOPMAG@@\,m displacement changes $T_{\text{ant}}$ by up
-to @@MAXDT@@\,K; outside the @@NA@@-dimensional foreground subspace
-illustrated in Fig.~\ref{fig:singular_values} it leaves at most @@SYSU@@\,mK
+(5--95 per cent, median dashed) --- the same band, on the same axes, as in
+that figure --- which sets the scale these millikelvin numbers are read
+against. A @@TOPMAG@@\,m displacement changes $T_{\text{ant}}$ by up
+to @@MAXDT@@\,K; outside a @@NA@@-dimensional foreground subspace, the
+dimension at which Fig.~\ref{fig:singular_values} is read, it leaves at most
+@@SYSU@@\,mK
 for the vertical
 shift, @@SYSE@@\,mK east and @@SYSN@@\,mK north, against @@MED@@\,mK for the
 median 21-cm model.}

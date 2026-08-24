@@ -55,11 +55,13 @@ repo's committed npz + standalone notebook + PDF.
   (`horizon_perturbations_1col.pdf`) and the antenna-position systematic
   (`horizon_shift.pdf`): loads the simulation output and the Zeus21
   ensemble, computes `dT_ant`, builds the foreground eigenbasis, and
-  re-derives the operating point `N_ANCHOR`.
+  re-derives `N_ANCHOR`.
 - `notebooks/signal_loss.ipynb` — Fig. 1 (`signal_loss.pdf`) and the
   draft prose (`signal_loss_text.tex`): pushes the 21 cm ensemble through
   the identical projection and reads the retained signal off the same
-  axes as the foreground residual.
+  axes as the foreground residual. One single-column panel, two curves,
+  no dimension marked — `N_ANCHOR` is where the *prose* quotes numbers,
+  not something either figure draws.
 
 Run `horizon_shift` first — `signal_loss` reads the `Vh` it publishes.
 
