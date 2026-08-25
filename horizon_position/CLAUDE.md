@@ -55,8 +55,6 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 - `signal_loss_text.tex.in` — LaTeX template for the draft prose.
 - `reionization_sensitivity.py` — one-off audit of `models_21cm`'s
   reionization threshold; settled, not part of the figure pipeline.
-- `rotation_dimensionality.py` — mode count over the full drive grid vs
-  zenith; a by-product, not a figure.
 
 ## The notebooks are the only figure producers
 

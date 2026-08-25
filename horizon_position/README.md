@@ -100,6 +100,3 @@ byte-identical to the version that produced the PDF.
   substitutes into `signal_loss_text.tex`. Edit the prose here.
 - `reionization_sensitivity.py` — one-off audit of how much
   `models_21cm`'s reionization threshold moves the reported numbers.
-- `rotation_dimensionality.py` — how many spectral modes the foregrounds
-  need across the whole 36 x 36 drive grid, versus the zenith pointing
-  alone. Reads `../horizon_chromaticity/output/chromaticity_eigsep.npz`.

@@ -3,17 +3,18 @@
 % Draft replacement text for the 21-cm signal-loss result. Regenerate by
 % running horizon_position/notebooks/signal_loss.ipynb in the mock_analysis
 % repo; it is generated from the template signal_loss_text.tex.in by
-% substituting its placeholders. Every number in blocks 1, 2, 4, 5 and 6 is
-% computed at generation time from the arrays the figures are drawn from,
-% so re-running after the 21-cm ensemble changes updates the prose and the
-% figures together and they cannot drift apart. Block 3 is the exception and
-% says so.
+% substituting its placeholders. EVERY number in it is computed at generation
+% time from the arrays the figures are drawn from, so re-running after the
+% 21-cm ensemble changes updates the prose and the figures together and they
+% cannot drift apart. Keep it that way -- the one block that quoted
+% hand-entered numbers (the rotation paragraph, removed 2026-08-25) was also
+% the one whose numbers went stale.
 %
 % Framing to preserve if these are edited. State the result; do not spend the
 % prose on what the analysis is not. Block 1 is the model for this: filter,
 % foregrounds, signal, what is left, caveats last and once. The caveats belong
 % in one place each -- block 1's closing paragraph for the agnostic-filter
-% floor, block 5 for "a fixed-depth residual is not a detection" -- and should
+% floor, block 4 for "a fixed-depth residual is not a detection" -- and should
 % not be sprinkled through the rest.
 %
 % The vocabulary is the manuscript's own: the section has always described
@@ -21,7 +22,7 @@
 % "Foreground modes filtered" and "Residual RMS [K]", so prose, captions and
 % axes say the same thing. Block 1 defines $N$ as the number of modes filtered
 % and every later block uses that notation. Where the geometry is the argument
-% rather than the vocabulary -- the own-basis floors of block 5 -- the words
+% rather than the vocabulary -- the own-basis floors of block 4 -- the words
 % "basis" and "subspace" are load-bearing and should stay.
 %
 % The 10 mK framing is deliberately gone. The manuscript used to say "to filter
@@ -33,7 +34,7 @@
 %
 % signal_loss.pdf marks NO depth: no vertical line at $N$ = NA, no colour
 % scale keyed to it, no frequency-space panel drawn at it. That is deliberate
-% -- see block 2's header. Blocks 1 and 5 still quote numbers at $N$ = NA, but a
+% -- see block 2's header. Blocks 1 and 4 still quote numbers at $N$ = NA, but a
 % caption or sentence must never imply the figure singles that depth out.
 %
 % Two crossings, only one of which is robust. Block 1's headline -- that past
@@ -43,12 +44,27 @@
 % ~1.7 apart there, so it holds. The SYSTEMATIC-vs-signal crossing does not:
 % at N = NA the vertical position error and the median retained signal are
 % equal to within a per cent, so it lands at NA or NA+1 depending on whether
-% the systematic is a worst case over LST or an average. Blocks 4 and 5
+% the systematic is a worst case over LST or an average. Blocks 3 and 4
 % therefore quote the FLOOR a position error induces rather than a mode count,
-% which block 5 justifies -- a displaced sky is no harder to compress in its
+% which block 4 justifies -- a displaced sky is no harder to compress in its
 % own basis, so the excess is basis mismatch, not spectral complexity.
 %
-% Paste the six blocks into rasti_template.tex as marked. Nothing here is
+% ROTATIONS. There was a sixth block, a paragraph quantifying what the drive
+% grid costs in model complexity; it was removed on 2026-08-25 because it
+% introduced a complication only to argue against it and defer it. Nothing in
+% the manuscript overclaims without it -- the mechanism (the monopole is
+% constant, the foregrounds modulate) is sound and every statement is hedged
+% with "we aim to". But the section before \subsection{Forward Modelling} used
+% to say "project out spatial foreground modes by rotating the antenna" and
+% "use this modulation to remove foregrounds", which borrows the verbs this
+% file uses for the eigenmode filter. Folding rotations into that filter's
+% basis is the one thing we have actually tested, and it costs modes (14 for
+% the pooled 36x36 grid against 9 at zenith, for the same residual) and hurts
+% 21-cm retention. Those sentences now read "separate" and "constrain", which
+% keeps the aspiration clear of an operation our own probe found does not
+% help. Do not put "project out" or "remove" back.
+%
+% Paste the five blocks into rasti_template.tex as marked. Nothing here is
 % \input by the paper -- this file is a staging area, not a dependency, and
 % nothing in this repo writes to the paper .tex itself.
 %
@@ -86,7 +102,7 @@
 % Deliberately absent, and do not reinstate without cutting something else:
 % the retention-vs-trough-depth correlations (detail; the notebook still prints
 % them); the `stays below' rule; and the repeated "N is not a filter depth we
-% propose to apply to data", which is block 5's argument and is made there,
+% propose to apply to data", which is block 4's argument and is made there,
 % once. EDGES, MIST and REACH are not cited here either: the subsection
 % introduces all three a few paragraphs earlier, so the comparison was already
 % made.
@@ -214,45 +230,12 @@ for $N\geq@@NA@@$ modes filtered.}
 
 
 % ===================================================================
-% BLOCK 3 -- section "Minimising Covariance", rotation paragraph.
-% Insert after "... we aim to use both to improve constraints."
-%
-% These numbers are NOT computed by this script. They come from a probe run
-% on horizon_chromaticity/output/chromaticity_eigsep.npz (t_sys, 1296 ori x
-% 1436 LST x 201 freq) on 2026-08-19, which is not checked in. Re-derive from
-% that cube if the ensemble or the beam changes.
-%
-% Read the "16 versus 10" carefully: both are matched-residual counts at a
-% 0.6 mK foreground residual, NOT filter depths. The zenith figure happens
-% to be 10 because that is where the zenith residual reaches 0.6 mK; the
-% depth blocks 1 and 4 quote at is N = @@NA@@, where the residual
-% is @@FG@@ mK.
-% Do not let a reader conflate the two.
-% ===================================================================
-
-Rotation adds spectral diversity to the data, and it is worth asking what that
-diversity costs in model complexity. Repeating the eigenmode analysis over the
-full drive grid of 1296 pointings (36 elevations $\times$ 36 azimuths) rather
-than the zenith pointing alone, the pooled antenna temperature reaches a
-foreground residual of 0.6\,mK with 16 modes filtered, against 10 for the
-zenith pointing at the same residual. The foregrounds seen across every
-accessible orientation therefore occupy a subspace only marginally larger than
-that of a single pointing. Realising the benefit of that diversity requires a
-joint fit in which the sky and the beam are shared parameters and the rotations
-are known; a per-spectrum filter of the kind used in
-Fig.~\ref{fig:singular_values} cannot exploit it, because the information lies
-in the correlation between pointings rather than within any one spectrum, and
-pooling the pointings into the filter basis only enlarges the subspace being
-removed. We defer this analysis to future work.
-
-
-% ===================================================================
-% BLOCK 4 -- caption for horizon_shift.pdf, replacing the existing one.
+% BLOCK 3 -- caption for horizon_shift.pdf, replacing the existing one.
 % Keep \label{fig:horizon_shift} and the figure* environment.
 %
 % Short and descriptive by design: what the panels show, then the one number
-% a reader who never reaches the text needs. The nuance is block 5's job.
-% Do not append a "this is not a proposed analysis" sentence -- block 5 and
+% a reader who never reaches the text needs. The nuance is block 4's job.
+% Do not append a "this is not a proposed analysis" sentence -- block 4 and
 % block 1 both make the point, and the sentence read as an apology. The
 % residual row carries the same axes as Fig.~\ref{fig:singular_values},
 % "Foreground modes filtered" and "Residual RMS [K]", so this caption should
@@ -287,7 +270,7 @@ median 21-cm model.}
 
 
 % ===================================================================
-% BLOCK 5 -- section "Forward Modelling", after the existing discussion of
+% BLOCK 4 -- section "Forward Modelling", after the existing discussion of
 % the horizon_shift results ("... Motion up or down produces the largest
 % change in antenna temperature ...").
 %
@@ -404,7 +387,7 @@ instrument may differ from the real one; the horizon is the one we have probed.
 
 
 % ===================================================================
-% BLOCK 6 -- section "Forward Modelling". Replaces the sentence beginning
+% BLOCK 5 -- section "Forward Modelling". Replaces the sentence beginning
 % "To quantify the effect of the horizon coupling, we computed the change in
 % antenna temperature ... by 1 m to the east, north, and up ...".
 %
