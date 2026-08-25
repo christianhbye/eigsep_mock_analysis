@@ -176,32 +176,34 @@ section~\ref{subsec:fwd_modelling}.
 % labelled N = NA in the figure invites the same misreading with no caption
 % able to undo it. The old figure's 10 mK line is gone for the same reason.
 %
-% Two sentences here are load-bearing and must survive editing:
-%   - that the N = NAM1 residual is ABOVE the median retained signal. This is
-%     what retires the manuscript's old "eight modes reach 10 mK" claim, and
-%     the figure no longer carries a 10 mK line to make the point visually.
-%   - that retained RMS is not retained signal SHAPE. The frequency-space
-%     panel that used to show this is gone, so the words now carry it alone.
+% Length is set by the caption this replaces: two sentences, ~50 words. Do not
+% let it grow back. An earlier draft ran to 150 and read as a defence.
+%
+% The "beyond which" clause is load-bearing, not decoration. N = NA is a
+% `stays below' crossing -- the smallest N past which the residual never rises
+% above the median again -- so the caption can say which curve ends up on top,
+% and a reader who never reaches the text still gets the result rather than
+% the bare fact that two lines meet. It also carries, implicitly, that at
+% N = NAM1 the foregrounds are still the larger term, which is what retires
+% the manuscript's old "eight modes reach 10 mK" claim.
+%
+% NOT SAID ANY MORE, ANYWHERE: that retained RMS is not retained signal SHAPE.
+% The three-panel version showed this in frequency space; that panel is gone,
+% the caption no longer says it, and block 1 lost it when it was trimmed. So
+% "median retained signal @@MED@@ mK" is now available to be misread as a
+% surviving absorption trough. It is not one: TROUGHNA per cent of the
+% surviving power sits inside 70--130 MHz against TROUGHFLAT per cent for a
+% residual with no frequency preference at all, the rest being band-edge
+% ringing from a truncated smooth basis. One clause in either place fixes it.
+% Flagged 2026-08-25, left as the author's call.
 % ===================================================================
 
-\caption{How much of the 21-cm signal survives the foreground filter.
-Black: the residual RMS of the simulated antenna temperature after filtering
-its own leading $N$ spectral eigenmodes, the quantity previously plotted
-alone. Grey: an ensemble of @@NMODELS@@ global 21-cm models put through that
-identical filter (5--95 per cent of the ensemble shaded, median dashed), so
-that the retained signal and the foregrounds are read off the same axes. The
-two cross at $N=@@NA@@$, where the foregrounds leave @@FG@@\,mK against a
-median retained signal of @@MED@@\,mK, or @@KEEPPCT@@ per cent of its band
-RMS, and @@ABOVE@@ per cent of the ensemble retains more than the foregrounds
-leave; at $N=@@NAM1@@$ the foreground residual is still the larger of the two
-(@@FGM1@@ against @@MEDM1@@\,mK). What the filter leaves of the signal is
-largely ringing from a truncated smooth basis rather than a residual
-absorption trough, so this RMS measures retained amplitude and not a recovered
-signal shape.
-The filter uses no knowledge of the beam or the sky and is in that sense the
-most conservative case; instrumental terms enter at
-Fig.~\ref{fig:horizon_shift}, which draws the same grey ensemble on the same
-axes. See the text.}
+\caption{Residual RMS of the simulated antenna temperature (black) and of
+@@NMODELS@@ global 21-cm models put through the identical filter (5--95 per
+cent in grey band, median dashed) as a function of number of eigenmodes
+filtered, on a logarithmic scale. The amplitude of the residual foregrounds
+and the median retained 21-cm signal cross at $N=@@NA@@$ modes filtered,
+beyond which the signal is the larger of the two.}
 
 
 % ===================================================================
