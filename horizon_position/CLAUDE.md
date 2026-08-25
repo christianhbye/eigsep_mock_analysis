@@ -106,6 +106,22 @@ in-notebook rather than importing it.
 - The 21 cm ensemble is a grey (`C_21 = "0.40"`) 5–95 band with a dashed
   median in **both** figures. Keep them identical; the reader learns the
   artist in `signal_loss.pdf` and reads it again in `horizon_shift.pdf`.
+- **Vocabulary: filtering, not geometry.** Both residual axes are
+  `Foreground modes filtered` / `Residual RMS [K]` — the axes of the
+  `foreground_svd_residual.pdf` these curves were added to — and the prose,
+  the captions and `signal_loss_text.tex.in` all describe the operation as
+  filtering foreground eigenmodes, which is the manuscript's own wording. An
+  earlier revision purged "filter" in favour of subspace/orthogonal-complement
+  language; that was reversed. Where geometry *is* the argument (block 5's
+  own-basis floors) "basis" and "subspace" stay. What the wording must still
+  not do is present N as a depth anyone proposes to apply to data.
+- Paper style: legend entries are capitalized (`Beam-weighted foregrounds`)
+  and 21-cm is hyphenated when adjectival (`21-cm models`).
+- No 10 mK anywhere. The manuscript's "to filter foregrounds to 10 mK we need
+  the first eight modes", and the 10 mK line the old figure drew, are what the
+  referee read as a sensitivity claim. The residual at eight modes is still
+  quoted, as the dynamic range the foregrounds are described to; neither
+  figure draws a threshold.
 - `signal_loss.pdf` is single-column (3.4 in) and belongs in a `figure`, not
   the `figure*` its three-panel predecessor needed.
 - Do not use `plt.rc_context` in a figure cell. It restores the `backend`
