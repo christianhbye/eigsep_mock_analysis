@@ -17,6 +17,16 @@
 % floor, block 4 for "a fixed-depth residual is not a detection" -- and should
 % not be sprinkled through the rest.
 %
+% POWER vs AMPLITUDE. Every "per cent of the power" in this file is a ratio of
+% squares -- LEADPCT, SPIKEPCT, the LEAK fractions, the DEC decades and the
+% TROUGH shares all are. Every comparison of one curve against another is a
+% ratio of RMS and must say RMS or amplitude, never power: the figures' y-axis
+% is an RMS, the compressions COMPFG/COMPU are RMS ratios, and SPECM is
+% 0.1 x (median RMS)/(systematic RMS) x TOPMAG, so "a tenth" there is a tenth
+% in amplitude. Calling that a tenth of the POWER would put the position
+% requirement at ~0.3 m instead of SPECM m. Check which one you mean before
+% writing either word.
+%
 % The vocabulary is the manuscript's own: the section has always described
 % this as filtering foreground eigenmodes, and both figures label their axes
 % "Foreground modes filtered" and "Residual RMS [K]", so prose, captions and
@@ -44,10 +54,12 @@
 % ~1.7 apart there, so it holds. The SYSTEMATIC-vs-signal crossing does not:
 % at N = NA the vertical position error and the median retained signal are
 % equal to within a per cent, so it lands at NA or NA+1 depending on whether
-% the systematic is a worst case over LST or an average. Blocks 3 and 4
-% therefore quote the FLOOR a position error induces rather than a mode count,
-% which block 4 justifies -- a displaced sky is no harder to compress in its
-% own basis, so the excess is basis mismatch, not spectral complexity.
+% the systematic is a worst case over LST or an average. Block 4 therefore
+% quotes the FLOOR a position error induces rather than a mode count, and
+% justifies it -- a displaced sky is no harder to compress in its own basis, so
+% the excess is basis mismatch, not spectral complexity. Block 3's caption does
+% quote mode counts, deliberately and with "every LST" to fix the choice; see
+% its header for why millikelvin were the worse option there.
 %
 % ROTATIONS. There was a sixth block, a paragraph quantifying what the drive
 % grid costs in model complexity; it was removed on 2026-08-25 because it
@@ -233,16 +245,48 @@ for $N\geq@@NA@@$ modes filtered.}
 % BLOCK 3 -- caption for horizon_shift.pdf, replacing the existing one.
 % Keep \label{fig:horizon_shift} and the figure* environment.
 %
-% Short and descriptive by design: what the panels show, then the one number
-% a reader who never reaches the text needs. The nuance is block 4's job.
-% Do not append a "this is not a proposed analysis" sentence -- block 4 and
-% block 1 both make the point, and the sentence read as an apology. The
-% residual row carries the same axes as Fig.~\ref{fig:singular_values},
-% "Foreground modes filtered" and "Residual RMS [K]", so this caption should
-% describe the same operation in the same words.
+% Short and descriptive by design: what the panels show, then the comparison a
+% reader who never reaches the text needs. The nuance is block 4's job. Do not
+% append a "this is not a proposed analysis" sentence -- block 4 and block 1
+% both make the point, and the sentence read as an apology. The residual row
+% carries the same axes as Fig.~\ref{fig:singular_values}, "Foreground modes
+% filtered" and "Residual RMS [K]", so this caption describes the same
+% operation in the same words, and its grey band is described exactly as block
+% 2 describes it -- same ensemble, same artist, both figures.
 %
-% For reference, the stays-below crossings this caption deliberately does not
-% quote are @@CLEAR_E@@ (east), @@CLEAR_N@@ (north) and @@CLEAR_U@@ (up).
+% MODE COUNTS HERE, NOT MILLIKELVIN, and this is a reversal. The caption used
+% to quote the floor a displacement induces (SYSU/SYSE/SYSN at N = NA) against
+% the median retained signal. Printed a page from "the foregrounds leave FG mK",
+% that invites the reading that a TOPMAG m position error is a bigger effect
+% than the entire foreground sky. It is not: the basis is the foregrounds' own
+% right singular vectors, so they compress optimally by construction, and a
+% displaced sky decomposed in ITS own basis comes back at OWNLO-OWNHI mK. That
+% argument is block 4, paragraph 2, and a caption cannot carry it -- so this
+% caption no longer raises the question. What it quotes instead is how many
+% modes it takes to put each displacement under the median retained signal.
+%
+% The counts are CLEAR_E / CLEAR_N / CLEAR_U, worst-LST against the median.
+% Say "every LST": pooled over LST the same crossings are 2, 1 and 7, and the
+% caption's numbers are not reproducible without that word.
+%
+% Do NOT write "the change is foreground-like". That is the old manuscript's
+% phrase, and block 4 opens by refuting it. The vertical shift needs CLEAR_U
+% modes to fall under the median signal where the whole foreground sky needs
+% NA, so it is marginally HARDER to filter than the foregrounds, not more
+% foreground-like. East and north, at CLEAR_E and CLEAR_N, genuinely are.
+%
+% The vertical does not approach the signal, it falls off a cliff: worst-LST it
+% is 1.06x the median retained signal at N = NA and 0.15x at N = CLEAR_U,
+% because SPIKEPCT per cent of what survives NA modes is the single next mode,
+% worth SPIKESYS mK. That is what the closing clause reports. It is quantified
+% rather than "almost all", and it says "the power surviving NA modes" rather
+% than "the residual", which in this file means whatever is left after N.
+%
+% CLEAR_U and SPIKE are computed independently -- a stays-below crossing and
+% the index of the dominant leftover mode -- and happen to be equal, which is
+% WHY the crossing lands where it does and what the "where" clause leans on.
+% If a regenerated ensemble moves one and not the other, that clause stops
+% making sense and needs rewriting rather than just re-substituting.
 % ===================================================================
 
 \caption{Change in the simulated antenna temperature,
@@ -250,23 +294,22 @@ $\Delta T_{\text{ant}}$, when the suspended antenna is displaced to the east
 (left column), north (middle column), and up (right column). The displacement
 shifts the local horizon, shown in Fig.~\ref{fig:horizon}(b), thereby changing
 the fraction of sky occulted by the canyon walls and hence $T_{\text{ant}}$.
-\emph{Top row:} difference spectra for a $+@@TOPMAG@@$\,m displacement, one
-curve per sidereal hour (@@NLST@@ in total), coloured by LST as indicated by
-the colour bar. \emph{Bottom row:} the RMS over frequency of those spectra
-after filtering the leading $N$ eigenmodes of the unperturbed antenna
-temperature -- the same modes as Fig.~\ref{fig:singular_values} -- for
-displacements of @@MAGLO@@, @@TOPMAG@@ and @@MAGHI@@\,m, coloured light to dark
-by magnitude, with all @@NLST@@ LSTs drawn for each. Grey shows the 21-cm
-ensemble of Fig.~\ref{fig:singular_values} under the same filter
-(5--95 per cent, median dashed) --- the same band, on the same axes, as in
-that figure --- which sets the scale these millikelvin numbers are read
-against. A @@TOPMAG@@\,m displacement changes $T_{\text{ant}}$ by up
-to @@MAXDT@@\,K; with @@NA@@ foreground modes filtered, the depth at which
-Fig.~\ref{fig:singular_values} is read, it leaves at most
-@@SYSU@@\,mK
-for the vertical
-shift, @@SYSE@@\,mK east and @@SYSN@@\,mK north, against @@MED@@\,mK for the
-median 21-cm model.}
+\textit{Top row:} $\Delta T_{\text{ant}}$ for a $+@@TOPMAG@@$\,m displacement.
+Each curve corresponds to a different LST (one per sidereal hour), coloured as
+indicated by the colour bar. \textit{Bottom row:} The RMS over frequency of
+$\Delta T_{\text{ant}}$ after filtering the leading eigenmodes of the
+unperturbed antenna temperature -- the same modes as
+Fig.~\ref{fig:singular_values} -- for displacements of @@MAGLO@@, @@TOPMAG@@
+and @@MAGHI@@\,m, coloured light to dark with increasing displacement
+magnitude, with all @@NLST@@ LSTs drawn for each. Grey shows the 21-cm models
+of Fig.~\ref{fig:singular_values} retained under the same filter (5--95 per
+cent of ensemble, median dashed).
+A @@TOPMAG@@\,m displacement changes $T_{\text{ant}}$ by up to @@MAXDT@@\,K,
+but the change lies largely in the leading eigenmodes: filtering brings every
+LST below the median retained 21-cm signal after @@CLEAR_E@@ modes for the
+eastward displacement, @@CLEAR_N@@ for the northward, and @@CLEAR_U@@ for the
+vertical shift, where @@SPIKEPCT@@ per cent of the power surviving @@NA@@
+modes lies in the @@SPIKE@@th mode alone.}
 
 
 % ===================================================================
@@ -337,7 +380,7 @@ neither linear nor symmetric --- a horizontal shift changes the horizon by an
 amount that depends on where the cliff edges fall in azimuth, which is why
 those curves in Fig.~\ref{fig:horizon}(b) are spiky, and why the east and north
 bundles are not evenly spaced --- but they are also the smaller terms, and the
-vertical axis sets the requirement. Holding the power a position error leaves
+vertical axis sets the requirement. Holding the RMS a position error leaves
 after the filter to a tenth of the median retained signal requires
 the antenna's vertical position to be known to roughly @@SPECM@@\,m, and we
 adopt that as the position-monitoring requirement.
@@ -365,8 +408,8 @@ therefore set by the instrument model rather than by the sky, and it cannot be
 read off the foreground curve at all.
 
 The wider point is methodological. An unmodelled displacement of the size we
-must anticipate leaves behind power that resembles the retained signal in both
-amplitude and shape --- at $N=@@NA@@$ the leftover from a @@TOPMAG@@\,m
+must anticipate leaves behind a residual that resembles the retained signal in
+both amplitude and shape --- at $N=@@NA@@$ the leftover from a @@TOPMAG@@\,m
 vertical error and the median 21-cm model are equal in RMS, and their cosine
 similarity reaches @@COSMAX@@ (median @@COSMED@@). A residual left by a filter
 of fixed depth is therefore not evidence of a cosmological signal:
