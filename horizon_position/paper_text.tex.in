@@ -190,6 +190,17 @@
 % chromaticity. Keep both; they are what stop this reading as a swipe at a
 % collaborator's antenna.
 %
+% RMS0 IS BEAM-DEPENDENT and the value quoted is the bowtie's: the raw
+% waterfall RMS is 691 K for the isotropic beam, 728 K for the bowtie and
+% 1138 K for the Vivaldi feed, which is directive enough to see more of the
+% bright low-frequency sky and less of the 300 K ground. The sentence sits in
+% a paragraph that describes all three beams, so it has to say whose number it
+% is. Do not generalise it back.
+%
+% DYNRANGE is a mantissa-exponent string, not an exponent. It used to be
+% f"{log10(ratio):.0f}" inside $10^{...}$, which rounded 10^5.6 up to 10^6 and
+% overstated the dynamic range by a factor of 2.5.
+%
 % Deliberately absent: the RMS at one and four modes (the steep decline is
 % visible in the figure and the dynamic-range sentence carries the claim); the
 % retention-vs-trough-depth correlations; the `stays below' rule; and the
@@ -229,8 +240,9 @@ filter the corresponding beam-weighted foregrounds.
 In Fig.~\ref{fig:singular_values}, we present the residual RMS after filtering
 as a function of the number of eigenmodes filtered, $N$, for each of the three
 beams. The first point -- zero modes filtered -- is the RMS of the raw waterfall
-pixels about zero, approximately @@RMS0@@\,K; because the decomposition is not
-centred, the first mode captures the mean antenna temperature spectrum.
+pixels about zero, which for the bowtie is approximately @@RMS0@@\,K; because
+the decomposition is not centred, the first mode captures the mean antenna
+temperature spectrum.
 The residual declines steeply in every case, but not equally fast: reaching
 @@LEVEL@@\,mK takes @@NISO@@ modes for the isotropic beam, @@NBOW@@ for the
 bowtie and @@NVIV@@ for the Vivaldi feed.
@@ -240,7 +252,7 @@ the sky's alone, whereas a chromatic beam couples its own frequency-dependent
 angular structure into them, so that the antenna temperature carries structure
 belonging to neither in isolation and more modes are required to describe it.
 For the EIGSEP bowtie, filtering $N=@@NAM1@@$ orthogonal modes describes the
-antenna temperature to one part in $10^{@@DYNM1@@}$, or @@FGM1@@\,mK.
+antenna temperature to one part in $@@DYNRANGE@@$, or @@FGM1@@\,mK.
 
 To assess the spectral overlap between the beam-weighted foregrounds and the
 expected cosmological signal, we applied each antenna's filter to an ensemble of
