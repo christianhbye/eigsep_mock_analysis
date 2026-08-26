@@ -48,8 +48,17 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 - `run_sims.py` -> `output/position_sims.npz` (eigsim env; resumable
   per-position checkpoints `pos*_batch_*.npz`; `pos_sha` guards against a
   stale `horizons_position.npz`).
-- `notebooks/horizon_shift.ipynb`, `notebooks/signal_loss.ipynb` — **the**
-  analysis. See below.
+- `notebooks/horizon_shift.ipynb`, `notebooks/signal_loss.ipynb`,
+  `notebooks/beam_comparison.ipynb` — **the** analysis. See below.
+- `beams.py` — pure, unit-tested: HEALPix->MWSS beam resampling and the
+  isotropic reference beam. `NITER = 3` is load-bearing; `test_beams.py`
+  pins it by reproducing eigsim's stored MWSS bowtie bit-for-bit, and
+  asserts that niter=0 does *not*.
+- `run_beam_sims.py` -> `output/beam_sims.npz` (eigsim env; one
+  nominal-horizon sidereal day per beam, resumable per-beam checkpoints
+  `beam_<tag>.npz`). The Vivaldi HEALPix beam lives outside this repo:
+  `--vivaldi` / `EIGSEP_VIVALDI_BEAM`.
+- `beam_comparison_text.tex.in` — LaTeX template for that figure's prose.
 - `paper.py` — artifact locations + the constants the two figures share
   (`N_ANCHOR`, `N_SHOW`, `N_MODELS`). No analysis, by design.
 - `signal_loss_text.tex.in` — LaTeX template for the draft prose.
@@ -58,7 +67,7 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 
 ## The notebooks are the only figure producers
 
-Two notebooks produce all three paper figures. There are no
+Three notebooks produce all four paper figures. There are no
 `make_*_figure.py` scripts — do not add one. Each goes raw inputs ->
 derived quantities -> figures -> paper-repo export, deriving everything
 in-notebook rather than importing it.
@@ -69,8 +78,28 @@ in-notebook rather than importing it.
 - `signal_loss.ipynb` -> `signal_loss.pdf` and `signal_loss_text.tex`.
   Inputs: the paper's `foreground_svd.npz`, the Zeus21 ensemble, and
   `horizon_shift.npz` (§7 only, for the caption blocks).
+- `beam_comparison.ipynb` -> `beam_comparison.pdf` and
+  `beam_comparison_text.tex`. Inputs: `output/beam_sims.npz`, the Zeus21
+  ensemble, and `foreground_svd.npz` as a cross-check. Three panels — isotropic
+  / bowtie / Vivaldi — each the Fig. 1 axes for one antenna. **Each antenna is
+  filtered in its own eigenbasis and attenuated by its own `eta`**, so the
+  three grey bands are not one band repeated; that is why it is three panels
+  and not three curves. Do not put them on one panel, and do not plot retention
+  against mode count: at fixed N the antenna that suppressed *less* retains
+  more, which inverts the conclusion. Quote retained *fraction* at matched
+  foreground suppression.
 - **Run `horizon_shift.ipynb` first** — `signal_loss.ipynb` asserts its
-  eigenbasis against the `Vh` that one publishes.
+  eigenbasis against the `Vh` that one publishes. `beam_comparison.ipynb` is
+  independent of both but asserts its bowtie panel reproduces
+  `foreground_svd.npz` and `paper.N_ANCHOR`.
+- **The Vivaldi is not a rejected candidate.** It is a HERA Phase II feed, it
+  is what EIGSEP uses for the ground antennas (`sec:vivaldis`), and it is the
+  antenna the October 2024 suspension flew. The prose frames the comparison as
+  a documented evolution, states that the feed is used without the dish it was
+  designed to illuminate, and notes the ground antennas have a different job.
+  Keep all three; without them this reads as a swipe at a collaborator's
+  antenna. Keep "couples better to the sky and still retains less" too — it is
+  what stops the comparison reading as special pleading.
 - Neither notebook imports the other. Shared values live in `paper.py` as
   constants; each notebook re-derives them and asserts. Do not move a
   derivation into `paper.py` — that is what makes the assert meaningful.

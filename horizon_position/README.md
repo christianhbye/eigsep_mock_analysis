@@ -31,13 +31,20 @@ uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
 # 2. per-position waterfalls (mock_analysis env, from monorepo root)
 uv run python horizon_position/run_sims.py          # -> output/position_sims.npz
 
+# 2b. one nominal-horizon day per antenna, for the beam comparison.
+#     --vivaldi (or EIGSEP_VIVALDI_BEAM) points at the HEALPix Vivaldi beam,
+#     which lives outside this repo. Resampling it to MWSS takes a few minutes.
+uv run python horizon_position/run_beam_sims.py     # -> output/beam_sims.npz
+
 # 3. the analysis + all three paper figures, in this order
 #    (signal_loss reads the Vh that horizon_shift writes)
 uv run jupyter nbconvert --to notebook --execute --inplace \
     horizon_position/notebooks/horizon_shift.ipynb
 uv run jupyter nbconvert --to notebook --execute --inplace \
     horizon_position/notebooks/signal_loss.ipynb
-#    or open either in Jupyter and run it top to bottom
+uv run jupyter nbconvert --to notebook --execute --inplace \
+    horizon_position/notebooks/beam_comparison.ipynb
+#    or open any of them in Jupyter and run it top to bottom
 
 # tests
 uv run pytest horizon_position/ -v                  # pure-module unit tests
@@ -46,7 +53,7 @@ EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 
 ## The notebooks
 
-Two notebooks, three paper figures, no figure scripts. Each is a paper
+Three notebooks, four paper figures, no figure scripts. Each is a paper
 trail: it loads the raw inputs, derives everything in-notebook, renders
 its figures, prints every number the paper quotes, and exports the paper
 repo's committed npz + standalone notebook + PDF.
@@ -63,7 +70,15 @@ repo's committed npz + standalone notebook + PDF.
   no dimension marked — `N_ANCHOR` is where the *prose* quotes numbers,
   not something either figure draws.
 
+- `notebooks/beam_comparison.ipynb` — `beam_comparison.pdf` and its draft
+  prose: the same sky, horizon and filter run for three beams (isotropic,
+  EIGSEP bowtie, Vivaldi feed), each with its own eigenbasis and its own
+  open-sky attenuation, to separate what the antenna costs from what the sky
+  does. Measures the design claim of `subsec:eig_antenna`.
+
 Run `horizon_shift` first — `signal_loss` reads the `Vh` it publishes.
+`beam_comparison` is independent of both, but asserts its bowtie panel against
+`foreground_svd.npz` and `paper.N_ANCHOR`.
 
 Neither notebook imports the other. What they must agree on lives in
 `paper.py` as constants (`N_ANCHOR`, `N_SHOW`, `N_MODELS`, and where the
