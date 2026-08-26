@@ -47,19 +47,44 @@
 % -- see block 2's header. Blocks 1 and 4 still quote numbers at $N$ = NA, but a
 % caption or sentence must never imply the figure singles that depth out.
 %
-% Two crossings, only one of which is robust. Block 1's headline -- that past
-% N = NA the median retained signal exceeds the foreground residual -- is a
-% `stays below' crossing derived in the notebook (not a first crossing: both
-% curves fall with N and cross more than once), and the two are a factor
-% ~1.7 apart there, so it holds. The SYSTEMATIC-vs-signal crossing does not:
-% at N = NA the vertical position error and the median retained signal are
-% equal to within a per cent, so it lands at NA or NA+1 depending on whether
-% the systematic is a worst case over LST or an average. Block 4 therefore
-% quotes the FLOOR a position error induces rather than a mode count, and
-% justifies it -- a displaced sky is no harder to compress in its own basis, so
-% the excess is basis mismatch, not spectral complexity. Block 3's caption does
-% quote mode counts, deliberately and with "every LST" to fix the choice; see
-% its header for why millikelvin were the worse option there.
+% TWO DEPTHS, AND THEY ARE NOT THE SAME ONE. N = NA is where the foreground
+% residual drops below the median retained 21-cm signal and stays there -- a
+% foreground-vs-SIGNAL crossing, and block 1's headline. N = NHAND, one mode
+% inside it, is where an unmodelled TOPMAG m vertical error overtakes the
+% foreground floor -- a foreground-vs-SYSTEMATIC crossing, and the depth
+% block 4 quotes every position number at. They coincided until the 21-cm
+% ensemble was put into antenna temperature (see the attenuation note below);
+% that moved NA up by one and left NHAND alone, since neither curve in it
+% involves the 21-cm signal. Do not collapse them back into one number.
+%
+% Block 4 quotes at NHAND because that is where the position error is the
+% term limiting the residual. It is also the only place the numbers mean
+% anything: SPIKEPCT per cent of what a TOPMAG m vertical error leaves after
+% NHAND modes is the single SPIKEth mode, so one more filtered mode drops it
+% by a factor of ten. Floors read at NA describe the remainder after that
+% mode, not the error. That fragility is now block 4's closing argument
+% rather than an embarrassment -- a fixed-depth filter set either side of one
+% eigenmode reports a different result, which is the case for forward
+% modelling.
+%
+% Block 4 still quotes the FLOOR a position error induces rather than a mode
+% count, and justifies it -- a displaced sky is no harder to compress in its
+% own basis, so the excess is basis mismatch, not spectral complexity. Block
+% 3's caption does quote mode counts, deliberately and with "every LST" to fix
+% the choice; see its header for why millikelvin were the worse option there.
+%
+% THE 21-CM ENSEMBLE IS IN ANTENNA TEMPERATURE. Both figures work in
+% uncorrected antenna temperature -- ground pickup included, receiver
+% subtracted -- so the models are multiplied by the beam-weighted open-sky
+% fraction eta = 1 - f_gnd (ETALO-ETAHI across the band, mean ETAMEAN) before
+% they are filtered. An isotropic signal reaches that observable attenuated;
+% comparing a sky-referred T21 against an antenna-temperature residual would
+% overstate the retained signal by 2.2x and was the state of this text before
+% 2026-08-26. MED and MEDHAND are therefore NOT sky-referred amplitudes, and
+% any sentence that puts them beside an EDGES/SARAS/REACH number must say so.
+% Ground-loss correcting instead was considered and rejected: it needs the
+% beam knowledge block 1 claims not to use, it makes the foregrounds less
+% compressible, and it gives the same answer anyway.
 %
 % ROTATIONS. There was a sixth block, a paragraph quantifying what the drive
 % grid costs in model complexity; it was removed on 2026-08-25 because it
@@ -169,6 +194,11 @@ expected cosmological signal, we applied the identical foreground filter to an
 ensemble of @@NMODELS@@ global 21-cm models generated with the Zeus21
 code\footnote{\url{https://github.com/ZeusCosmo/Zeus21}}
 \citep{2023MNRAS.523.2587M, 2025PhRvD.111h3503C}.
+Because the eigenmodes are built from the antenna temperature, the models are
+first expressed in the same quantity: an isotropic signal is received through
+the fraction of the beam that sees open sky, which for our horizon and beam is
+@@ETALO@@--@@ETAHI@@ over the band, so the amplitudes quoted below are smaller
+than the corresponding sky brightness temperatures by that factor.
 The figure shows that the filter explains foreground variance more effectively
 than the cosmological signal, and that after $N=@@NA@@$ modes are removed, the
 RMS of the median retained 21-cm signal is larger (@@MED@@\,mK) than the RMS of
@@ -236,9 +266,11 @@ section~\ref{subsec:fwd_modelling}.
 \caption{Residual RMS of the simulated antenna temperature (black) and of
 global 21-cm signal models filtered with the same modes (5--95 per cent of
 ensemble in grey band, median dashed) as a function of number of eigenmodes
-filtered ($N$), on a logarithmic scale. The amplitude of the residual
-foregrounds is lower than the amplitude of the median retained 21-cm signal
-for $N\geq@@NA@@$ modes filtered.}
+filtered ($N$), on a logarithmic scale. Both are antenna temperatures: the
+models are scaled by the fraction of the beam that sees open sky
+(@@ETALO@@--@@ETAHI@@ over the band) before filtering. The amplitude of the
+residual foregrounds is lower than the amplitude of the median retained 21-cm
+signal for $N\geq@@NA@@$ modes filtered.}
 
 
 % ===================================================================
@@ -308,8 +340,8 @@ A @@TOPMAG@@\,m displacement changes $T_{\text{ant}}$ by up to @@MAXDT@@\,K,
 but the change lies largely in the leading eigenmodes: filtering brings every
 LST below the median retained 21-cm signal after @@CLEAR_E@@ modes for the
 eastward displacement, @@CLEAR_N@@ for the northward, and @@CLEAR_U@@ for the
-vertical shift, where @@SPIKEPCT@@ per cent of the power surviving @@NA@@
-modes lies in the @@SPIKE@@th mode alone.}
+vertical shift, where @@SPIKEPCT@@ per cent of the power surviving
+@@NHAND@@ modes lies in the @@SPIKE@@th mode alone.}
 
 
 % ===================================================================
@@ -366,10 +398,14 @@ A @@TOPMAG@@\,m displacement changes the antenna temperature by up to
 upward, in each case peaking at the bottom of the band. Under the filter of
 Fig.~\ref{fig:singular_values}, whose modes come from the unperturbed antenna
 temperature and carry no knowledge of the displacement, an unmodelled
-@@TOPMAG@@\,m error raises the residual floor at $N=@@NA@@$ from @@FG@@\,mK to @@FLOORU1@@\,mK for a vertical
-shift and to @@FLOORE1@@\,mK for an eastward one, and leaves it unchanged at
-@@FLOORN1@@\,mK for a northward one. Against a median retained 21-cm signal of
-@@MED@@\,mK, only the vertical error is a comparable term.
+@@TOPMAG@@\,m error raises the residual floor at $N=@@NHAND@@$ --- the depth
+at which the position error overtakes the foregrounds as the term limiting the
+residual --- from @@FGHAND@@\,mK to @@FLOORU1@@\,mK for a vertical shift and
+to @@FLOORE1@@\,mK for an eastward one, and leaves it unchanged at
+@@FLOORN1@@\,mK for a northward one. The median retained 21-cm signal is
+@@MEDHAND@@\,mK there, so the vertical error alone leaves a floor several
+times the signal it would be mistaken for, the eastward error is comparable to
+it, and the northward error is negligible.
 
 The vertical direction differs in kind from the other two. A vertical shift
 lowers the local horizon at every azimuth at once (Fig.~\ref{fig:horizon}b),
@@ -398,16 +434,22 @@ the ignorance. That ignorance is marginalised over, and these sensitivities set
 how wide the prior may be. Horizontally it may be wide at almost no cost.
 Vertically it may not: a @@MAGLO@@\,m uncertainty leaves the floor at
 @@FLOORU01@@\,mK, @@FLOORU01PCT@@ per cent above the unperturbed value, but by
-@@TOPMAG@@\,m the floor is comparable to the median retained signal, and by
-@@MAGHI@@\,m it is @@FLOORU10@@\,mK, an order of magnitude above it.
+@@TOPMAG@@\,m the floor is @@FLOORU1@@\,mK, three times the median retained
+signal, and by @@MAGHI@@\,m it is @@FLOORU10@@\,mK, more than an order of
+magnitude above it.
 
 This is why we forward-model the instrument rather than filtering to a fixed
 depth and interpreting what is left. An unmodelled displacement of the size we
-must anticipate leaves a residual that resembles the retained signal in both
-amplitude and shape --- at $N=@@NA@@$ the leftover from a @@TOPMAG@@\,m
-vertical error and the median 21-cm model are equal in RMS, and their cosine
-similarity reaches @@COSMAX@@ (median @@COSMED@@). An excess with respect to a
-foreground model is only as trustworthy as the instrument model behind it
+must anticipate leaves a residual of the same order as the retained signal and
+similar to it in shape: at $N=@@NHAND@@$ the leftover from a @@TOPMAG@@\,m
+vertical error is @@SYSHANDX@@ times the median 21-cm model in RMS, and their
+cosine similarity reaches @@COSMAX@@ (median @@COSMED@@). Nor is the choice of
+depth a way out. Almost all of what the vertical error leaves at that depth is
+a single eigenmode --- @@SPIKEPCT@@ per cent of it, the @@SPIKE@@th, worth
+@@SPIKESYS@@\,mK --- so filtering one further mode drops the leftover to
+@@SYSNAX@@ times the median retained signal, and a filter set either side of
+that one mode reports a qualitatively different result. An excess with respect
+to a foreground model is only as trustworthy as the instrument model behind it
 \citep{2018Natur.564E..32H, 2019ApJ...874..153B, 2019ApJ...880...26S}.
 
 

@@ -83,16 +83,45 @@ in-notebook rather than importing it.
   lifted from the live kernel with `inspect.getsource`, so there is exactly
   one copy of every plotting function. Change a figure by editing the
   function in the notebook and re-running — never by editing the export.
+- **The 21 cm ensemble is in antenna temperature.** Both figures work in
+  uncorrected antenna temperature (ground pickup in, receiver out), so both
+  notebooks multiply the models by the beam-weighted open-sky fraction
+  `eta = 1 - fgnd` (0.36–0.55 over the band, mean 0.446) before filtering —
+  an isotropic signal reaches that observable attenuated. Each notebook
+  derives `eta` from its own input (`foreground_svd.npz` / `position_sims.npz`
+  row 0, verified identical); `paper.N_ANCHOR` is the assert that catches them
+  disagreeing. Do NOT filter the sky-referred `T21_mK`: that compares a
+  sky-referred signal against an antenna-temperature residual and overstates
+  retention by 2.2x. Ground-loss correcting everything instead is
+  self-consistent and gives the same answer, but needs the beam knowledge
+  block 1 claims not to use, and makes the foregrounds less compressible.
+- `T21_sky` (unattenuated) is kept alongside `T21` in `signal_loss` for trough
+  depth, trough width and the selections built on them — those describe the
+  *model*, not the observation. Everything filtered or compared against a
+  foreground residual uses `T21`. Do not mix them.
 - Several asserts keep the figures consistent; do not remove them. Both
   notebooks check their survivor count against `paper.N_MODELS` and their
   recomputed anchor against `paper.N_ANCHOR`; `horizon_shift` checks its
-  baseline against `foreground_svd.npz`; `signal_loss` checks its
-  eigenbasis against `horizon_shift.npz` and gates the "costs one mode"
-  phrasing its caption uses.
+  baseline against `foreground_svd.npz`; `signal_loss` checks its eigenbasis
+  and `N_HAND` against `horizon_shift.npz`, gates the systematic-to-signal
+  ratio at `N_HAND`, and gates the caption's claim that the vertical clears
+  the median at exactly the mode carrying its leftover spike.
 - `N_ANCHOR` is *recomputed*, not imported: the smallest N at which the
   foreground floor drops below the median retained 21 cm signal **and stays
-  below** for every larger N. A first-crossing rule gives a different,
-  over-optimistic answer — both curves cross more than once.
+  below** for every larger N. Keep the stays-below rule — it is the
+  conservative choice and it is what the caption's inequality asserts — even
+  though with the attenuated ensemble it happens to pick the same N as a
+  first-crossing rule.
+- **`N_ANCHOR` and `N_HAND` are different depths.** `N_HAND` (= `N_ANCHOR - 1`
+  = 9) is where an unmodelled 1 m vertical error overtakes the foreground
+  floor: a foreground-vs-*systematic* crossing. `N_ANCHOR` (10) is a
+  foreground-vs-*signal* one. They coincided before the ensemble was
+  attenuated. Everything about the position systematic — the induced floors
+  `floor_own`/`floor_nom`, the leftover-spike anatomy, the cosine similarity,
+  block 4's numbers — is quoted at `N_HAND`, because 99% of what a vertical
+  error leaves there is the single mode `N_ANCHOR` filters, so floors read at
+  `N_ANCHOR` describe the remainder after that mode rather than the error.
+  Block 1 and the figure captions quote at `N_ANCHOR`.
 - **Neither figure draws anything at `N_ANCHOR`.** It is the dimension the
   *prose* quotes millikelvin numbers at, and the common dimension at which
   `horizon_shift` compares the position systematic against the 21 cm

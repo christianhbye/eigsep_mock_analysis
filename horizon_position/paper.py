@@ -53,13 +53,20 @@ MODELS_NPZ = ROOT / "models_21cm" / "output" / "zeus21_models.npz"
 # optimum (horizon_shift.ipynb, section 6) and so not a benchmark real data
 # could be held to.
 #
-# It happens to land where horizon_shift.ipynb shows the limit changing hands:
-# below N ~ 8 the foregrounds are the larger term by 2-6x, from N ~ 9 they are
-# comparable to what a 1 m vertical position error leaves, and beyond N ~ 12
-# the position error is consistently larger. That is the meaningful landmark,
-# it is a result of the horizon analysis rather than of this criterion, and it
-# is stated there. Both notebooks re-derive this value and assert it.
-N_ANCHOR = 9
+# The 21 cm ensemble both notebooks filter is attenuated by the beam-weighted
+# open-sky fraction eta = 1 - fgnd (mean 0.446 over the band), because both
+# figures work in uncorrected antenna temperature and an isotropic signal
+# enters that observable as eta(nu) * T21(nu). Without the attenuation this
+# constant is 9; the factor is what moves it. See the notebooks' section 1.2.
+#
+# It does NOT coincide with the handover in horizon_shift.ipynb, where the
+# term limiting the residual passes from the foregrounds to an unmodelled 1 m
+# vertical error. That happens one mode earlier, at N = 9, and the two are
+# separate landmarks: the handover is a foreground-vs-systematic crossing and
+# this is a foreground-vs-signal one. They coincided before the ensemble was
+# attenuated, and the prose that leaned on the coincidence has been rewritten.
+# Both notebooks re-derive this value and assert it.
+N_ANCHOR = 10
 
 # Foreground modes on the residual panels' x-axis, in both figures.
 N_SHOW = 18
