@@ -313,120 +313,102 @@ modes lies in the @@SPIKE@@th mode alone.}
 
 
 % ===================================================================
-% BLOCK 4 -- section "Forward Modelling", after the existing discussion of
-% the horizon_shift results ("... Motion up or down produces the largest
-% change in antenna temperature ...").
+% BLOCK 4 -- section "Forward Modelling". Insert after "The tension in the
+% rope supporting the antenna limits vertical motion and, due to its
+% orientation, east/west motion." -- AFTER that sentence, not before it, since
+% paragraph 4 builds directly on what the rope does and does not constrain.
 %
-% Four paragraphs: (1) a position error is not "more foreground" -- the
-% 99.8-per-cent statistic flatters it, and the leakage/compression numbers say
-% so; (2) the floor is an in-sample optimum for a KNOWN horizon, and the
-% own-basis decomposition shows a displaced sky is no harder to compress, so
-% the excess is basis mismatch; (3) the induced floor, its scaling, and the
-% requirement that follows; (4) why neither figure is the analysis EIGSEP runs.
+% Five short paragraphs, results first: (1) how much a displacement changes
+% T_ant and what the filter leaves; (2) why the vertical differs in KIND from
+% the horizontals; (3) how direction-dependent the cost is, and the lucky
+% alignment with what the suspension actually constrains; (4) the consequence
+% for the forward model's prior -- the point of the whole block; (5) why a
+% fixed-depth residual is not a detection.
 %
-% Paragraph 2 is the load-bearing one and is what replaced the old "costs one
-% more mode" reading. Do not restore that reading: it asserts a difference in
-% spectral complexity that the own-basis floors refute. Its "basis" and
-% "subspace" are the argument, not vocabulary, and should not be reworded into
-% filtering language the way the rest of the section has been.
+% Paragraph 4 is the destination. Everything before it exists to earn the
+% asymmetric prior: wide in the horizontal, narrow in the vertical. If the
+% block is cut further, cut towards that sentence, not away from it. Note the
+% framing it turns on: what the figure shows is structure left by ignorance,
+% not by an error term already in the model. A displacement that is KNOWN is
+% part of the forward model and costs nothing, so the quantity that matters is
+% the width of the prior, not the size of the displacement.
+%
+% Paragraph 1 says the modes "carry no knowledge of the displacement" because
+% that one clause does the work the old basis-mismatch paragraph did at
+% length: it stops the floors being read as "a 1 m position error is worse
+% than the entire foreground sky". The own-basis numbers that proved it
+% (OWNLO/OWNHI, CVPEN) are still computed and printed by the notebook. Do not
+% restore the old "costs one more mode" reading in their place.
+%
+% NO position-monitoring requirement is adopted here. An earlier draft said
+% the vertical position must be known to SPECM m; that reads as a metrology
+% spec, when the real statement is about how much vertical uncertainty the fit
+% can carry. Paragraph 4 gives the ladder (MAGLO / TOPMAG / MAGHI m) and lets
+% the reader draw the line. SPECM is still computed if it is ever wanted.
+%
+% Do NOT write "a lesson the field has already drawn from the scrutiny of
+% published detections" before the three citations in paragraph 5, or any
+% variant. It reads as a dig at EDGES. The citations carry the point without
+% it.
+%
+% Deliberately dropped in the 2026-08-25 rewrite: the per-axis leakage
+% fractions and the compression ratios (LEAKFG/LEAKE/LEAKN/LEAKU, DECFG/DECU,
+% COMPFG/COMPU), which supported "a position error is not simply more
+% foreground" -- paragraph 2 now makes that claim on the own-basis floors
+% alone, which is the stronger evidence; and the whole "why not simply filter
+% every mode" paragraph (TROUGHNA/TROUGHEND, HANDFAC/HANDSTAY, KEEPEND,
+% SIGSYSEND), which argued against a position nobody holds. Those keys are
+% still computed and printed by the notebook.
 % ===================================================================
 
 A @@TOPMAG@@\,m displacement changes the antenna temperature by up to
 @@MAXDT_E@@\,K to the east, @@MAXDT_N@@\,K to the north and @@MAXDT@@\,K
-upward, in each case peaking at the bottom of the band, and @@LEADPCT@@ per
-cent of that power lies in the two leading eigenmodes of the unperturbed
-antenna temperature. That comparison flatters the result. The foregrounds are
-more concentrated still, leaving $@@LEAKFG@@$ of their power outside those two
-modes against $@@LEAKE@@$, $@@LEAKN@@$ and $@@LEAKU@@$ for the eastward,
-northward and upward displacements; over the first ten modes the foreground
-power spectrum falls by @@DECFG@@ decades and the displacement's by @@DECU@@. A
-position error is not simply more foreground. It shares the foregrounds'
-leading modes but has a shallower spectrum, and so does not compress as they
-do: the nominal antenna temperature is @@TANT@@\,K and leaves @@FG@@\,mK with
-$N=@@NA@@$ modes filtered, a compression of $@@COMPFG@@$, whereas
-a @@TOPMAG@@\,m vertical displacement is @@DTU@@\,K and leaves
-@@SYSUPOOL@@\,mK, a compression of @@COMPU@@. Per unit amplitude it is some
-three orders of magnitude less compressible than the sky it perturbs, which is
-why a perturbation of $T_{\text{ant}}$ at the 0.1 per cent level survives the
-filter more strongly than the whole foreground does.
+upward, in each case peaking at the bottom of the band. Under the filter of
+Fig.~\ref{fig:singular_values}, whose modes come from the unperturbed antenna
+temperature and carry no knowledge of the displacement, an unmodelled
+@@TOPMAG@@\,m error raises the residual floor at $N=@@NA@@$ from @@FG@@\,mK to @@FLOORU1@@\,mK for a vertical
+shift and to @@FLOORE1@@\,mK for an eastward one, and leaves it unchanged at
+@@FLOORN1@@\,mK for a northward one. Against a median retained 21-cm signal of
+@@MED@@\,mK, only the vertical error is a comparable term.
 
-That floor is moreover a property of a horizon that is known. The eigenmodes
-are the right singular vectors of the nominal antenna temperature itself, so
-the foregrounds are filtered in the basis that is optimal for them by
-construction, whereas a position error is not. The asymmetry is not a sampling
-effect: the waterfall is @@NTIME@@ spectra of @@NFREQ@@ channels, $N=@@NA@@$ is
-a small fraction of its @@NRANK@@ available modes, and a basis built from half
-the sidereal day describes the other half with no measurable penalty (a floor
-ratio of @@CVPEN@@). It is specific to the horizon. Decomposing each displaced
-sky in its own basis returns a floor of @@OWNLO@@--@@OWNHI@@\,mK at
-$N=@@NA@@$ for every displacement up to @@TOPMAG@@\,m, and
-@@OWNLO10@@--@@OWNHI10@@\,mK even at @@MAGHI@@\,m: a displaced antenna
-temperature is not a more complex object, and would be described just as
-economically if the displacement were known.
+The vertical direction differs in kind from the other two. A vertical shift
+lowers the local horizon at every azimuth at once (Fig.~\ref{fig:horizon}b),
+so its effect on the occulted sky fraction accumulates instead of cancelling,
+and the residual it leaves grows roughly in proportion to the displacement and
+is symmetric in its sign. A horizontal shift moves the antenna towards some
+canyon walls and away from others, so the horizon rises at some azimuths and
+falls at others and the two largely cancel, leaving a response that depends on
+where the cliff edges fall in azimuth and is neither proportional to the
+displacement nor symmetric in its sign.
 
-What a position error costs is therefore the mismatch, and it is that we quote
-rather than a mode count. Filtered in the nominal basis, a @@TOPMAG@@\,m
-vertical displacement raises the floor from @@FG@@ to @@FLOORU1@@\,mK, an
-eastward one to @@FLOORE1@@\,mK, and a northward one leaves it essentially
-unchanged at @@FLOORN1@@\,mK; at @@MAGHI@@\,m the vertical figure is
-@@FLOORU10@@\,mK, and at @@MAGLO@@\,m it is @@FLOORU01@@\,mK, an increase of
-@@FLOORU01PCT@@ per cent. The vertical response is the one that scales: over
-the two decades simulated the residual it leaves at $N=@@NA@@$ is proportional
-to the displacement to within @@UPDEV@@ per cent per decade and symmetric in
-its sign, because a vertical shift lowers the horizon by a near-uniform offset
-(Fig.~\ref{fig:horizon}b), and this is the parallel spacing of the three
-magnitude bundles in Fig.~\ref{fig:horizon_shift}. The horizontal responses are
-neither linear nor symmetric --- a horizontal shift changes the horizon by an
-amount that depends on where the cliff edges fall in azimuth, which is why
-those curves in Fig.~\ref{fig:horizon}(b) are spiky, and why the east and north
-bundles are not evenly spaced --- but they are also the smaller terms, and the
-vertical axis sets the requirement. Holding the RMS a position error leaves
-after the filter to a tenth of the median retained signal requires
-the antenna's vertical position to be known to roughly @@SPECM@@\,m, and we
-adopt that as the position-monitoring requirement.
+The cost of a position error is therefore strongly direction-dependent. At
+@@MAGHI@@\,m the induced floor is @@FLOORU10@@\,mK vertically against
+@@FLOORE10@@\,mK eastward and @@FLOORN10@@\,mK northward, so a @@MAGHI@@\,m
+error in the northward position costs less than a @@TOPMAG@@\,m error in the
+vertical. The alignment with the suspension is fortunate: the rope tension
+constrains the vertical and east/west directions and leaves north/south the
+least constrained, and the platform IMUs (section~\ref{subsec:box}) cannot
+sense lateral motion at all --- but north/south is precisely the direction in
+which position error is nearly free.
 
-This also answers the question of why one would not simply filter every mode
-the figures display. Doing so does improve the ratio of signal to systematic:
-at $N=@@NA@@$ the median retained model and the leftover from a @@TOPMAG@@\,m
-vertical error are equal, whereas by $N=@@NEND@@$ the model is @@SIGSYSEND@@
-times the larger. But two things go wrong. The signal that survives is
-@@KEEPEND@@\,mK, @@KEEPENDPCT@@ per cent of its band RMS, and it is no longer
-trough-shaped: the share of the surviving power inside 70--130\,MHz falls from
-@@TROUGHNA@@ per cent at $N=@@NA@@$ to @@TROUGHEND@@ per cent at
-$N=@@NEND@@$, against @@TROUGHFLAT@@ per cent for a residual with no preference
-at all, the remainder being ringing at the band edges. And the foreground
-residual that motivates filtering deeper is the singular-value tail of the
-matrix that defined the basis, so its collapse is guaranteed by construction
-rather than measured. Tracked against a perturbation that did not help build
-the basis, the limiting term changes hands: the foregrounds are the larger of
-the two by @@HANDFAC@@ times at $N=@@HANDPREV@@$, the two are equal at
-$N=@@NA@@$, and beyond $N=@@HANDSTAY@@$ the @@TOPMAG@@\,m vertical error is
-consistently larger, reaching @@HANDEND@@ times the foreground residual by
-$N=@@NEND@@$. Past that handover, filtering further modes takes signal out of a
-residual that is no longer made of foreground. The depth at which to stop is
-therefore set by the instrument model rather than by the sky, and it cannot be
-read off the foreground curve at all.
+What Fig.~\ref{fig:horizon_shift} shows is the structure left behind by a
+displacement the model does not know about. A displacement that is known is
+part of the forward model and is absorbed by the fit; what leaves structure is
+the ignorance. That ignorance is marginalised over, and these sensitivities set
+how wide the prior may be. Horizontally it may be wide at almost no cost.
+Vertically it may not: a @@MAGLO@@\,m uncertainty leaves the floor at
+@@FLOORU01@@\,mK, @@FLOORU01PCT@@ per cent above the unperturbed value, but by
+@@TOPMAG@@\,m the floor is comparable to the median retained signal, and by
+@@MAGHI@@\,m it is @@FLOORU10@@\,mK, an order of magnitude above it.
 
-The wider point is methodological. An unmodelled displacement of the size we
-must anticipate leaves behind a residual that resembles the retained signal in
-both amplitude and shape --- at $N=@@NA@@$ the leftover from a @@TOPMAG@@\,m
+This is why we forward-model the instrument rather than filtering to a fixed
+depth and interpreting what is left. An unmodelled displacement of the size we
+must anticipate leaves a residual that resembles the retained signal in both
+amplitude and shape --- at $N=@@NA@@$ the leftover from a @@TOPMAG@@\,m
 vertical error and the median 21-cm model are equal in RMS, and their cosine
-similarity reaches @@COSMAX@@ (median @@COSMED@@). A residual left by a filter
-of fixed depth is therefore not evidence of a cosmological signal:
-excess with respect to a foreground model is only as trustworthy as the
-instrument model behind it, a lesson the field has already drawn from the
-scrutiny of published detections
+similarity reaches @@COSMAX@@ (median @@COSMED@@). An excess with respect to a
+foreground model is only as trustworthy as the instrument model behind it
 \citep{2018Natur.564E..32H, 2019ApJ...874..153B, 2019ApJ...880...26S}.
-Figs.~\ref{fig:singular_values} and~\ref{fig:horizon_shift} should accordingly
-be read as measurements of spectral overlap -- how many modes the
-instrument-weighted foregrounds occupy, and how a position error compares with
-the signal the same filter leaves -- and not as a proposed pipeline. EIGSEP's
-analysis instead forward-models the instrument (this section), with the antenna
-position among the parameters that are fitted and marginalised over rather than
-assumed. The differentiable forward model makes that marginalisation tractable,
-and the position sensitivities computed here are what set the priors it needs.
-The same argument applies to every other respect in which the simulated
-instrument may differ from the real one; the horizon is the one we have probed.
 
 
 % ===================================================================
