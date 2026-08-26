@@ -53,7 +53,10 @@ EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 
 ## The notebooks
 
-Three notebooks, four paper figures, no figure scripts. Each is a paper
+Three notebooks, three paper figures, no figure scripts.
+(`signal_loss.pdf` is still generated but no longer included by the
+manuscript: `beam_comparison.pdf` became Fig. 1 and its central panel
+is that same plot.) Each is a paper
 trail: it loads the raw inputs, derives everything in-notebook, renders
 its figures, prints every number the paper quotes, and exports the paper
 repo's committed npz + standalone notebook + PDF.
@@ -77,8 +80,10 @@ repo's committed npz + standalone notebook + PDF.
   does. Measures the design claim of `subsec:eig_antenna`.
 
 Run `horizon_shift` first — `signal_loss` reads the `Vh` it publishes.
-`beam_comparison` is independent of both, but asserts its bowtie panel against
-`foreground_svd.npz` and `paper.N_ANCHOR`.
+`beam_comparison` runs last: it asserts its bowtie panel against
+`foreground_svd.npz` and `paper.N_ANCHOR`, and it merges the substitution
+values `signal_loss` publishes to write the single `paper_text.tex` carrying
+all six prose blocks in manuscript order.
 
 Neither notebook imports the other. What they must agree on lives in
 `paper.py` as constants (`N_ANCHOR`, `N_SHOW`, `N_MODELS`, and where the

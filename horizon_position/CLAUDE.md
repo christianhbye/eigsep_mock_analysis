@@ -58,10 +58,14 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   nominal-horizon sidereal day per beam, resumable per-beam checkpoints
   `beam_<tag>.npz`). The Vivaldi HEALPix beam lives outside this repo:
   `--vivaldi` / `EIGSEP_VIVALDI_BEAM`.
-- `beam_comparison_text.tex.in` — LaTeX template for that figure's prose.
 - `paper.py` — artifact locations + the constants the two figures share
   (`N_ANCHOR`, `N_SHOW`, `N_MODELS`). No analysis, by design.
-- `signal_loss_text.tex.in` — LaTeX template for the draft prose.
+- `paper_text.tex.in` — LaTeX template for the whole draft prose, all
+  six blocks in manuscript order. Substituted once, by
+  `beam_comparison.ipynb`, which runs last; `signal_loss.ipynb`
+  publishes its values to `output/signal_loss_vals.npz` instead of
+  writing a file. Replaced `signal_loss_text.tex.in` and
+  `beam_comparison_text.tex.in` on 2026-08-26.
 - `reionization_sensitivity.py` — one-off audit of `models_21cm`'s
   reionization threshold; settled, not part of the figure pipeline.
 
@@ -75,7 +79,14 @@ in-notebook rather than importing it.
 - `horizon_shift.ipynb` -> `horizon_perturbations_1col.pdf` and
   `horizon_shift.pdf`. Inputs: `output/position_sims.npz`,
   `output/horizons_position.npz`, the Zeus21 ensemble.
-- `signal_loss.ipynb` -> `signal_loss.pdf` and `signal_loss_text.tex`.
+- `signal_loss.ipynb` -> the analysis behind blocks 1, 4, 5 and 6 of
+  `paper_text.tex`, published as `output/signal_loss_vals.npz`. **It no
+  longer contributes a paper figure**: `signal_loss.pdf` was retired on
+  2026-08-26 when `beam_comparison.pdf` became Fig. 1, because its content is
+  that figure's central panel. The notebook still derives `N_ANCHOR`,
+  `N_HAND` and every millikelvin number the prose quotes. Do not delete it.
+  It still writes `signal_loss.pdf` and `signal_loss.npz`, which are simply
+  no longer included by the manuscript. Formerly ->
   Inputs: the paper's `foreground_svd.npz`, the Zeus21 ensemble, and
   `horizon_shift.npz` (§7 only, for the caption blocks).
 - `beam_comparison.ipynb` -> `beam_comparison.pdf` and
@@ -88,7 +99,10 @@ in-notebook rather than importing it.
   against mode count: at fixed N the antenna that suppressed *less* retains
   more, which inverts the conclusion. Quote retained *fraction* at matched
   foreground suppression.
-- **Run `horizon_shift.ipynb` first** — `signal_loss.ipynb` asserts its
+- **Run order is `horizon_shift` -> `signal_loss` -> `beam_comparison`.**
+  The last one merges the other's substitution values and writes the single
+  `paper_text.tex`; it fails with a pointer if `signal_loss_vals.npz` is
+  absent. Run `horizon_shift.ipynb` first — `signal_loss.ipynb` asserts its
   eigenbasis against the `Vh` that one publishes. `beam_comparison.ipynb` is
   independent of both but asserts its bowtie panel reproduces
   `foreground_svd.npz` and `paper.N_ANCHOR`.
