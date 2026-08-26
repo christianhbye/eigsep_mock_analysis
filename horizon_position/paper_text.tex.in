@@ -26,19 +26,17 @@
 % retired: its content is the CENTRAL PANEL of the new figure, reproduced
 % from the same simulation to better than a per cent, so printing both would
 % have printed one panel twice. signal_loss.ipynb still runs -- it derives
-% N_ANCHOR and every number in blocks 1, 4, 5 and 6 -- it just no longer
+% N_ANCHOR and every number in blocks 1, 3, 4 and 5 -- it just no longer
 % contributes a figure. Do not delete that notebook.
 %
 % The figure is @@FIGW@@in wide and needs `figure*'. That is the one real cost
 % of the replacement: the paper loses a single-column figure early on.
 %
-% Blocks 1 and 2 are one continuous passage in "Minimising Covariance with the
-% 21-cm Signal" and must be pasted in that order: block 1 establishes the
-% filter and what the signal retains, block 2 asks what of that is the
-% antenna, and the closing caveat paragraph at the end of block 2 shuts the
-% section. Do not reinstate the caveat paragraph at the end of block 1 -- it
-% used to live there, and with the comparison inserted after it, it read as
-% closing the section twice.
+% Block 1 is one continuous passage in "Minimising Covariance with the 21-cm
+% Signal": the three beams are introduced before the figure is referenced, the
+% numbers are attributed to the antenna they belong to as they are quoted, and
+% the caveat paragraph closes the section once. It was two blocks until
+% 2026-08-26; do not split it apart again.
 %
 % ===================================================================
 % POWER vs AMPLITUDE. Every "per cent of the power" in this file is a ratio of
@@ -56,7 +54,7 @@
 % "Foreground modes filtered" and "Residual RMS [K]", so prose, captions and
 % axes say the same thing. Block 1 defines $N$ as the number of modes filtered
 % and every later block uses that notation. Where the geometry is the argument
-% rather than the vocabulary -- the own-basis floors of block 5 -- the words
+% rather than the vocabulary -- the own-basis floors of block 4 -- the words
 % "basis" and "subspace" are load-bearing and should stay.
 %
 % The 10 mK framing is deliberately gone. The manuscript used to say "to filter
@@ -70,7 +68,7 @@
 % to it, no frequency-space panel drawn at one. That is deliberate, and it is
 % also why the three-panel Fig. 1 does not reintroduce the problem the old
 % three-panel version had -- those panels were three DEPTHS with a labelled N,
-% these are three ANTENNAS with none. Blocks 1, 2, 5 and 6 quote numbers at
+% these are three ANTENNAS with none. Blocks 1 and 4 quote numbers at
 % $N$ = NA and NHAND, but a caption or sentence must never imply a figure
 % singles either out.
 %
@@ -79,17 +77,17 @@
 % foreground-vs-SIGNAL crossing, and block 1's headline. N = NHAND, one mode
 % inside it, is where an unmodelled TOPMAG m vertical error overtakes the
 % foreground floor -- a foreground-vs-SYSTEMATIC crossing, and the depth
-% block 5 quotes every position number at. They coincided until the 21-cm
+% block 4 quotes every position number at. They coincided until the 21-cm
 % ensemble was put into antenna temperature; that moved NA up by one and left
 % NHAND alone, since neither curve in it involves the 21-cm signal. Do not
 % collapse them back into one number.
 %
-% Block 5 quotes at NHAND because that is where the position error is the term
+% Block 4 quotes at NHAND because that is where the position error is the term
 % limiting the residual. It is also the only place the numbers mean anything:
 % SPIKEPCT per cent of what a TOPMAG m vertical error leaves after NHAND modes
 % is the single SPIKEth mode, so one more filtered mode drops it by a factor of
 % ten. Floors read at NA describe the remainder after that mode, not the error.
-% That fragility is block 5's closing argument rather than an embarrassment --
+% That fragility is block 4's closing argument rather than an embarrassment --
 % a fixed-depth filter set either side of one eigenmode reports a different
 % result, which is the case for forward modelling.
 %
@@ -106,11 +104,11 @@
 % block 1 claims not to use, it makes the foregrounds less compressible, and
 % it gives the same answer anyway.
 %
-% THE VIVALDI IS NOT A REJECTED CANDIDATE, and block 2 lives or dies on this.
+% THE VIVALDI IS NOT A REJECTED CANDIDATE, and block 1 lives or dies on this.
 % It is a HERA Phase II feed (\citealt{2021ITAP...69.8143F},
 % \citealt{2024PASP..136d5002B}), it is what EIGSEP uses for the ground
 % antennas (section~\ref{sec:vivaldis}), and it is the antenna the first
-% suspension flew in October 2024. So block 2 frames the comparison as a
+% suspension flew in October 2024. So block 1 frames the comparison as a
 % documented evolution -- the first suspension flew this feed, the bowtie was
 % built afterwards for this job, here is what that bought -- and NOT as a
 % choice between two candidates. Two clauses must survive editing: that the
@@ -143,7 +141,7 @@
 % sentences now read "separate" and "constrain". Do not put "project out" or
 % "remove" back.
 %
-% Paste the six blocks into rasti_template.tex as marked. Nothing here is
+% Paste the five blocks into rasti_template.tex as marked. Nothing here is
 % \input by the paper -- this file is a staging area, not a dependency, and
 % nothing in this repo writes to the paper .tex itself.
 % ===================================================================
@@ -151,133 +149,125 @@
 
 % ===================================================================
 % BLOCK 1 -- section "Minimising Covariance with the 21-cm Signal".
-% Replaces the passage from "Using a representative beam ..." up to but NOT
-% including "... under realistic systematics and foreground filtering."; block
-% 2 continues directly from it and carries the closing paragraph.
+% Replaces the whole passage from "Using a representative beam ..." to
+% "... as described in section~\ref{subsec:fwd_modelling}."
 %
-% Paragraph 1 is the manuscript's own and is untouched. Paragraph 2 differs
-% from the original only in that its residuals are placeholders and that "To
-% filter foregrounds to 10\,mK, we need to remove the first eight modes" is
-% gone -- see the 10 mK note in the header. The residual at that depth survives
-% as the dynamic range, which is the claim the sentence was making all along.
+% This was two blocks until 2026-08-26 -- the filter result, then the antenna
+% comparison bolted on after it. That order introduced a three-panel figure and
+% then quoted a page of numbers that came only from its central panel without
+% ever saying so, and a reader who jumps to the figure at first mention had no
+% way to know which panel was being described. The three beams are now
+% introduced BEFORE the figure is referenced, and the numbers are attributed as
+% they are quoted. Do not split it back apart.
 %
-% "The central panel" throughout, not "the figure": Fig. 1 has three panels now
-% and only the middle one is the EIGSEP antenna. Getting this wrong would
-% attribute the bowtie's numbers to whichever panel the reader looks at first.
+% Paragraph order: what was simulated; which three beams and why; what the SVD
+% shows and the mechanism behind the ordering; what the 21-cm ensemble retains;
+% caveats. Results first, caveats last and once.
 %
-% The distinguishability sentence earns its place: the RMS comparison before it
-% is about amplitude, and on its own it leaves open whether the ensemble
-% collapses to an indistinguishable residual. One sentence answers that. Note
-% it got weaker when the ensemble moved into antenna temperature -- PAIR1 was
-% 99 per cent when the models were sky-referred -- and it is quoted honestly.
+% QUOTE THE BOWTIE. It is the antenna that exists, so the millikelvin numbers
+% are its; the other two appear as mode counts and ratios. Quoting all three in
+% millikelvin triples the numbers for no gain and invites the reader to treat
+% the isotropic bound as achievable.
 %
-% Deliberately absent: the retention-vs-trough-depth correlations (detail; the
-% notebook still prints them); the `stays below' rule; and the repeated "N is
-% not a filter depth we propose to apply to data", which is block 5's argument
-% and is made there, once. EDGES, MIST and REACH are not cited here either:
-% the subsection introduces all three a few paragraphs earlier.
+% THE CONVOLUTION SENTENCE is the physics and should survive editing. Without
+% it the ordering of the three curves is just an observation; with it, it is
+% the reason the antenna is a design variable at all. An achromatic beam leaves
+% the foregrounds' spectral structure as the sky's alone; a chromatic one mixes
+% its own frequency-dependent angular structure in, so the measured spectrum
+% belongs to neither in isolation.
+%
+% KHALICHI ET AL. The manuscript already defers to it in
+% section~\ref{subsec:eig_antenna} for "a detailed eigenmode-based analysis of
+% beam chromaticity, foreground complexity, and overlap with global 21-cm
+% signal models" -- which is what this figure does a limited version of. The
+% deferral is kept so this reads as the short version of a result that paper
+% owns, not as competing with it. It is a plain-text in-prep citation; there is
+% no bib key.
+%
+% THE VIVALDI IS NOT A REJECTED CANDIDATE -- see the header. Both required
+% clauses are folded into one sentence in paragraph 2: used without the dish it
+% was designed to illuminate, and the ground antennas do not need low
+% chromaticity. Keep both; they are what stop this reading as a swipe at a
+% collaborator's antenna.
+%
+% Deliberately absent: the RMS at one and four modes (the steep decline is
+% visible in the figure and the dynamic-range sentence carries the claim); the
+% retention-vs-trough-depth correlations; the `stays below' rule; and the
+% repeated "N is not a filter depth we propose to apply to data", which is
+% block 4's argument and is made there, once.
 %
 % ZEUS21 ATTRIBUTION. Its README asks for one paper unconditionally
 % (2023MNRAS.523.2587M), a second only if the UVLF module is used, and a third
 % for relative velocities, Lyman-Werner feedback or Pop III stars
-% (2025PhRvD.111h3503C). Two of the three is correct here: models_21cm's
-% generate.py sets USE_POPIII, USE_LW_FEEDBACK and USE_RELATIVE_VELOCITIES,
-% and never touches zeus21.UVLF_binned. The README also asks for a link to the
-% repository; it is a \footnote at first mention, which is what this manuscript
-% does for CROISSANT and every other piece of software.
+% (2025PhRvD.111h3503C). Two of the three is correct here.
 % ===================================================================
 
-Using a representative beam from our electromagnetic simulations of the EIGSEP
+Using representative beams from our electromagnetic simulations of the EIGSEP
 antenna (section~\ref{subsec:eig_antenna}), a model of the horizon profile at
 the EIGSEP site (Fig.~\ref{fig:horizon}), and the Global Sky Model
 \citep{2017MNRAS.464.3486Z}, we simulated one sidereal day of observation by
 EIGSEP over 50--250\,MHz with the forward model described in
 section~\ref{subsec:fwd_modelling}.
-The simulations of the beam-weighted foregrounds produce predictions for the
-antenna temperature measured by EIGSEP.
 In the simulations, we assumed a constant ground temperature of 300\,K. This
 beam-weighted ground pickup is included in the antenna temperature and not
 corrected here.
 
-We then computed the singular value decomposition of the antenna temperature,
-producing its orthogonal spectral eigenmodes, and used the resulting
-eigenmodes to filter the beam-weighted foregrounds.
-In the central panel of Fig.~\ref{fig:singular_values}, we present the residual
-RMS after filtering as a function of the number of eigenmodes filtered, $N$.
-The first point -- zero modes filtered -- is the RMS of the raw waterfall
-pixels about zero. This is approximately @@RMS0@@\,K.
-Because the singular value decomposition is not centred, the first mode
-captures the mean antenna temperature spectrum.
-The residual declines steeply: with one mode filtered, the residual RMS is
-@@RMS1@@\,K and with four modes filtered, the residual RMS is @@RMS4@@\,K.
-The result shows that the beam-weighted foregrounds occupy a low-dimensional
-subspace: filtering $N=@@NAM1@@$ orthogonal modes describes the antenna
-temperature to one part in $10^{@@DYNM1@@}$, or @@FGM1@@\,mK.
+To separate the effect of the antenna from that of the sky, we repeated the
+simulation for three beams observing the same sky behind the same horizon: an
+isotropic beam, which is achromatic and so contributes no spectral structure of
+its own; the EIGSEP bowtie; and a Vivaldi feed of the type used for the ground
+antennas (section~\ref{sec:vivaldis}), where low chromaticity is not required,
+which was flown on the first suspension test and is used here without the dish
+it was designed to illuminate. This is the criterion the antenna geometry was
+selected against; a detailed eigenmode analysis of beam chromaticity and its
+overlap with global 21-cm models will be presented in Khalichi et al. 2026 (in
+prep.).
+
+We then computed the singular value decomposition of each antenna temperature,
+producing its orthogonal spectral eigenmodes, and used those eigenmodes to
+filter the corresponding beam-weighted foregrounds.
+In Fig.~\ref{fig:singular_values}, we present the residual RMS after filtering
+as a function of the number of eigenmodes filtered, $N$, for each of the three
+beams. The first point -- zero modes filtered -- is the RMS of the raw waterfall
+pixels about zero, approximately @@RMS0@@\,K; because the decomposition is not
+centred, the first mode captures the mean antenna temperature spectrum.
+The residual declines steeply in every case, but not equally fast: reaching
+@@LEVEL@@\,mK takes @@NISO@@ modes for the isotropic beam, @@NBOW@@ for the
+bowtie and @@NVIV@@ for the Vivaldi feed.
+This ordering follows from the measurement being a convolution of the beam with
+the sky. An achromatic beam leaves the spectral structure of the foregrounds as
+the sky's alone, whereas a chromatic beam couples its own frequency-dependent
+angular structure into them, so that the antenna temperature carries structure
+belonging to neither in isolation and more modes are required to describe it.
+For the EIGSEP bowtie, filtering $N=@@NAM1@@$ orthogonal modes describes the
+antenna temperature to one part in $10^{@@DYNM1@@}$, or @@FGM1@@\,mK.
 
 To assess the spectral overlap between the beam-weighted foregrounds and the
-expected cosmological signal, we applied the identical foreground filter to an
-ensemble of @@NMODELS@@ global 21-cm models generated with the Zeus21
+expected cosmological signal, we applied each antenna's filter to an ensemble of
+@@NMODELS@@ global 21-cm models generated with the Zeus21
 code\footnote{\url{https://github.com/ZeusCosmo/Zeus21}}
 \citep{2023MNRAS.523.2587M, 2025PhRvD.111h3503C}.
 Because the eigenmodes are built from the antenna temperature, the models are
 first expressed in the same quantity: an isotropic signal is received through
-the fraction of the beam that sees open sky, which for our horizon and beam is
+the fraction of the beam that sees open sky, which for the bowtie is
 @@ETALO@@--@@ETAHI@@ over the band, so the amplitudes quoted below are smaller
 than the corresponding sky brightness temperatures by that factor.
-The central panel shows that the filter explains foreground variance more
-effectively than the cosmological signal, and that after $N=@@NA@@$ modes are
-removed, the RMS of the median retained 21-cm signal is larger (@@MED@@\,mK)
-than the RMS of the residual foregrounds (@@FG@@\,mK).
-What the filter leaves also remains informative: among the @@NDEEP@@ models
-with absorption troughs deeper than 50\,mK, filtering reduces the median
-separation between a pair of models over 70--130\,MHz from @@SEP0@@ to
-@@SEP1@@\,mK, but @@PAIR1@@ per cent of pairs stay separated by more than
-1\,mK.
-
-
-% ===================================================================
-% BLOCK 2 -- same section, immediately after block 1. Three paragraphs of
-% comparison, then the closing paragraph that used to end block 1.
-%
-% Paragraph 3 is the destination: the design claim in
-% section~\ref{subsec:eig_antenna} is what this block exists to substantiate.
-% If the block has to be cut, cut towards that sentence, and keep the two
-% framing clauses named in the header.
-%
-% The closing paragraph reads better here than it did at the end of block 1:
-% "knowledge of the sky or the beam may allow some chromatic structure to be
-% modelled rather than filtered" lands immediately after three panels
-% demonstrating what beam chromaticity costs.
-% ===================================================================
-
-The amount of signal that survives this filter is a property of the antenna as
-much as of the sky. The three panels of Fig.~\ref{fig:singular_values} repeat
-the simulation and the filter for three beams observing the same sky behind the
-same horizon: an isotropic beam, which has no chromaticity and so bounds what
-any antenna could achieve at this site; the EIGSEP bowtie; and a Vivaldi feed
-of the type used for the ground antennas (section~\ref{sec:vivaldis}) and flown
-on the first suspension test. Each is filtered in its own eigenbasis and scaled
-by its own open-sky fraction, since both are properties of the beam.
-
-The antenna sets both how deep the filter must go and how much signal is left
-when it gets there. Filtering the beam-weighted foregrounds to @@LEVEL@@\,mK
-takes @@NISO@@ modes for the isotropic beam, @@NBOW@@ for the bowtie and
-@@NVIV@@ for the Vivaldi feed; of the unfiltered 21-cm RMS, @@RETISO@@,
-@@RETBOW@@ and @@RETVIV@@ per cent respectively remain at that point. Compared
-at the same level of foreground suppression, the bowtie therefore retains
-@@FACTOR@@ times the signal the Vivaldi feed does, and recovers @@PCTIDEAL@@ per
-cent of what an achromatic antenna would. This is not an aperture effect and
-runs against one: the Vivaldi feed is the more directive of the two and couples
-proportionally more of its response to the sky than to the ground
-(@@ETAVIV@@ against @@ETABOW@@), so it begins with more signal and still ends
-with less.
-
-This is the design criterion of section~\ref{subsec:eig_antenna} measured
-rather than asserted, and it is why the suspended antenna is not simply a
-Vivaldi feed of the kind already deployed on the ground. The comparison is
-specific to this application: the feed is used here in isolation, without the
-dish it was designed to illuminate, and the ground antennas it is used for are
-not required to deliver a low-chromaticity global-signal measurement.
+For the bowtie, the filter explains foreground variance more effectively than
+the cosmological signal: after $N=@@NA@@$ modes are removed, the RMS of the
+median retained 21-cm signal is larger (@@MED@@\,mK) than the RMS of the
+residual foregrounds (@@FG@@\,mK).
+Compared at the same level of foreground suppression, the bowtie retains
+@@RETBOW@@ per cent of the unfiltered 21-cm RMS, against @@RETVIV@@ per cent for
+the Vivaldi feed and @@RETISO@@ per cent for the isotropic beam --- that is,
+@@FACTOR@@ times the signal the Vivaldi feed retains and @@PCTIDEAL@@ per cent
+of what an achromatic antenna would.
+This is not an aperture effect, and runs against one: the Vivaldi feed couples
+proportionally more of its response to the sky than to the ground (@@ETAVIV@@
+against @@ETABOW@@), so it begins with more signal and still ends with less.
+What the filter leaves also remains informative: among the @@NDEEP@@ models with
+absorption troughs deeper than 50\,mK, filtering reduces the median separation
+between a pair of models over 70--130\,MHz from @@SEP0@@ to @@SEP1@@\,mK, but
+@@PAIR1@@ per cent of pairs stay separated by more than 1\,mK.
 
 While Fig.~\ref{fig:singular_values} is a useful heuristic probing the
 covariance between the beam-weighted foregrounds and the 21-cm signal, it does
@@ -293,7 +283,7 @@ section~\ref{subsec:fwd_modelling}.
 
 
 % ===================================================================
-% BLOCK 3 -- caption for beam_comparison.pdf, which is now Fig. 1. Keep
+% BLOCK 2 -- caption for beam_comparison.pdf, which is now Fig. 1. Keep
 % \label{fig:singular_values}: blocks 2, 4, 5 and the horizon_shift caption all
 % refer to it. Two-column `figure*'.
 %
@@ -332,11 +322,11 @@ below the axis near $N=@@NAISO@@$, where it reaches machine precision.}
 
 
 % ===================================================================
-% BLOCK 4 -- caption for horizon_shift.pdf, replacing the existing one.
+% BLOCK 3 -- caption for horizon_shift.pdf, replacing the existing one.
 % Keep \label{fig:horizon_shift} and the figure* environment.
 %
 % Short and descriptive by design: what the panels show, then the comparison a
-% reader who never reaches the text needs. The nuance is block 5's job. Do not
+% reader who never reaches the text needs. The nuance is block 4's job. Do not
 % append a "this is not a proposed analysis" sentence -- blocks 2 and 5 both
 % make the point, and the sentence read as an apology. The residual row carries
 % the same axes as Fig.~\ref{fig:singular_values} and its grey band is
@@ -348,7 +338,7 @@ below the axis near $N=@@NAISO@@$, where it reaches machine precision.}
 % that a TOPMAG m position error is a bigger effect than the entire foreground
 % sky. It is not: the basis is the foregrounds' own right singular vectors, so
 % they compress optimally by construction, and a displaced sky decomposed in
-% ITS own basis comes back at OWNLO-OWNHI mK. That argument is block 5,
+% ITS own basis comes back at OWNLO-OWNHI mK. That argument is block 4,
 % paragraph 2, and a caption cannot carry it.
 %
 % The counts are CLEAR_E / CLEAR_N / CLEAR_U, worst-LST against the median.
@@ -356,7 +346,7 @@ below the axis near $N=@@NAISO@@$, where it reaches machine precision.}
 % caption's numbers are not reproducible without that word.
 %
 % Do NOT write "the change is foreground-like". That is the old manuscript's
-% phrase, and block 5 opens by refuting it. The vertical shift needs CLEAR_U
+% phrase, and block 4 opens by refuting it. The vertical shift needs CLEAR_U
 % modes to fall under the median signal where the whole foreground sky needs
 % NA, so it is marginally HARDER to filter than the foregrounds, not more
 % foreground-like. East and north genuinely are.
@@ -392,7 +382,7 @@ vertical shift, where @@SPIKEPCT@@ per cent of the power surviving
 
 
 % ===================================================================
-% BLOCK 5 -- section "Forward Modelling". Insert after "The tension in the
+% BLOCK 4 -- section "Forward Modelling". Insert after "The tension in the
 % rope supporting the antenna limits vertical motion and, due to its
 % orientation, east/west motion." -- AFTER that sentence, not before it, since
 % paragraph 4 builds directly on what the rope does and does not constrain.
@@ -490,7 +480,7 @@ to a foreground model is only as trustworthy as the instrument model behind it
 
 
 % ===================================================================
-% BLOCK 6 -- section "Forward Modelling". Replaces the sentence beginning
+% BLOCK 5 -- section "Forward Modelling". Replaces the sentence beginning
 % "To quantify the effect of the horizon coupling, we computed the change in
 % antenna temperature ... by 1 m to the east, north, and up ...".
 %
