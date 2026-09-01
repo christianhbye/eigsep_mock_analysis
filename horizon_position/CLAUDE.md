@@ -108,12 +108,30 @@ in-notebook rather than importing it.
   `foreground_svd.npz` and `paper.N_ANCHOR`.
 - **The Vivaldi is not a rejected candidate.** It is a HERA Phase II feed, it
   is what EIGSEP uses for the ground antennas (`sec:vivaldis`), and it is the
-  antenna the October 2024 suspension flew. The prose frames the comparison as
-  a documented evolution, states that the feed is used without the dish it was
-  designed to illuminate, and notes the ground antennas have a different job.
-  Keep all three; without them this reads as a swipe at a collaborator's
-  antenna. Keep "couples better to the sky and still retains less" too — it is
-  what stops the comparison reading as special pleading.
+  antenna the October 2024 suspension flew. Block 1 frames the comparison
+  through **design intent, not defence**: "used in isolation, without a dish,
+  as for the ground antennas", then one sentence of history — a prototype
+  design, flown on the first suspension, never optimised for low chromaticity,
+  with the bowtie developed afterwards against that criterion. "Optimised"
+  attached to the bowtie carries the whole contrast. An earlier revision
+  defended the Vivaldi in its own right ("where low chromaticity is not
+  required", "the ground antennas have a different job"); that read as a talk
+  aside and as protesting too much, and was cut on 2026-08-27.
+- **The aperture point is bookkeeping, not an argument.** `ETAVIV > ETABOW` is
+  still asserted, and the fact is stated in the units paragraph (the Vivaldi
+  carries proportionally more 21-cm amplitude into its filter) *before* the
+  retained fractions land, where it is needed anyway to explain the
+  attenuation. It used to be a standalone sentence ("begins with more signal
+  and still ends with less") — persuasive, but in a voice the paper does not
+  otherwise use. Never say the Vivaldi ends with less in **absolute** retained
+  amplitude: `eta` divides out of the fractions and in absolute terms the two
+  antennas are nearly tied.
+- **Khalichi et al. lives in block 1's caveat paragraph**, and it is the
+  paper's *first* mention (`subsec:covariance` is at `rasti_template.tex:204`,
+  `subsec:eig_antenna` at 344). It therefore carries the full deferral plus a
+  forward `\ref` to `subsec:eig_antenna`; the sentence at
+  `rasti_template.tex:354` should shrink to a back-reference so the same
+  phrase is not printed twice. That edit is in the paper repo, not here.
 - Neither notebook imports the other. Shared values live in `paper.py` as
   constants; each notebook re-derives them and asserts. Do not move a
   derivation into `paper.py` — that is what makes the assert meaningful.
@@ -165,6 +183,23 @@ in-notebook rather than importing it.
   error leaves there is the single mode `N_ANCHOR` filters, so floors read at
   `N_ANCHOR` describe the remainder after that mode rather than the error.
   Block 1 and the figure captions quote at `N_ANCHOR`.
+- **The two landmarks use different crossing rules, deliberately.** `N_ANCHOR`
+  takes the *stays-below* rule; `N_HAND` takes *first crossing*. They are not
+  interchangeable: the +1 m vertical overtakes the foreground floor at N = 9
+  (3.01 against 1.82 mK), dips back under at N = 10 and 11, and is above for
+  good only from N = 12 — so a stays-above rule would put the handover at 12
+  and break the `N_HAND == N_ANCHOR - 1` assert. First crossing is right here
+  because the crossing at 9 and the dip at 10 are the same fact: mode 10
+  carries 99% of what the vertical leaves, and that spike is block 4's closing
+  argument rather than a defect in the landmark. `print_handover` returns both
+  (`first`, `stays`) and prints the pair; keep it that way.
+- **`N_HAND` is the vertical's crossing, not the position error's.** Of the 18
+  simulated displacements only six cross the foreground floor within N ≤ 18 at
+  all: Up ±1 m at 9, Up ±10 m at 5–6, East ±1 m at 16, East ±10 m at 8, North
+  ±10 m at 9–12. Nothing at 0.1 m in any direction crosses, and neither does
+  north at 1 m. Block 4's appositive therefore says "the vertical error first
+  overtakes"; do not generalise it back to "the position error", which is false
+  for the east and north floors quoted in the same sentence.
 - **Neither figure draws anything at `N_ANCHOR`.** It is the dimension the
   *prose* quotes millikelvin numbers at, and the common dimension at which
   `horizon_shift` compares the position systematic against the 21 cm

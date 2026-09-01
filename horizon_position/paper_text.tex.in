@@ -109,18 +109,30 @@
 % \citealt{2024PASP..136d5002B}), it is what EIGSEP uses for the ground
 % antennas (section~\ref{sec:vivaldis}), and it is the antenna the first
 % suspension flew in October 2024. So block 1 frames the comparison as a
-% documented evolution -- the first suspension flew this feed, the bowtie was
-% built afterwards for this job, here is what that bought -- and NOT as a
-% choice between two candidates. Two clauses must survive editing: that the
-% feed is used without the 14-m dish it was designed to illuminate, and that
-% the ground antennas have a different job. Without them this reads as a swipe
-% at a collaborator's antenna.
+% documented evolution -- a prototype design that was flown and was never
+% optimised for low chromaticity, against a bowtie developed afterwards
+% against that criterion -- and NOT as a choice between two candidates. The
+% framing is HISTORICAL, not exculpatory: an earlier revision defended the
+% Vivaldi in its own right ("where low chromaticity is not required", "the
+% ground antennas have a different job") and that reads as a talk aside, and
+% as protesting too much. Saying what each antenna was designed for does the
+% same work in fewer words. Keep "used in isolation, without a dish": it is
+% the manuscript's own framing in section~\ref{sec:vivaldis}, which the reader
+% has not reached yet at this point in the paper, and the word "optimised"
+% attached to the bowtie is what carries the contrast.
 %
-% Keep "couples better to the sky and still retains less" too. It is the most
-% persuasive sentence available, because the alternative antenna is handed an
-% advantage and still comes out behind; a one-sided comparison reads as special
-% pleading. ETAVIV > ETABOW is asserted in beam_comparison.ipynb so the
-% sentence cannot outlive the fact.
+% THE APERTURE POINT NOW ARRIVES AS BOOKKEEPING, not as an argument. ETAVIV >
+% ETABOW is asserted in beam_comparison.ipynb, and the fact is stated in the
+% units paragraph -- the Vivaldi feed carries proportionally more 21-cm
+% amplitude into its filter -- where it is needed anyway to explain why the
+% ensemble is attenuated at all. It used to be a standalone sentence ("begins
+% with more signal and still ends with less"), which was the most persuasive
+% line in the block and also the one in a voice the rest of the paper does not
+% use. Stating the eta values BEFORE the retained fractions does the same job:
+% the reader has the disadvantage in hand when the fractions land. What this
+% must never say is that the Vivaldi ends with less in ABSOLUTE retained
+% amplitude -- eta divides out of the fractions, and in absolute terms the two
+% antennas are nearly tied.
 %
 % RETAINED FRACTION AT MATCHED SUPPRESSION, and both halves are load-bearing.
 % Fraction, because absolute retained amplitude mixes in aperture efficiency
@@ -161,8 +173,17 @@
 % they are quoted. Do not split it back apart.
 %
 % Paragraph order: what was simulated; which three beams and why; what the SVD
-% shows and the mechanism behind the ordering; what the 21-cm ensemble retains;
-% caveats. Results first, caveats last and once.
+% shows, the mechanism behind the ordering, and the dynamic range that answers
+% the "one part in 10^4" heuristic; what the 21-cm ensemble retains; caveats.
+% Results first, caveats last and once.
+%
+% THE BLOCK IS NOT SELF-CONTAINED, by design. Two sentences reach back into the
+% manuscript paragraphs immediately above it, which block 1 does not replace:
+% "comfortably inside the dynamic range set out above" answers the "about one
+% part in 10^4" heuristic there, and the units paragraph's "left uncorrected
+% here too" points at the 300 K ground sentence in paragraph 1. If either of
+% those manuscript paragraphs is rewritten, these two clauses have to move with
+% them.
 %
 % QUOTE THE BOWTIE. It is the antenna that exists, so the millikelvin numbers
 % are its; the other two appear as mode counts and ratios. Quoting all three in
@@ -176,19 +197,38 @@
 % its own frequency-dependent angular structure in, so the measured spectrum
 % belongs to neither in isolation.
 %
-% KHALICHI ET AL. The manuscript already defers to it in
-% section~\ref{subsec:eig_antenna} for "a detailed eigenmode-based analysis of
-% beam chromaticity, foreground complexity, and overlap with global 21-cm
-% signal models" -- which is what this figure does a limited version of. The
-% deferral is kept so this reads as the short version of a result that paper
-% owns, not as competing with it. It is a plain-text in-prep citation; there is
-% no bib key.
+% KHALICHI ET AL. lives in the CAVEAT paragraph, not the beam list. That
+% paragraph is already the "what this figure is not" paragraph, so a broader
+% comparison over more geometries arrives as the answer to a limitation just
+% admitted, rather than as a citation that deflates the result before the
+% reader has seen it. It also closes the door this section must not open: a
+% reader asking "what about other antenna designs?" is sent to the paper that
+% owns that question instead of to a study we would have to do. Do NOT move it
+% back up into paragraph 2, and do not add a second sentence arguing the point.
 %
-% THE VIVALDI IS NOT A REJECTED CANDIDATE -- see the header. Both required
-% clauses are folded into one sentence in paragraph 2: used without the dish it
-% was designed to illuminate, and the ground antennas do not need low
-% chromaticity. Keep both; they are what stop this reading as a swipe at a
-% collaborator's antenna.
+% THE POINTER RUNS FORWARD, and this is a fact about where the sections sit.
+% subsec:covariance is at rasti_template.tex:204; subsec:eig_antenna is at 344.
+% So this is the FIRST mention of Khalichi et al. in the paper, and it carries
+% the full deferral ("a broader eigenmode-based analysis of beam chromaticity,
+% foreground complexity and overlap with global 21-cm signal models") plus a
+% forward ref to subsec:eig_antenna. The existing sentence at
+% rasti_template.tex:354 should therefore SHRINK to a short back-reference --
+% "... over the EIGSEP operating band (section~\ref{subsec:covariance}),
+% following the analysis of Khalichi et al. 2026 (in prep.)" -- so the same
+% 14-word phrase is not printed twice. That edit is in the paper repo, not
+% here; if it has not been made, this block duplicates it.
+%
+% It is a plain-text in-prep citation; there is no bib key.
+%
+% THE VIVALDI IS NOT A REJECTED CANDIDATE -- see the header. Paragraph 2 now
+% does it with design intent rather than defence: "used in isolation, without a
+% dish, as for the ground antennas", then one sentence of history -- a
+% prototype design, flown on the first suspension, never optimised for low
+% chromaticity, with the bowtie developed afterwards against that criterion.
+% "Optimised" attached to the bowtie is load-bearing: it is the whole contrast,
+% and it is why the paragraph no longer needs a clause excusing the Vivaldi.
+% Keep the British spelling; the manuscript is consistent (optimised,
+% minimising, modelled).
 %
 % RMS0 IS BEAM-DEPENDENT and the value quoted is the bowtie's: the raw
 % waterfall RMS is 691 K for the isotropic beam, 728 K for the bowtie and
@@ -197,9 +237,36 @@
 % a paragraph that describes all three beams, so it has to say whose number it
 % is. Do not generalise it back.
 %
-% DYNRANGE is a mantissa-exponent string, not an exponent. It used to be
-% f"{log10(ratio):.0f}" inside $10^{...}$, which rounded 10^5.6 up to 10^6 and
-% overstated the dynamic range by a factor of 2.5.
+% DYNBOW, NOT DYNRANGE. The dynamic-range sentence is quoted at NBOW, the
+% depth the same paragraph just said the bowtie needs, so the whole passage
+% sits at one N. It used to be quoted at NAM1 = 9 (as DYNRANGE), which put a
+% third mode count into a passage that otherwise uses 10 throughout and read as
+% a fourth statistic rather than as the answer to the heuristic above. DYNRANGE
+% and FGM1 are still emitted by signal_loss.ipynb and are now UNUSED here, like
+% RMS1 and RMS4; that is fine -- the substitution assert only catches
+% unsubstituted tokens, not unused keys.
+%
+% DYNBOW is computed in beam_comparison.ipynb, where NBOW and the per-beam
+% residual curves both live, as fg_resid["bowtie"][0] / fg_resid["bowtie"][NBOW].
+% Its numerator is the same quantity signal_loss rounds to RMS0, and the two
+% notebooks are asserted to agree on the bowtie curve to better than a per
+% cent, so the sentence and the RMS0 sentence are consistent.
+%
+% It is a mantissa-exponent string, not an exponent. The old DYNRANGE used to
+% be f"{log10(ratio):.0f}" inside $10^{...}$, which rounded 10^5.6 up to 10^6
+% and overstated the dynamic range by a factor of 2.5. Keep _sci().
+%
+% TWO REFERENCE PLANES IN ONE PARAGRAPH, and the units sentence is what keeps
+% them apart. MED, SEP0 and SEP1 are ANTENNA temperature (the ensemble is
+% attenuated by eta before filtering); the "deeper than 50 mK" selection behind
+% NDEEP is SKY brightness temperature -- signal_loss.ipynb computes it as
+% -T21_sky.min(axis=1), because trough depth describes the model, not the
+% observation. Both appear in mK within four sentences of each other, three
+% paragraphs after the section names EDGES, MIST, REACH and SARAS, so the
+% reader arrives with a 500 mK trough in mind. Hence BOTH halves of the units
+% sentence: the eta range with "smaller ... by that factor", and the explicit
+% "Trough depths are quoted as sky brightness temperature". Cutting either one
+% leaves the paragraph quietly mixing the two.
 %
 % Deliberately absent: the RMS at one and four modes (the steep decline is
 % visible in the figure and the dynamic-range sentence carries the claim); the
@@ -225,14 +292,12 @@ corrected here.
 
 To separate the effect of the antenna from that of the sky, we repeated the
 simulation for three beams observing the same sky behind the same horizon: an
-isotropic beam, which is achromatic and so contributes no spectral structure of
-its own; the EIGSEP bowtie; and a Vivaldi feed of the type used for the ground
-antennas (section~\ref{sec:vivaldis}), where low chromaticity is not required,
-which was flown on the first suspension test and is used here without the dish
-it was designed to illuminate. This is the criterion the antenna geometry was
-selected against; a detailed eigenmode analysis of beam chromaticity and its
-overlap with global 21-cm models will be presented in Khalichi et al. 2026 (in
-prep.).
+achromatic and isotropic beam, the optimised EIGSEP bowtie, and a Vivaldi feed
+used in isolation, without a dish, as for the ground antennas
+(section~\ref{sec:vivaldis}).
+The Vivaldi feed is a prototype design, flown on the first EIGSEP suspension
+test but never optimised for low chromaticity; the bowtie geometry was
+developed afterwards against that criterion.
 
 We then computed the singular value decomposition of each antenna temperature,
 producing its orthogonal spectral eigenmodes, and used those eigenmodes to
@@ -243,27 +308,38 @@ beams. The first point -- zero modes filtered -- is the RMS of the raw waterfall
 pixels about zero, which for the bowtie is approximately @@RMS0@@\,K; because
 the decomposition is not centred, the first mode captures the mean antenna
 temperature spectrum.
-The residual declines steeply in every case, but not equally fast: reaching
-@@LEVEL@@\,mK takes @@NISO@@ modes for the isotropic beam, @@NBOW@@ for the
-bowtie and @@NVIV@@ for the Vivaldi feed.
+The isotropic beam represents an ideal case with no chromatic pattern coupling
+to the foregrounds, and so produces the beam-weighted foregrounds with the
+least possible spectral structure: it takes @@NISO@@ modes to filter them below
+@@LEVEL@@\,mK.
+The realistic beam patterns of the EIGSEP bowtie and the Vivaldi feed are
+chromatic, and that chromaticity does couple to the foregrounds, increasing the
+number of modes required to reach the same level: @@NBOW@@ modes for the bowtie
+against @@NVIV@@ for the Vivaldi feed.
 This ordering follows from the measurement being a convolution of the beam with
 the sky. An achromatic beam leaves the spectral structure of the foregrounds as
 the sky's alone, whereas a chromatic beam couples its own frequency-dependent
 angular structure into them, so that the antenna temperature carries structure
 belonging to neither in isolation and more modes are required to describe it.
-For the EIGSEP bowtie, filtering $N=@@NAM1@@$ orthogonal modes describes the
-antenna temperature to one part in $@@DYNRANGE@@$, or @@FGM1@@\,mK.
+Filtering the @@NBOW@@ modes the bowtie requires describes its antenna
+temperature to one part in $@@DYNBOW@@$, comfortably inside the dynamic range
+set out above.
 
 To assess the spectral overlap between the beam-weighted foregrounds and the
 expected cosmological signal, we applied each antenna's filter to an ensemble of
 @@NMODELS@@ global 21-cm models generated with the Zeus21
 code\footnote{\url{https://github.com/ZeusCosmo/Zeus21}}
 \citep{2023MNRAS.523.2587M, 2025PhRvD.111h3503C}.
-Because the eigenmodes are built from the antenna temperature, the models are
-first expressed in the same quantity: an isotropic signal is received through
-the fraction of the beam that sees open sky, which for the bowtie is
-@@ETALO@@--@@ETAHI@@ over the band, so the amplitudes quoted below are smaller
-than the corresponding sky brightness temperatures by that factor.
+The beam-weighted ground pickup is left uncorrected here too, and that applies
+to the models as well as to the foregrounds: an isotropic signal reaches the
+antenna temperature through the fraction of the beam that sees open sky, which
+for the bowtie is @@ETALO@@--@@ETAHI@@ across the band, so the retained
+amplitudes quoted below are smaller than the corresponding sky brightness
+temperatures by that factor. Trough depths are quoted as sky brightness
+temperature.
+That fraction depends on the beam: averaged over the band it is @@ETAVIV@@ for
+the Vivaldi feed against @@ETABOW@@ for the bowtie, so the Vivaldi feed carries
+proportionally more 21-cm signal amplitude into its filter.
 For the bowtie, the filter explains foreground variance more effectively than
 the cosmological signal: after $N=@@NA@@$ modes are removed, the RMS of the
 median retained 21-cm signal is larger (@@MED@@\,mK) than the RMS of the
@@ -273,9 +349,6 @@ Compared at the same level of foreground suppression, the bowtie retains
 the Vivaldi feed and @@RETISO@@ per cent for the isotropic beam --- that is,
 @@FACTOR@@ times the signal the Vivaldi feed retains and @@PCTIDEAL@@ per cent
 of what an achromatic antenna would.
-This is not an aperture effect, and runs against one: the Vivaldi feed couples
-proportionally more of its response to the sky than to the ground (@@ETAVIV@@
-against @@ETABOW@@), so it begins with more signal and still ends with less.
 What the filter leaves also remains informative: among the @@NDEEP@@ models with
 absorption troughs deeper than 50\,mK, filtering reduces the median separation
 between a pair of models over 70--130\,MHz from @@SEP0@@ to @@SEP1@@\,mK, but
@@ -287,8 +360,12 @@ not represent the complete analysis needed for foreground separation.
 Unmodelled instrumental systematics may require more modes filtered than in
 this figure.
 On the other hand, knowledge of the sky or the beam -- e.g. through beam
-mapping (section~\ref{subsec:beam_mapping}) -- may allow some chromatic
-structure to be modelled rather than filtered.
+mapping (section~\ref{subsec:beam_mapping}) -- may allow chromatic structure in
+the beam to be modelled rather than filtered.
+A broader eigenmode-based analysis of beam chromaticity, foreground complexity
+and overlap with global 21-cm signal models, spanning the range of antenna
+geometries considered for EIGSEP, will be presented in Khalichi et al. 2026 (in
+prep.); section~\ref{subsec:eig_antenna} describes the geometry it selected.
 In practice, EIGSEP will use a differentiable forward model to evaluate
 systematics and separate the foregrounds, as described in
 section~\ref{subsec:fwd_modelling}.
@@ -437,13 +514,13 @@ upward, in each case peaking at the bottom of the band. Under the filter of
 Fig.~\ref{fig:singular_values}, whose modes come from the unperturbed antenna
 temperature and carry no knowledge of the displacement, an unmodelled
 @@TOPMAG@@\,m error raises the residual floor at $N=@@NHAND@@$ --- the depth
-at which the position error overtakes the foregrounds as the term limiting the
-residual --- from @@FGHAND@@\,mK to @@FLOORU1@@\,mK for a vertical shift and
-to @@FLOORE1@@\,mK for an eastward one, and leaves it unchanged at
-@@FLOORN1@@\,mK for a northward one. The median retained 21-cm signal is
-@@MEDHAND@@\,mK there, so the vertical error alone leaves a floor several
-times the signal it would be mistaken for, the eastward error is comparable to
-it, and the northward error is negligible.
+at which the vertical error first overtakes the foregrounds as the term
+limiting the residual --- from @@FGHAND@@\,mK to @@FLOORU1@@\,mK for a
+vertical shift and to @@FLOORE1@@\,mK for an eastward one, and leaves it
+unchanged at @@FLOORN1@@\,mK for a northward one. The median retained 21-cm
+signal is @@MEDHAND@@\,mK there: the vertical error alone leaves a residual
+several times that, the eastward error one comparable to it, and the northward
+error one well below it.
 
 The vertical direction differs in kind from the other two. A vertical shift
 lowers the local horizon at every azimuth at once (Fig.~\ref{fig:horizon}b),
@@ -468,8 +545,14 @@ which position error is nearly free.
 What Fig.~\ref{fig:horizon_shift} shows is the structure left behind by a
 displacement the model does not know about. A displacement that is known is
 part of the forward model and is absorbed by the fit; what leaves structure is
-the ignorance. That ignorance is marginalised over, and these sensitivities set
-how wide the prior may be. Horizontally it may be wide at almost no cost.
+the ignorance. The floors quoted above therefore measure modelling error and
+not a harder instrument: decomposed in a basis built from itself, each
+displaced sky returns to the unperturbed floor --- @@OWNLO10@@--@@OWNHI10@@\,mK
+even at @@MAGHI@@\,m, against @@FGHAND@@\,mK unperturbed --- so none of the
+excess is intrinsic to observing from the displaced position, and the floors
+are the bound set by assuming no knowledge of the displacement at all. That
+ignorance is marginalised over, and these sensitivities set how wide the prior
+may be. Horizontally it may be wide at almost no cost.
 Vertically it may not: a @@MAGLO@@\,m uncertainty leaves the floor at
 @@FLOORU01@@\,mK, @@FLOORU01PCT@@ per cent above the unperturbed value, but by
 @@TOPMAG@@\,m the floor is @@FLOORU1@@\,mK, three times the median retained
