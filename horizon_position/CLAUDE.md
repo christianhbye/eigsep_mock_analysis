@@ -156,6 +156,16 @@ in-notebook rather than importing it.
   retention by 2.2x. Ground-loss correcting everything instead is
   self-consistent and gives the same answer, but needs the beam knowledge
   block 1 claims not to use, and makes the foregrounds less compressible.
+- **`eta` is per beam, and every value the paper quotes is tokened.** The
+  0.36–0.55 above is the *bowtie*. `beam_comparison.ipynb` carries three:
+  0.36–0.55 (bowtie), 0.59–0.80 (Vivaldi), 0.35 (isotropic, achromatic — its
+  standard deviation across the band is identically zero, which the assert in
+  section 1.2 guarantees and which is why the paper quotes it as one number
+  rather than a range). Until 2026-09-02 only the bowtie range reached the
+  manuscript through tokens (`ETALO`/`ETAHI` from `signal_loss.ipynb`) and the
+  other two were typed by hand — the same failure mode that took out the
+  rotation paragraph. The loop now emits `ETALO{ISO,BOW,VIV}` and
+  `ETAHI{ISO,BOW,VIV}`. **Never hand-type an eta into the paper text.**
 - `T21_sky` (unattenuated) is kept alongside `T21` in `signal_loss` for trough
   depth, trough width and the selections built on them — those describe the
   *model*, not the observation. Everything filtered or compared against a

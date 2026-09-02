@@ -246,7 +246,11 @@
 % a fourth statistic rather than as the answer to the heuristic above. DYNRANGE
 % and FGM1 are still emitted by signal_loss.ipynb and are now UNUSED here, like
 % RMS1 and RMS4; that is fine -- the substitution assert only catches
-% unsubstituted tokens, not unused keys.
+% unsubstituted tokens, not unused keys. As of 2026-09-02 ETALO and ETAHI join
+% them: the eta sentence now uses the per-beam ETALO{ISO,BOW,VIV} /
+% ETAHI{ISO,BOW,VIV} out of beam_comparison.ipynb, so signal_loss's bowtie-only
+% pair is no longer referenced. ETALOISO and ETAHIISO are emitted but unused as
+% well, because the isotropic value is quoted as a single number.
 %
 % DYNBOW is computed in beam_comparison.ipynb, where NBOW and the per-beam
 % residual curves both live, as fg_resid["bowtie"][0] / fg_resid["bowtie"][NBOW].
@@ -332,16 +336,36 @@ expected cosmological signal, we applied each antenna's filter to an ensemble of
 @@NMODELS@@ global 21-cm models generated with the Zeus21
 code\footnote{\url{https://github.com/ZeusCosmo/Zeus21}}
 \citep{2023MNRAS.523.2587M, 2025PhRvD.111h3503C}.
-The beam-weighted ground pickup is left uncorrected here too, and that applies
-to the models as well as to the foregrounds: an isotropic signal reaches the
-antenna temperature through the fraction of the beam that sees open sky, which
-for the bowtie is @@ETALO@@--@@ETAHI@@ across the band, so the retained
-amplitudes quoted below are smaller than the corresponding sky brightness
-temperatures by that factor. Trough depths are quoted as sky brightness
-temperature.
-That fraction depends on the beam: averaged over the band it is @@ETAVIV@@ for
-the Vivaldi feed against @@ETABOW@@ for the bowtie, so the Vivaldi feed carries
-proportionally more 21-cm signal amplitude into its filter.
+% RESYNCED 2026-09-02 with what actually landed in the manuscript (:229), and
+% every eta is now tokened. This paragraph used to quote ETALO--ETAHI -- the
+% BOWTIE range, out of signal_loss.ipynb -- and then give band MEANS for the
+% other two beams, so the Vivaldi and isotropic numbers in the published
+% sentence were typed by hand. That is the failure mode that took out the
+% rotation paragraph. They now come from ETALO{ISO,BOW,VIV} and
+% ETAHI{ISO,BOW,VIV}, emitted per beam by the loop in beam_comparison.ipynb.
+% (Token names are written bare in these comments on purpose: with the @@
+% markers they would be substituted, and the comment would then break if the
+% key were ever retired.)
+%
+% ETAISO is quoted as a SINGLE value, not a range, because the isotropic
+% open-sky fraction is achromatic -- its standard deviation across the band is
+% identically zero. The assert in section 1.2 of beam_comparison.ipynb is what
+% guarantees that; if it is ever weakened, this sentence needs a range.
+As for the foregrounds, the beam-weighted ground pickup is left uncorrected for
+the cosmological signal. The retained amplitude of the 21-cm signal models is
+therefore scaled by the fraction of the beam that sees the open sky, which
+across the band is @@ETALOBOW@@--@@ETAHIBOW@@ for the bowtie,
+@@ETALOVIV@@--@@ETAHIVIV@@ for the Vivaldi feed, and @@ETAISO@@ for the
+isotropic beam.
+%
+% CUT FROM THE MANUSCRIPT, kept here so the framing is not lost: the aperture
+% point (header, "bookkeeping not an argument") used to have its own sentence,
+% "averaged over the band it is ETAVIV for the Vivaldi feed against ETABOW for
+% the bowtie". The ranges above already show ETAVIV > ETABOW, so the point
+% survives without it. Restore only if a referee asks for the band means.
+%
+% "Trough depths are quoted as sky brightness temperature" also left this
+% paragraph -- it is now inline in the trough-selection sentence at :232.
 For the bowtie, the filter explains foreground variance more effectively than
 the cosmological signal: after $N=@@NA@@$ modes are removed, the RMS of the
 median retained 21-cm signal is larger (@@MED@@\,mK) than the RMS of the
