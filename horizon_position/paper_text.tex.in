@@ -447,6 +447,14 @@ below the axis near $N=@@NAISO@@$, where it reaches machine precision.}
 % WHY the crossing lands where it does and what the "where" clause leans on.
 % signal_loss.ipynb asserts they still coincide; if that assert fires, this
 % clause needs rewriting rather than re-substituting.
+%
+% CUT 2026-09-01 BY THE AUTHOR: the trailing "where SPIKEPCT per cent of the
+% power surviving NHAND modes lies in the SPIKEth mode alone" clause is gone
+% from the manuscript, together with block 4's closing paragraph, which was
+% the only text it supported. The caption now ends at "... and CLEAR_U for the
+% vertical shift." Do not paste the clause back on its own -- a statistic with
+% no argument behind it is worse than neither. The CLEAR_U/SPIKE assert in
+% signal_loss.ipynb now gates no published sentence; keep it as a sanity check.
 % ===================================================================
 
 \caption{Change in the simulated antenna temperature,
@@ -508,6 +516,15 @@ vertical shift, where @@SPIKEPCT@@ per cent of the power surviving
 % Do NOT write "a lesson the field has already drawn from the scrutiny of
 % published detections" before the three citations in paragraph 5, or any
 % variant. It reads as a dig at EDGES. The citations carry the point.
+%
+% CUT 2026-09-01 BY THE AUTHOR: paragraph 5 -- "This is why we forward-model
+% the instrument ..." through the three citations -- is gone from the
+% manuscript. It read as pedagogy rather than result, and the positive case
+% for forward modelling is already carried by paragraph 4 (known displacement
+% absorbed, unknown marginalised, sensitivities set the prior width). The
+% citations survive at rasti_template.tex:161 and :236, so nothing is lost
+% bibliographically. Block 3's caption clause was cut with it; restoring
+% either one alone is wrong.
 % ===================================================================
 
 A @@TOPMAG@@\,m displacement changes the antenna temperature by up to
