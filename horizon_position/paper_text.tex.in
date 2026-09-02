@@ -107,11 +107,13 @@
 % THE VIVALDI IS NOT A REJECTED CANDIDATE, and block 1 lives or dies on this.
 % It is a HERA Phase II feed (\citealt{2021ITAP...69.8143F},
 % \citealt{2024PASP..136d5002B}), it is what EIGSEP uses for the ground
-% antennas (section~\ref{sec:vivaldis}), and it is the antenna the first
-% suspension flew in October 2024. So block 1 frames the comparison as a
-% documented evolution -- a prototype design that was flown and was never
-% optimised for low chromaticity, against a bowtie developed afterwards
-% against that criterion -- and NOT as a choice between two candidates. The
+% antennas (section~\ref{sec:vivaldis}), and it is the antenna the October
+% 2024 suspension flew -- the SECOND of the three (July 2024 prototype
+% platform, October 2024 Vivaldi, July 2025 bowtie), not the first. So block 1
+% frames the comparison as a documented evolution -- a prototype design that
+% was flown and was never optimised for low chromaticity, against a bowtie
+% developed afterwards against that criterion -- and NOT as a choice between
+% two candidates. The
 % framing is HISTORICAL, not exculpatory: an earlier revision defended the
 % Vivaldi in its own right ("where low chromaticity is not required", "the
 % ground antennas have a different job") and that reads as a talk aside, and
@@ -223,7 +225,7 @@
 % THE VIVALDI IS NOT A REJECTED CANDIDATE -- see the header. Paragraph 2 now
 % does it with design intent rather than defence: "used in isolation, without a
 % dish, as for the ground antennas", then one sentence of history -- a
-% prototype design, flown on the first suspension, never optimised for low
+% prototype design, flown in October 2024, never optimised for low
 % chromaticity, with the bowtie developed afterwards against that criterion.
 % "Optimised" attached to the bowtie is load-bearing: it is the whole contrast,
 % and it is why the paragraph no longer needs a clause excusing the Vivaldi.
@@ -295,8 +297,8 @@ simulation for three beams observing the same sky behind the same horizon: an
 achromatic and isotropic beam, the optimised EIGSEP bowtie, and a Vivaldi feed
 used in isolation, without a dish, as for the ground antennas
 (section~\ref{sec:vivaldis}).
-The Vivaldi feed is a prototype design, flown on the first EIGSEP suspension
-test but never optimised for low chromaticity; the bowtie geometry was
+The Vivaldi feed is a prototype design, flown on the October 2024 EIGSEP
+suspension but never optimised for low chromaticity; the bowtie geometry was
 developed afterwards against that criterion.
 
 We then computed the singular value decomposition of each antenna temperature,
