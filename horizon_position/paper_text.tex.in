@@ -585,6 +585,21 @@ least constrained, and the platform IMUs (section~\ref{subsec:box}) cannot
 sense lateral motion at all --- but north/south is precisely the direction in
 which position error is nearly free.
 
+% OWN-BASIS NUMBERS: THE MANUSCRIPT NOW CARRIES THEM ELSEWHERE, 2026-09-02.
+% The clause below ("decomposed in a basis built from itself ...
+% OWNLO10--OWNHI10 mK even at MAGHI m, against FGHAND mK unperturbed") was cut
+% when this block was folded in, and the numbers were restored by hand into the
+% PRECEDING paragraph instead -- onto the existing sentence "If the eigenmode
+% basis is built using the correct antenna position, the residual floor is
+% comparable to that of the nominal position", which is the same claim stated
+% qualitatively. In the manuscript that sentence now ends ": even a 10 m
+% displacement leaves it between 1.66 and 2.03 mK, against 1.82 mK
+% unperturbed", and those four numbers are OWNLO10, OWNHI10, MAGHI and FGHAND,
+% verified equal on 2026-09-02.
+%
+% So DO NOT paste both. If this block is ever regenerated and pasted wholesale,
+% drop the own-basis clause below or drop the one in the preceding paragraph --
+% whichever reads better in place -- but the paper must not state it twice.
 What Fig.~\ref{fig:horizon_shift} shows is the structure left behind by a
 displacement the model does not know about. A displacement that is known is
 part of the forward model and is absorbed by the fit; what leaves structure is
