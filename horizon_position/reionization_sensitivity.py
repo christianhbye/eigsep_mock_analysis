@@ -33,12 +33,19 @@ edge at z = 4.6816, so requiring a kept model to be reionized there is if
 anything better supported now than it was.
 """
 
-import make_paper_signal_loss_figure as mp
-import numpy as np
-import selection  # via the sys.path entry mp adds on import
+import sys
+from pathlib import Path
 
-PAPER = mp.PAPER
-N_SHOW = mp.N_SHOW_TEXT
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paper  # noqa: E402
+
+sys.path.insert(0, str(paper.ROOT / "models_21cm"))
+import selection  # noqa: E402
+
+PAPER = paper.PAPER
+N_SHOW = paper.N_SHOW
 
 # Davies et al. 2025, abstract: fiducial 1 sigma upper limits on the
 # volume-averaged neutral fraction from the optimally sensitive
@@ -64,9 +71,9 @@ def main():
     assert np.array_equal(shift["freqs_MHz"], freqs), "frequency grid mismatch"
     n_f = freqs.size
 
-    # Uncut ensemble: mp.load_t21 applies the cut, which is the thing under
+    # Uncut ensemble: the notebooks apply the cut, which is the thing under
     # test here, so the npz is read directly instead.
-    m = np.load(mp.MODELS_NPZ, allow_pickle=False)
+    m = np.load(paper.MODELS_NPZ, allow_pickle=False)
     assert np.array_equal(m["freqs_MHz"], freqs), "frequency grid mismatch"
     xHI, z_xHI = m["xHI"], m["z_xHI"]
     T21 = m["T21_mK"] * 1e-3  # K
@@ -101,8 +108,8 @@ def main():
     def report(label, keep):
         ret = ret_all[:, keep]
         n_star = anchor(np.median(ret, axis=1))
-        p5, p50, p95 = np.percentile(ret[mp.N_ANCHOR], [5, 50, 95])
-        above = (ret[mp.N_ANCHOR] > fg_resid[mp.N_ANCHOR]).mean() * 100
+        p5, p50, p95 = np.percentile(ret[paper.N_ANCHOR], [5, 50, 95])
+        above = (ret[paper.N_ANCHOR] > fg_resid[paper.N_ANCHOR]).mean() * 100
         print(
             f"| {label:<38s} | {keep.sum():4d} | {n_star:2d} | "
             f"{p5:5.3f} | {p50:5.3f} | {p95:6.3f} | {above:5.1f}% |"
@@ -113,7 +120,7 @@ def main():
 
     print(
         f"{T21.shape[0]} models, {n_f} channels, foreground floor at "
-        f"N = {mp.N_ANCHOR}: {fg_resid[mp.N_ANCHOR]:.3f} mK\n"
+        f"N = {paper.N_ANCHOR}: {fg_resid[paper.N_ANCHOR]:.3f} mK\n"
     )
 
     print(
@@ -135,7 +142,7 @@ def main():
 
     print(
         f"\nRetained RMS [mK] and above-floor fraction quoted at "
-        f"N = {mp.N_ANCHOR}; N* is the operating point each variant would "
+        f"N = {paper.N_ANCHOR}; N* is the operating point each variant would "
         "select on its own.\n"
     )
     head = ("cut", "keep", "N*", "p5", "p50", "p95", "above")
@@ -159,7 +166,7 @@ def main():
     # paper reports. Quantified rather than asserted.
     kept = (x_ref < selection.XHI_MAX) & band_top
     restored = band_top & (x_ref >= RESTORE_LO) & (x_ref < RESTORE_HI)
-    r, k = ret_all[mp.N_ANCHOR][restored], ret_all[mp.N_ANCHOR][kept]
+    r, k = ret_all[paper.N_ANCHOR][restored], ret_all[paper.N_ANCHOR][kept]
     print(
         f"\n{restored.sum()} models sit in xHI(5.9) = "
         f"[{RESTORE_LO}, {RESTORE_HI}) and pass the band-top limb -- "
@@ -169,12 +176,12 @@ def main():
     print(
         f"    restored: p5 = {np.percentile(r, 5):.2f}, "
         f"p50 = {np.median(r):.2f}, p95 = {np.percentile(r, 95):.2f} mK, "
-        f"{(r > fg_resid[mp.N_ANCHOR]).mean() * 100:.1f}% above floor"
+        f"{(r > fg_resid[paper.N_ANCHOR]).mean() * 100:.1f}% above floor"
     )
     print(
         f"    kept:     p5 = {np.percentile(k, 5):.2f}, "
         f"p50 = {np.median(k):.2f}, p95 = {np.percentile(k, 95):.2f} mK, "
-        f"{(k > fg_resid[mp.N_ANCHOR]).mean() * 100:.1f}% above floor"
+        f"{(k > fg_resid[paper.N_ANCHOR]).mean() * 100:.1f}% above floor"
     )
     worst = np.abs(T21[restored][:, -1]).max() * 1e3
     print(

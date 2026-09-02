@@ -31,44 +31,69 @@ uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
 # 2. per-position waterfalls (mock_analysis env, from monorepo root)
 uv run python horizon_position/run_sims.py          # -> output/position_sims.npz
 
-# 3. the analysis + both paper figures
-uv run jupyter lab horizon_position/notebooks/horizon_shift.ipynb
-#    or headless:
+# 2b. one nominal-horizon day per antenna, for the beam comparison.
+#     --vivaldi (or EIGSEP_VIVALDI_BEAM) points at the HEALPix Vivaldi beam,
+#     which lives outside this repo. Resampling it to MWSS takes a few minutes.
+uv run python horizon_position/run_beam_sims.py     # -> output/beam_sims.npz
+
+# 3. the analysis + all three paper figures, in this order
+#    (signal_loss reads the Vh that horizon_shift writes)
 uv run jupyter nbconvert --to notebook --execute --inplace \
     horizon_position/notebooks/horizon_shift.ipynb
-
-# 4. Fig. 1 -- reads the Vh that step 3 writes, so it must come after
-uv run python horizon_position/make_paper_signal_loss_figure.py
+uv run jupyter nbconvert --to notebook --execute --inplace \
+    horizon_position/notebooks/signal_loss.ipynb
+uv run jupyter nbconvert --to notebook --execute --inplace \
+    horizon_position/notebooks/beam_comparison.ipynb
+#    or open any of them in Jupyter and run it top to bottom
 
 # tests
 uv run pytest horizon_position/ -v                  # pure-module unit tests
 EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 ```
 
-## The notebook
+## The notebooks
 
-`notebooks/horizon_shift.ipynb` is the paper trail for both horizon
-figures, end to end: it loads the raw simulation output and the Zeus21
-21 cm ensemble, computes `dT_ant`, builds the foreground eigenbasis
-explicitly, re-derives the operating point `N_ANCHOR`, renders the
-figures, prints every number the paper quotes, and exports the paper
+Three notebooks, three paper figures, no figure scripts.
+(`signal_loss.pdf` is still generated but no longer included by the
+manuscript: `beam_comparison.pdf` became Fig. 1 and its central panel
+is that same plot.) Each is a paper
+trail: it loads the raw inputs, derives everything in-notebook, renders
+its figures, prints every number the paper quotes, and exports the paper
 repo's committed npz + standalone notebook + PDF.
 
-There are no figure scripts. It imports `make_paper_signal_loss_figure`
-in one place only, to assert that Fig. 1 and this figure cut the same
-21 cm models and agree on `N_ANCHOR` — nothing is derived from it.
+- `notebooks/horizon_shift.ipynb` — the horizon geometry
+  (`horizon_perturbations_1col.pdf`) and the antenna-position systematic
+  (`horizon_shift.pdf`): loads the simulation output and the Zeus21
+  ensemble, computes `dT_ant`, builds the foreground eigenbasis, and
+  re-derives `N_ANCHOR`.
+- `notebooks/signal_loss.ipynb` — Fig. 1 (`signal_loss.pdf`) and the
+  draft prose (`signal_loss_text.tex`): pushes the 21 cm ensemble through
+  the identical projection and reads the retained signal off the same
+  axes as the foreground residual. One single-column panel, two curves,
+  no dimension marked — `N_ANCHOR` is where the *prose* quotes numbers,
+  not something either figure draws.
+
+- `notebooks/beam_comparison.ipynb` — `beam_comparison.pdf` and its draft
+  prose: the same sky, horizon and filter run for three beams (isotropic,
+  EIGSEP bowtie, Vivaldi feed), each with its own eigenbasis and its own
+  open-sky attenuation, to separate what the antenna costs from what the sky
+  does. Measures the design claim of `subsec:eig_antenna`.
+
+Run `horizon_shift` first — `signal_loss` reads the `Vh` it publishes.
+`beam_comparison` runs last: it asserts its bowtie panel against
+`foreground_svd.npz` and `paper.N_ANCHOR`, and it merges the substitution
+values `signal_loss` publishes to write the single `paper_text.tex` carrying
+all six prose blocks in manuscript order.
+
+Neither notebook imports the other. What they must agree on lives in
+`paper.py` as constants (`N_ANCHOR`, `N_SHOW`, `N_MODELS`, and where the
+paper's files are); each notebook re-derives those from the raw inputs
+and asserts against them, so a regenerated ensemble fails loudly in both
+rather than quietly moving one figure.
 
 The plotting code is lifted into the exported standalone notebooks with
 `inspect.getsource`, so the version archived with the paper is always
 byte-identical to the version that produced the PDF.
-
-Figures produced (written into the paper's `notebooks/` directory):
-
-- `horizon_perturbations_1col.pdf` — the horizon geometry: `alpha_h(az)`
-  and `Delta alpha_h(az)` for +1 m East/North/Up.
-- `horizon_shift.pdf` — `dT_ant(nu)` at 24 LSTs (top) and its residual
-  after filtering the leading N foreground modes, against the retained
-  21 cm signal (bottom).
 
 ## Outputs (`output/`, gitignored)
 
@@ -85,10 +110,13 @@ Figures produced (written into the paper's `notebooks/` directory):
 - `miscorrected` — corrected with the *nominal* `fgnd` (position error
   unknown); equals `uncorrected / (1 - fgnd_nominal)`.
 
-## Other scripts
+## Other files
 
-- `make_paper_signal_loss_figure.py` — the paper's Fig. 1
-  (`signal_loss.pdf`), a different figure. Reads `horizon_shift.npz`
-  for the foreground modes, so run the notebook first.
+- `paper.py` — where the paper's artifacts live, plus the constants the
+  two figures share. No analysis. `EIGSEP_PAPER_NOTEBOOKS` overrides the
+  output location, so a run can target a worktree instead of the live
+  paper directory.
+- `signal_loss_text.tex.in` — the LaTeX template `signal_loss.ipynb`
+  substitutes into `signal_loss_text.tex`. Edit the prose here.
 - `reionization_sensitivity.py` — one-off audit of how much
   `models_21cm`'s reionization threshold moves the reported numbers.
