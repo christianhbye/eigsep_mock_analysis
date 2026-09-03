@@ -60,12 +60,15 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   `--vivaldi` / `EIGSEP_VIVALDI_BEAM`.
 - `paper.py` — artifact locations + the constants the two figures share
   (`N_ANCHOR`, `N_SHOW`, `N_MODELS`). No analysis, by design.
-- `paper_text.tex.in` — LaTeX template for the whole draft prose, all
-  six blocks in manuscript order. Substituted once, by
-  `beam_comparison.ipynb`, which runs last; `signal_loss.ipynb`
-  publishes its values to `output/signal_loss_vals.npz` instead of
-  writing a file. Replaced `signal_loss_text.tex.in` and
-  `beam_comparison_text.tex.in` on 2026-08-26.
+- **There is no generated LaTeX here any more.** `paper_text.tex.in`, the
+  `@@TOKEN@@` substitution in `beam_comparison.ipynb` and the
+  `output/signal_loss_vals.npz` hand-off that fed it were removed on
+  2026-09-03: manuscript editing has fully moved to the paper repo, and a
+  template that nobody pastes from is a second copy of the prose that goes
+  stale silently. (`signal_loss_text.tex.in` and `beam_comparison_text.tex.in`
+  had already been folded into it on 2026-08-26.) The notebooks still *print*
+  every number the manuscript quotes — that is the point of them, and it is
+  how a number is checked now. Do not reintroduce a template.
 - `reionization_sensitivity.py` — one-off audit of `models_21cm`'s
   reionization threshold; settled, not part of the figure pipeline.
 
@@ -79,8 +82,8 @@ in-notebook rather than importing it.
 - `horizon_shift.ipynb` -> `horizon_perturbations_1col.pdf` and
   `horizon_shift.pdf`. Inputs: `output/position_sims.npz`,
   `output/horizons_position.npz`, the Zeus21 ensemble.
-- `signal_loss.ipynb` -> the analysis behind blocks 1, 4, 5 and 6 of
-  `paper_text.tex`, published as `output/signal_loss_vals.npz`. **It no
+- `signal_loss.ipynb` -> the analysis behind the manuscript's foreground and
+  position-systematic numbers, printed rather than published. **It no
   longer contributes a paper figure**: `signal_loss.pdf` was retired on
   2026-08-26 when `beam_comparison.pdf` became Fig. 1, because its content is
   that figure's central panel. The notebook still derives `N_ANCHOR`,
@@ -89,8 +92,7 @@ in-notebook rather than importing it.
   no longer included by the manuscript. Formerly ->
   Inputs: the paper's `foreground_svd.npz`, the Zeus21 ensemble, and
   `horizon_shift.npz` (§7 only, for the caption blocks).
-- `beam_comparison.ipynb` -> `beam_comparison.pdf` and
-  `beam_comparison_text.tex`. Inputs: `output/beam_sims.npz`, the Zeus21
+- `beam_comparison.ipynb` -> `beam_comparison.pdf`. Inputs: `output/beam_sims.npz`, the Zeus21
   ensemble, and `foreground_svd.npz` as a cross-check. Three panels — isotropic
   / bowtie / Vivaldi — each the Fig. 1 axes for one antenna. **Each antenna is
   filtered in its own eigenbasis and attenuated by its own `eta`**, so the
@@ -99,13 +101,14 @@ in-notebook rather than importing it.
   against mode count: at fixed N the antenna that suppressed *less* retains
   more, which inverts the conclusion. Quote retained *fraction* at matched
   foreground suppression.
-- **Run order is `horizon_shift` -> `signal_loss` -> `beam_comparison`.**
-  The last one merges the other's substitution values and writes the single
-  `paper_text.tex`; it fails with a pointer if `signal_loss_vals.npz` is
-  absent. Run `horizon_shift.ipynb` first — `signal_loss.ipynb` asserts its
-  eigenbasis against the `Vh` that one publishes. `beam_comparison.ipynb` is
-  independent of both but asserts its bowtie panel reproduces
-  `foreground_svd.npz` and `paper.N_ANCHOR`.
+- **Run order is `horizon_shift` -> `signal_loss`.** `signal_loss.ipynb`
+  asserts its eigenbasis, `N_HAND` and the induced floors against the
+  `horizon_shift.npz` that one publishes, so a stale npz fails it loudly.
+  `beam_comparison.ipynb` is independent of both and can run at any point; it
+  asserts its bowtie panel reproduces `foreground_svd.npz` and
+  `paper.N_ANCHOR`. It used to have to run last, to merge
+  `signal_loss_vals.npz` and substitute the template; that ordering
+  constraint died with the template on 2026-09-03.
 - **The Vivaldi is not a rejected candidate.** It is a HERA Phase II feed, it
   is what EIGSEP uses for the ground antennas (`sec:vivaldis`), and it is the
   antenna the October 2024 suspension flew. Block 1 frames the comparison
@@ -138,7 +141,7 @@ in-notebook rather than importing it.
 - Exports into the paper's `notebooks/` dir:
   `horizon_shift.{npz,ipynb,pdf}`, `horizon_perturbations.{npz,ipynb}` +
   `horizon_perturbations_1col.pdf`, `signal_loss.{npz,ipynb,pdf}` and
-  `signal_loss_text.tex`.
+  `beam_comparison.{npz,ipynb,pdf}`.
 - The exported notebooks must be **standalone** (Zenodo convention: they
   load the committed npz and import nothing from this repo). Their code is
   lifted from the live kernel with `inspect.getsource`, so there is exactly
@@ -156,16 +159,16 @@ in-notebook rather than importing it.
   retention by 2.2x. Ground-loss correcting everything instead is
   self-consistent and gives the same answer, but needs the beam knowledge
   block 1 claims not to use, and makes the foregrounds less compressible.
-- **`eta` is per beam, and every value the paper quotes is tokened.** The
-  0.36–0.55 above is the *bowtie*. `beam_comparison.ipynb` carries three:
-  0.36–0.55 (bowtie), 0.59–0.80 (Vivaldi), 0.35 (isotropic, achromatic — its
-  standard deviation across the band is identically zero, which the assert in
-  section 1.2 guarantees and which is why the paper quotes it as one number
-  rather than a range). Until 2026-09-02 only the bowtie range reached the
-  manuscript through tokens (`ETALO`/`ETAHI` from `signal_loss.ipynb`) and the
-  other two were typed by hand — the same failure mode that took out the
-  rotation paragraph. The loop now emits `ETALO{ISO,BOW,VIV}` and
-  `ETAHI{ISO,BOW,VIV}`. **Never hand-type an eta into the paper text.**
+- **`eta` is per beam, and there are three of them.** The 0.36–0.55 above is
+  the *bowtie*. `beam_comparison.ipynb` carries three: 0.36–0.55 (bowtie),
+  0.59–0.80 (Vivaldi), 0.35 (isotropic, achromatic — its standard deviation
+  across the band is identically zero, which the assert in section 1.2
+  guarantees and which is why the paper quotes it as one number rather than a
+  range). All three used to reach the manuscript as tokens; with the template
+  gone they reach it by being read off the notebook's printed output. **Never
+  quote an eta the notebook has not printed**, and never quote one beam's for
+  another — hand-typing the Vivaldi and isotropic ranges was the failure mode
+  that took out the rotation paragraph.
 - `T21_sky` (unattenuated) is kept alongside `T21` in `signal_loss` for trough
   depth, trough width and the selections built on them — those describe the
   *model*, not the observation. Everything filtered or compared against a
@@ -229,7 +232,7 @@ in-notebook rather than importing it.
 - **Vocabulary: filtering, not geometry.** Both residual axes are
   `Foreground modes filtered` / `Residual RMS [K]` — the axes of the
   `foreground_svd_residual.pdf` these curves were added to — and the prose,
-  the captions and `signal_loss_text.tex.in` all describe the operation as
+  the captions and the notebooks all describe the operation as
   filtering foreground eigenmodes, which is the manuscript's own wording. An
   earlier revision purged "filter" in favour of subspace/orthogonal-complement
   language; that was reversed. Where geometry *is* the argument (block 5's

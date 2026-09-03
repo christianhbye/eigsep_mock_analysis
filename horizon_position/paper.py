@@ -28,10 +28,6 @@ PAPER = Path(
 FG_NPZ = PAPER / "foreground_svd.npz"
 BEAM_CMP_NPZ = PAPER / "beam_comparison.npz"
 
-# signal_loss.ipynb's substitution values, handed to beam_comparison.ipynb.
-# It lives in output/ rather than the paper repo because it is a hand-off
-# between notebooks, not an artifact the paper archives.
-SIGNAL_LOSS_VALS = HERE / "output" / "signal_loss_vals.npz"
 SHIFT_NPZ = PAPER / "horizon_shift.npz"
 SIGNAL_LOSS_NPZ = PAPER / "signal_loss.npz"
 

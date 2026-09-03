@@ -59,7 +59,9 @@ manuscript: `beam_comparison.pdf` became Fig. 1 and its central panel
 is that same plot.) Each is a paper
 trail: it loads the raw inputs, derives everything in-notebook, renders
 its figures, prints every number the paper quotes, and exports the paper
-repo's committed npz + standalone notebook + PDF.
+repo's committed npz + standalone notebook + PDF. The numbers are printed,
+not templated: the generated-LaTeX layer (`paper_text.tex.in`) was removed on
+2026-09-03 when manuscript editing moved wholly to the paper repo.
 
 - `notebooks/horizon_shift.ipynb` — the horizon geometry
   (`horizon_perturbations_1col.pdf`) and the antenna-position systematic
@@ -67,23 +69,22 @@ repo's committed npz + standalone notebook + PDF.
   ensemble, computes `dT_ant`, builds the foreground eigenbasis, and
   re-derives `N_ANCHOR`.
 - `notebooks/signal_loss.ipynb` — Fig. 1 (`signal_loss.pdf`) and the
-  draft prose (`signal_loss_text.tex`): pushes the 21 cm ensemble through
+  millikelvin numbers the prose quotes: pushes the 21 cm ensemble through
   the identical projection and reads the retained signal off the same
   axes as the foreground residual. One single-column panel, two curves,
   no dimension marked — `N_ANCHOR` is where the *prose* quotes numbers,
   not something either figure draws.
 
-- `notebooks/beam_comparison.ipynb` — `beam_comparison.pdf` and its draft
-  prose: the same sky, horizon and filter run for three beams (isotropic,
+- `notebooks/beam_comparison.ipynb` — `beam_comparison.pdf`: the same sky,
+  horizon and filter run for three beams (isotropic,
   EIGSEP bowtie, Vivaldi feed), each with its own eigenbasis and its own
   open-sky attenuation, to separate what the antenna costs from what the sky
   does. Measures the design claim of `subsec:eig_antenna`.
 
-Run `horizon_shift` first — `signal_loss` reads the `Vh` it publishes.
-`beam_comparison` runs last: it asserts its bowtie panel against
-`foreground_svd.npz` and `paper.N_ANCHOR`, and it merges the substitution
-values `signal_loss` publishes to write the single `paper_text.tex` carrying
-all six prose blocks in manuscript order.
+Run `horizon_shift` first — `signal_loss` reads the `Vh` and the induced
+floors it publishes. `beam_comparison` is independent of both and can run at
+any point; it asserts its bowtie panel against `foreground_svd.npz` and
+`paper.N_ANCHOR`.
 
 Neither notebook imports the other. What they must agree on lives in
 `paper.py` as constants (`N_ANCHOR`, `N_SHOW`, `N_MODELS`, and where the
@@ -116,7 +117,5 @@ byte-identical to the version that produced the PDF.
   two figures share. No analysis. `EIGSEP_PAPER_NOTEBOOKS` overrides the
   output location, so a run can target a worktree instead of the live
   paper directory.
-- `signal_loss_text.tex.in` — the LaTeX template `signal_loss.ipynb`
-  substitutes into `signal_loss_text.tex`. Edit the prose here.
 - `reionization_sensitivity.py` — one-off audit of how much
   `models_21cm`'s reionization threshold moves the reported numbers.
