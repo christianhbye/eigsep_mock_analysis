@@ -187,12 +187,17 @@ in-notebook rather than importing it.
   = 9) is where an unmodelled 1 m vertical error overtakes the foreground
   floor: a foreground-vs-*systematic* crossing. `N_ANCHOR` (10) is a
   foreground-vs-*signal* one. They coincided before the ensemble was
-  attenuated. Everything about the position systematic — the induced floors
-  `floor_own`/`floor_nom`, the leftover-spike anatomy, the cosine similarity,
-  block 4's numbers — is quoted at `N_HAND`, because 99% of what a vertical
-  error leaves there is the single mode `N_ANCHOR` filters, so floors read at
-  `N_ANCHOR` describe the remainder after that mode rather than the error.
-  Block 1 and the figure captions quote at `N_ANCHOR`.
+  attenuated. The **anatomy** of the position systematic — the leftover-spike
+  mode, its amplitude, the cosine similarity — is quoted at `N_HAND`, because
+  99% of what a vertical error leaves there is the single mode `N_ANCHOR`
+  filters, so an anatomy read at `N_ANCHOR` describes the remainder after that
+  mode rather than the error. The **induced floors** `floor_own`/`floor_nom`
+  are NOT: they moved to `N_ANCHOR` on 2026-09-03. `N_HAND` is where the
+  perturbation looks worst against the retained signal (2.59x the median,
+  against 0.36x one mode later), so a tolerance quoted there — one mode short
+  of the depth section 2.1 sets the filter at — is indefensible even though
+  every individual number was correct. Sections 2.1 and 5.5 of the manuscript
+  now read at the same depth. Everything else quotes at `N_ANCHOR`.
 - **The two landmarks use different crossing rules, deliberately.** `N_ANCHOR`
   takes the *stays-below* rule; `N_HAND` takes *first crossing*. They are not
   interchangeable: the +1 m vertical overtakes the foreground floor at N = 9
