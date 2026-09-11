@@ -26,7 +26,7 @@ from pygdsm import GlobalSkyModel16
 import eigsim
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from masks import mwss_grid, open_sky_weight  # noqa: E402
+from masks import mwss_grid, open_sky_weight, reduce_azimuth  # noqa: E402
 
 T_START = "2026-07-01 06:00:00"  # UTC, matches horizon_chromaticity
 SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
@@ -61,8 +61,9 @@ def main():
         raise SystemExit(f"{hz_file} not found - run make_horizons.py first")
     hz = np.load(hz_file, allow_pickle=True)
     names = [str(n) for n in hz["names"]]
-    alpha_h = hz["alpha_h"]
-    az_grid = hz["az_grid"]
+    # Band-limit in azimuth before the mask point-samples it; see
+    # masks.reduce_azimuth. This is the only reduction of the horizon anywhere.
+    alpha_h, az_grid = reduce_azimuth(hz["alpha_h"], hz["az_grid"])
     enu = hz["enu"]
     pos_sha = str(hz["pos_sha"])
     n_pos = len(names)

@@ -31,6 +31,12 @@ uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
 # 2. per-position waterfalls (mock_analysis env, from monorepo root)
 uv run python horizon_position/run_sims.py          # -> output/position_sims.npz
 
+# 2a. the paper's foreground_svd.npz: position_sims row 0 plus metadata.
+#     Every notebook reads it and horizon_shift.ipynb asserts byte-equality of
+#     its t_sys against row 0, so it must be rebuilt whenever the sims are.
+uv run python horizon_position/make_foreground_svd.py   # -> PAPER/foreground_svd.npz
+uv run python horizon_position/make_foreground_svd.py --check   # verify only
+
 # 2b. one nominal-horizon day per antenna, for the beam comparison.
 #     --vivaldi (or EIGSEP_VIVALDI_BEAM) points at the HEALPix Vivaldi beam,
 #     which lives outside this repo. Resampling it to MWSS takes a few minutes.
@@ -50,6 +56,26 @@ uv run jupyter nbconvert --to notebook --execute --inplace \
 uv run pytest horizon_position/ -v                  # pure-module unit tests
 EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 ```
+
+## Caching traps when the horizon changes
+
+Three caches are keyed on things that do **not** change when the terrain model
+does. Clear all of them by hand after editing the DEM loader in
+`eigsep_terrain`, or `N_AZ` in `make_horizons.py`:
+
+```bash
+rm -f horizon_position/output/marjum_dem.npz       # else the old DEM is reused
+rm -f horizon_position/output/pos*_batch_*.npz     # step 2 checkpoints
+rm -f horizon_position/output/beam_{bowtie,isotropic,vivaldi}.npz  # step 2b
+```
+
+- `MarjumDEM(cache_file=...)` reloads `marjum_dem.npz` whenever it exists and
+  never checks it against the source GeoTIFFs.
+- `run_sims.py`'s guard compares `pos_sha`, which `make_horizons.py` computes
+  from `enu` **only**. The positions do not change when the terrain does, so
+  the guard passes and stale batches are merged silently.
+- `run_beam_sims.py` skips any antenna whose `beam_<tag>.npz` checkpoint
+  exists, with no staleness check at all.
 
 ## The notebooks
 

@@ -4,7 +4,13 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from masks import boolean_weight, mwss_grid, open_sky_weight  # noqa: E402
+from masks import (  # noqa: E402
+    N_AZ_MASK,
+    boolean_weight,
+    mwss_grid,
+    open_sky_weight,
+    reduce_azimuth,
+)
 
 LMAX = 128
 N_AZ = 720
@@ -86,3 +92,53 @@ def test_boolean_weight_is_zero_one():
     rng = np.random.default_rng(1)
     B = boolean_weight(rng.uniform(-0.3, 0.3, N_AZ), _az_grid(), thetas, phis)
     assert set(np.unique(B)).issubset({0.0, 1.0})
+
+
+def test_reduce_azimuth_averages_into_bins():
+    n_in = N_AZ_MASK * 8
+    az = _az_grid(n_in)
+    alpha = np.arange(n_in, dtype=float)
+    red, az_red = reduce_azimuth(alpha, az)
+    assert red.shape == (N_AZ_MASK,)
+    assert az_red.shape == (N_AZ_MASK,)
+    # each output bin is the mean of its 8 inputs
+    assert np.allclose(red, alpha.reshape(N_AZ_MASK, 8).mean(axis=1))
+    # the reduced grid is the input grid's every-8th left edge
+    assert np.allclose(az_red, az[::8])
+
+
+def test_reduce_azimuth_keeps_leading_axes():
+    n_in = N_AZ_MASK * 4
+    alpha = np.random.default_rng(0).normal(size=(19, n_in))
+    red, _ = reduce_azimuth(alpha, _az_grid(n_in))
+    assert red.shape == (19, N_AZ_MASK)
+    assert np.allclose(red[3], alpha[3].reshape(N_AZ_MASK, 4).mean(axis=1))
+
+
+def test_reduce_azimuth_is_a_noop_at_the_target_length():
+    az = _az_grid(N_AZ_MASK)
+    alpha = np.random.default_rng(2).normal(size=N_AZ_MASK)
+    red, az_red = reduce_azimuth(alpha, az)
+    assert np.array_equal(red, alpha)
+    assert np.array_equal(az_red, az)
+
+
+def test_reduce_azimuth_rejects_a_non_multiple():
+    import pytest
+
+    with pytest.raises(ValueError):
+        reduce_azimuth(np.zeros(1000), _az_grid(1000))
+
+
+def test_reducing_tames_the_aliasing_open_sky_weight_would_see():
+    """A spike one native bin wide must not survive point-sampling intact."""
+    thetas, phis = mwss_grid(LMAX)
+    n_in = N_AZ_MASK * 64
+    alpha = np.zeros(n_in)
+    alpha[n_in // 3] = np.deg2rad(2.7)  # one-bin cliff spike
+    red, az_red = reduce_azimuth(alpha, _az_grid(n_in))
+    # the spike's weight is spread over its bin, not kept at full height
+    assert np.isclose(red.max(), np.deg2rad(2.7) / 64)
+    # and the mask built from the reduced curve is finite and in range
+    W = open_sky_weight(red, az_red, thetas, phis)
+    assert np.all((W >= 0.0) & (W <= 1.0))
