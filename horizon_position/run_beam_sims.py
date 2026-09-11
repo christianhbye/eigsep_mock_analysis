@@ -38,7 +38,7 @@ from beams import (  # noqa: E402
     healpix_to_mwss,
     isotropic_beam,
 )
-from masks import mwss_grid, open_sky_weight  # noqa: E402
+from masks import mwss_grid, open_sky_weight, reduce_azimuth  # noqa: E402
 
 T_START = "2026-07-01 06:00:00"  # UTC, identical to run_sims.py
 SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
@@ -134,7 +134,9 @@ def main():
         print(f"Loading beams for {', '.join(missing)}...")
         beams, lmax, note = load_beams(missing, args.vivaldi, freqs_mhz)
         thetas, phis = mwss_grid(lmax)
-        W = open_sky_weight(hz["alpha_h"][i_nom], hz["az_grid"], thetas, phis)
+        # band-limited first; see masks.reduce_azimuth
+        alpha_r, az_r = reduce_azimuth(hz["alpha_h"][i_nom], hz["az_grid"])
+        W = open_sky_weight(alpha_r, az_r, thetas, phis)
 
         print("Generating sky model (GSM16)...")
         gsm = GlobalSkyModel16(

@@ -15,6 +15,46 @@ changes the boundary cell continuously (no boolean-grid floor).
 import numpy as np
 import s2fft.sampling.s2_samples as s2
 
+# Azimuth samples to band-limit the horizon to before `open_sky_weight` point-
+# samples it. See `reduce_azimuth`.
+N_AZ_MASK = 720
+
+
+def reduce_azimuth(alpha_h, az_grid, n_out=N_AZ_MASK):
+    """Band-limit a horizon curve in azimuth by averaging into ``n_out`` bins.
+
+    `open_sky_weight` anti-aliases in THETA only: `_alpha_on_phi` interpolates
+    the curve and evaluates it at each MWSS azimuth, of which there are
+    2*lmax ~ 256. Feeding it the horizon at its native resolution (46080
+    points, 0.0078 deg) point-samples a spiky function at ~1/180 of its
+    sampling rate, so whether a cliff spike is seen at all depends on where the
+    MWSS azimuths happen to land -- the same aliasing the fine azimuth grid
+    exists to remove, reintroduced one layer down.
+
+    Averaging into n_out bins first is the missing half of the anti-aliasing:
+    each sample becomes the mean horizon over its bin, and at the default 720
+    there are ~2.8 samples per MWSS cell. Call this before `open_sky_weight`
+    and nowhere else; the figures plot the native curve, because averaging
+    hides 55-60 per cent of the peak at cliff edges.
+
+    Returns ``(alpha_reduced, az_reduced)``. The last axis of ``alpha_h`` is
+    the azimuth axis and must be an exact multiple of ``n_out``.
+    """
+    alpha_h = np.asarray(alpha_h, dtype=np.float64)
+    az_grid = np.asarray(az_grid, dtype=np.float64)
+    n_in = alpha_h.shape[-1]
+    if n_in % n_out:
+        raise ValueError(f"{n_in} azimuth samples is not a multiple of {n_out}")
+    if az_grid.shape != (n_in,):
+        raise ValueError(
+            f"az_grid {az_grid.shape} does not match alpha_h {alpha_h.shape}"
+        )
+    f = n_in // n_out
+    reduced = alpha_h.reshape(*alpha_h.shape[:-1], n_out, f).mean(axis=-1)
+    # Bin centres would be a half-bin offset from the input grid's convention
+    # (az_grid starts at 0 and is the bin's left edge), so take the left edges.
+    return reduced, az_grid[::f]
+
 
 def mwss_grid(lmax):
     """Return ``(thetas, phis)`` [rad] for the MWSS grid at ``lmax``."""

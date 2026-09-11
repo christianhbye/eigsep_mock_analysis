@@ -3,6 +3,19 @@
 **Date:** 2026-06-13
 **Status:** Draft (awaiting review)
 
+> **Correction, 2026-09-11.** The claim below that `α_h(φ)` carries no
+> pixel-grid discretization floor is **wrong**; it is corrected inline where it
+> appears. `calc_horizon` bins each DEM pixel into a whole number of azimuth
+> bins and takes the max per bin, so at `n_az=720` a horizontal move re-sorts
+> which pixel wins each bin — 108 of 720 bins flip for a 0.1 m East shift,
+> against 2 for 0.1 m Up — and each flip is a discontinuous jump. The fix is
+> computing the horizon at a converged azimuth resolution (`N_AZ = 46080` in
+> `make_horizons.py`) and band-limiting to 720 only where the mask point-samples
+> it (`masks.reduce_azimuth`); see those docstrings for the convergence
+> evidence. The
+> anti-aliased *mask* this document designs was never the problem and is
+> unchanged.
+
 ## Goal
 
 EIGSEP is a *suspended* antenna over complex quarry terrain, so a small
@@ -32,9 +45,16 @@ position:
   above which sky is visible along each azimuth. Because terrain is a
   height field, "open sky ⇔ elevation > `α_h(φ)`" fully describes the
   mask along a single azimuth.
-- `α_h(φ)` is a **continuous function of the (continuous) antenna
+- ~~`α_h(φ)` is a **continuous function of the (continuous) antenna
   position**, so sub-meter displacements move it smoothly — there is no
-  pixel-grid discretization floor.
+  pixel-grid discretization floor.~~ **Wrong (2026-09-11).** The pixel
+  *distances* are continuous in the antenna position, but the per-bin
+  reduction is not: each pixel is assigned to a whole number of azimuth
+  bins and the bin takes the max, so `α_h(φ)` jumps whenever the winning
+  pixel changes. At `n_az=720` that dominates the sub-metre response.
+  Computing on a converged azimuth grid recovers the smooth behaviour:
+  `corr(+δ,−δ)` for a ±0.1 m East pair goes from −0.058 to −0.989, and the
+  RMS ratio 1 m / 0.1 m from 4.69 to 9.94 against a geometric 10.
 
 The existing `horizon_chromaticity` `eigsep` case instead ray-traces a
 HEALPix mask (`nside=64`) and resamples it to the MWSS grid
@@ -332,14 +352,34 @@ it. Concrete predictions to check against:
 
 ## Limitations / caveats
 
-- **DEM resolution.** The Marjum DEM is sampled at 0.5 m. The 0.1 m
-  result reflects the continuous *geometric* response of the horizon to
-  a sub-pixel antenna move (distances are continuous); it does not add
-  terrain structure finer than 0.5 m. This is the best available and is
-  stated honestly in the writeup.
-- **Horizon feature switches.** `α_h(φ)` is mostly smooth in position
-  but can jump where the azimuth's tallest blocking feature changes;
-  such jumps are physical and handled by integrating the actual sliver.
+- **DEM resolution.** The Marjum DEM is sampled at 0.5 m horizontally.
+  The 0.1 m result reflects the continuous *geometric* response of the
+  horizon to a sub-pixel antenna move (distances are continuous); it does
+  not add terrain structure finer than 0.5 m. Verified 2026-09-11 not to
+  contaminate the answer: sliding the nominal position in 0.125 m steps
+  across one DEM cell leaves the +1 m response curve unchanged (pairwise
+  corr 0.997–1.000, RMS stable to 0.6 per cent).
+- **DEM vertical quantization (fixed 2026-09-11).** `dem.py` read the
+  float32 lidar GeoTIFFs as `int32`, truncating every elevation to a whole
+  metre. Fixed in `eigsep_terrain`. It is *not* what made the horizon
+  response noisy — that was the azimuth binning above — but it biased the
+  profile 0.03° low and, once azimuth is resolved, perturbs the +1 m
+  curves point-wise by 25/46/16 per cent of their own RMS (E/N/U).
+- **Horizon feature switches.** ~~such jumps are physical and handled by
+  integrating the actual sliver.~~ **Partly wrong (2026-09-11).**
+  `α_h(φ)` does genuinely jump where the tallest blocking feature
+  changes, but at `n_az=720` most switches were binning artefacts, not
+  terrain: they failed the antisymmetry and linearity tests above and
+  vanished under azimuth refinement. The genuine ones survive — the East
+  +1 m cliff feature near az 170° reaches 2.70° at native resolution.
+- **Bin-averaging hides peaks, so it happens in exactly one place.**
+  `open_sky_weight` anti-aliases in theta but *point-samples* in azimuth, at
+  the ~256 MWSS azimuths, so handing it the converged 46080-point curve would
+  alias it straight back. `masks.reduce_azimuth` band-limits to 720 bins
+  immediately before that call and nowhere else. The reduction suppresses
+  55–60 per cent of the peak at cliff edges, which is why
+  `horizons_position.npz` stores the converged curve and the figures plot it
+  as stored.
 - **Edge aliasing.** Masking the band-limited beam with a sharp horizon
   puts power above `lmax` that aliases into the retained harmonics. The
   anti-aliased ramp band-limits the edge to ~1 cell, keeping this small;
