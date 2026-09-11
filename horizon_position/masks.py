@@ -31,6 +31,11 @@ def reduce_azimuth(alpha_h, az_grid, n_out=N_AZ_MASK):
     MWSS azimuths happen to land -- the same aliasing the fine azimuth grid
     exists to remove, reintroduced one layer down.
 
+    This is a workaround for that missing phi integration, not the ideal: the
+    true cell-averaged mask would clip the theta-fraction and then average,
+    where this averages the horizon and then clips. Measured at 0.60 per cent
+    on dT_ant and deferred -- see eigsep_mock_analysis issue #10.
+
     Averaging into n_out bins first is the missing half of the anti-aliasing:
     each sample becomes the mean horizon over its bin, and at the default 720
     there are ~2.8 samples per MWSS cell. Call this before `open_sky_weight`

@@ -380,6 +380,18 @@ it. Concrete predictions to check against:
   55–60 per cent of the peak at cliff edges, which is why
   `horizons_position.npz` stores the converged curve and the figures plot it
   as stored.
+- **The mask is fractional in theta but point-sampled in phi.** Measured
+  2026-09-11 and deferred deliberately: see
+  [eigsep_mock_analysis#10](https://github.com/christianhbye/eigsep_mock_analysis/issues/10).
+  The theta-fraction is a *clipped* function of `alpha_h`, so averaging the
+  horizon and then clipping (what `reduce_azimuth` plus `open_sky_weight` do)
+  is not the true cell-averaged mask, which clips and then averages. The two
+  disagree by 22 per cent RMS on the `dW` map — but only **0.60 per cent on
+  `dT_ant`**, the observable, because the disagreement sits at cliff edges low
+  on the horizon where the beam response and solid angle are both small. The
+  N=10 floor moves 5 per cent, which is the floor amplifying any perturbation
+  rather than evidence of accuracy. `reduce_azimuth` exists only because of
+  this approximation; a phi-integrating mask would delete it.
 - **Edge aliasing.** Masking the band-limited beam with a sharp horizon
   puts power above `lmax` that aliases into the retained harmonics. The
   anti-aliased ramp band-limits the edge to ~1 cell, keeping this small;
