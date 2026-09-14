@@ -1,6 +1,7 @@
 """Thin simulation wrapper around croissant-sim."""
 
 from functools import partial
+from typing import NamedTuple
 
 import croissant as cro
 import jax
@@ -395,6 +396,95 @@ def precompute_sky_alm(sky, config=None):
     return sky.compute_alm_eq(world=cfg["world"])
 
 
+class _Setup(NamedTuple):
+    """Everything one simulation shares across orientations."""
+
+    alm: object
+    run: object
+    dl_topo: object
+    horizon: object
+    quad_weights: object
+    sky_alm: object
+    phases: object
+    beam_norm: object
+    Tgnd: object
+    t_rcvr: float
+
+
+def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, sim_kw):
+    """Precompute what every orientation of one simulation shares."""
+    cfg = load_config(config)
+    beam_kw = beam_kw or {}
+
+    loc = cfg["location"]
+    defaults = dict(
+        lon=loc["lon"],
+        lat=loc["lat"],
+        alt=loc["alt"],
+        world=cfg["world"],
+        Tgnd=cfg["ground"]["temperature"],
+    )
+    defaults.update(sim_kw)
+
+    # Pre-compute the forward SHT of the unrotated beam once.
+    beam_data = np.asarray(beam_data)
+    lmax = cro.utils.lmax_from_ntheta(beam_data.shape[1], sampling)
+    beam_L = lmax + 1
+    nside = None
+    if sampling == "healpix":
+        nside = cro.utils.hp_npix2nside(beam_data.shape[1])
+    alm = beam_to_alm(beam_data, lmax, sampling, nside=nside)
+
+    # Reference Simulator for the frame-rotation parameters.
+    ref_beam = cro.Beam(beam_data, freqs, sampling=sampling, niter=0, **beam_kw)
+    ref_sim = cro.Simulator(ref_beam, sky, times_jd, freqs, **defaults)
+    if sky_alm is None:
+        sky_alm = ref_sim.precompute_sky_alm()
+
+    # Truncate dl_topo and sky_alm to the simulation resolution.
+    sim_L = ref_sim.lmax + 1
+    d = beam_L - sim_L
+    end = d + 2 * sim_L - 1
+
+    if sampling == "healpix":
+        npix = 12 * nside**2
+        quad_weights = jnp.ones(npix) * (4 * jnp.pi / npix)
+    else:
+        quad_weights = s2fft.utils.quadrature_jax.quad_weights(
+            L=beam_L, sampling=sampling, nside=nside
+        )
+
+    return _Setup(
+        alm=alm,
+        run=_build_orientation_fn(beam_L, sim_L, sampling, nside, ref_sim.eul_topo),
+        dl_topo=ref_sim.dl_topo[:sim_L, d:end, d:end],
+        horizon=ref_beam.horizon,
+        quad_weights=quad_weights,
+        sky_alm=cro.utils.reduce_lmax(sky_alm, ref_sim.lmax),
+        phases=ref_sim.phases,
+        beam_norm=ref_beam.compute_norm(),
+        Tgnd=jnp.asarray(defaults["Tgnd"], dtype=jnp.float64),
+        t_rcvr=cfg["receiver"]["temperature"],
+    )
+
+
+def _run_orientation(setup, elevation_deg, azimuth_deg, phases):
+    """Antenna temperature for one orientation at the times of *phases*."""
+    R = drive_rotation_matrix(float(elevation_deg), float(azimuth_deg))
+    euler = jnp.asarray(rotmat_to_eulerZYZ(R), dtype=jnp.float64)
+    return setup.run(
+        setup.alm,
+        euler,
+        setup.dl_topo,
+        setup.horizon,
+        setup.quad_weights,
+        setup.sky_alm,
+        phases,
+        setup.beam_norm,
+        setup.Tgnd,
+    )
+
+
 def simulate(
     beam_data,
     freqs,
@@ -459,90 +549,18 @@ def simulate(
         ``(N_orientations, N_times, N_freqs)``.
 
     """
-    cfg = load_config(config)
-    beam_kw = beam_kw or {}
-
-    # Simulator defaults from config, with caller overrides
-    loc = cfg["location"]
-    defaults = dict(
-        lon=loc["lon"],
-        lat=loc["lat"],
-        alt=loc["alt"],
-        world=cfg["world"],
-        Tgnd=cfg["ground"]["temperature"],
+    setup = _setup(
+        beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, sim_kw
     )
-    defaults.update(sim_kw)
-
-    t_rcvr = cfg["receiver"]["temperature"]
-
-    # Pre-compute the forward SHT of the unrotated beam once.
-    beam_data = np.asarray(beam_data)
-    lmax = cro.utils.lmax_from_ntheta(beam_data.shape[1], sampling)
-    beam_L = lmax + 1
-    nside = None
-    if sampling == "healpix":
-        nside = cro.utils.hp_npix2nside(beam_data.shape[1])
-    alm = beam_to_alm(beam_data, lmax, sampling, nside=nside)
-
-    # Build a reference Simulator to obtain frame-rotation parameters.
-    ref_beam = cro.Beam(beam_data, freqs, sampling=sampling, niter=0, **beam_kw)
-    ref_sim = cro.Simulator(ref_beam, sky, times_jd, freqs, **defaults)
-
-    if sky_alm is None:
-        sky_alm = ref_sim.precompute_sky_alm()
-
-    # --- Extract precomputed quantities from the reference objects ---
-    sim_lmax = ref_sim.lmax
-    sim_L = sim_lmax + 1
-    eul_topo = ref_sim.eul_topo  # tuple of 3 floats, fixed for all orientations
-    phases = ref_sim.phases  # (N_times, 2*sim_lmax+1)
-
-    # Truncate dl_topo and sky_alm to the simulation resolution.
-    d = beam_L - sim_L
-    end = d + 2 * sim_L - 1
-    dl_topo_sim = ref_sim.dl_topo[:sim_L, d:end, d:end]
-    sky_alm_sim = cro.utils.reduce_lmax(sky_alm, sim_lmax)
-
-    # Beam norm (rotation-invariant) and quadrature weights.
-    beam_norm = ref_beam.compute_norm()
-    horizon = ref_beam.horizon
-    if sampling == "healpix":
-        npix = 12 * nside**2
-        quad_weights = jnp.ones(npix) * (4 * jnp.pi / npix)
-    else:
-        quad_weights = s2fft.utils.quadrature_jax.quad_weights(
-            L=beam_L, sampling=sampling, nside=nside
-        )
-    Tgnd = jnp.asarray(defaults["Tgnd"], dtype=jnp.float64)
-
-    # Build the JIT'd per-orientation pipeline (compiles once).
-    sim_one = _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo)
 
     n_ori = len(elevations)
     results = []
     for i, (elev, az) in enumerate(zip(elevations, azimuths)):
         if verbose:
             print(f"    orientation {i + 1}/{n_ori}    ", end="\r", flush=True)
-
-        R = drive_rotation_matrix(float(elev), float(az))
-        euler = rotmat_to_eulerZYZ(R)
-        euler_jax = jnp.asarray(euler, dtype=jnp.float64)
-
-        vis = sim_one(
-            alm,
-            euler_jax,
-            dl_topo_sim,
-            horizon,
-            quad_weights,
-            sky_alm_sim,
-            phases,
-            beam_norm,
-            Tgnd,
-        )
-        results.append(vis)
+        results.append(_run_orientation(setup, elev, az, setup.phases))
 
     if verbose:
         print()
 
-    t_ant = jnp.stack(results)
-    return t_ant + t_rcvr
+    return jnp.stack(results) + setup.t_rcvr
