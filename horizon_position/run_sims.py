@@ -31,6 +31,9 @@ from masks import mwss_grid, open_sky_weight, reduce_azimuth  # noqa: E402
 T_START = "2026-07-01 06:00:00"  # UTC, matches horizon_chromaticity
 SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+# The instrument paper's figures were made with the v000 beam on its 1 MHz
+# grid; pinning the config keeps a change of eigsim's default out of them.
+EIGSIM_CONFIG = "eigsep_v000"
 
 
 def parse_args():
@@ -54,7 +57,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    cfg = eigsim.load_config()
+    cfg = eigsim.load_config(EIGSIM_CONFIG)
 
     hz_file = OUTPUT_DIR / "horizons_position.npz"
     if not hz_file.exists():
@@ -69,7 +72,7 @@ def main():
     n_pos = len(names)
 
     print("Loading beam...")
-    beam_freqs_hz, beam_data, lmax = eigsim.load_beam()
+    beam_freqs_hz, beam_data, lmax = eigsim.load_beam(config=EIGSIM_CONFIG)
     freqs_mhz = np.array(cfg["frequencies"], dtype=float)[:: args.freq_stride]
     freq_idx = np.isin(beam_freqs_hz / 1e6, freqs_mhz)
     beam_data = beam_data[freq_idx]

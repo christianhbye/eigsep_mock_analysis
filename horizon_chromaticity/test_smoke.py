@@ -104,7 +104,7 @@ def test_fgnd_per_case(horizons):
 
     import eigsim
 
-    beam_freqs_hz, beam_data, _ = eigsim.load_beam()
+    beam_freqs_hz, beam_data, _ = eigsim.load_beam(config="eigsep_v000")
     freqs = beam_freqs_hz[:1] / 1e6
     fgnd = {}
     for case in CASES:

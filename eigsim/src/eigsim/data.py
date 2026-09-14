@@ -4,17 +4,24 @@ from pathlib import Path
 
 import numpy as np
 
+from .config import load_config
+
 _DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 
-def load_beam(path=None):
-    """Load the default EIGSEP beam data in MWSS sampling.
+def load_beam(path=None, config=None):
+    """Load an EIGSEP beam in MWSS sampling.
 
     Parameters
     ----------
     path : str, Path, or None
-        Path to the beam .npz file.  If None, loads the default
-        MWSS beam from the package data directory.
+        Path to the beam .npz file.  If None, loads the file named by
+        the config's ``beam.file`` from the package data directory.
+    config : str, Path, or None
+        Config for :func:`~eigsim.config.load_config`, read only when
+        *path* is None.  ``None`` uses the default config.  Pin
+        ``"eigsep_v000"`` to reproduce studies made before the v001
+        beam.
 
     Returns
     -------
@@ -28,7 +35,7 @@ def load_beam(path=None):
 
     """
     if path is None:
-        path = _DATA_DIR / "eigsep_bowtie_v000_mwss.npz"
+        path = _DATA_DIR / load_config(config)["beam"]["file"]
     d = np.load(path)
     return d["freqs"], d["bm"], int(d["lmax"])
 

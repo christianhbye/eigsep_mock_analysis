@@ -4,7 +4,8 @@ from pathlib import Path
 
 import yaml
 
-_DEFAULT_CONFIG = Path(__file__).parent / "configs" / "eigsep.yaml"
+_CONFIG_DIR = Path(__file__).parent / "configs"
+_DEFAULT_CONFIG = _CONFIG_DIR / "eigsep.yaml"
 
 
 def _expand_range(value):
@@ -30,8 +31,9 @@ def load_config(path=None):
     Parameters
     ----------
     path : str or Path or None
-        Path to a YAML config file. If None, loads the built-in
-        default configuration.
+        Path to a YAML config file, or the bare name of a packaged
+        config: ``"eigsep"`` (the default), ``"eigsep_1mhz"`` or
+        ``"eigsep_v000"``. If None, loads the default configuration.
 
     Returns
     -------
@@ -41,6 +43,8 @@ def load_config(path=None):
     """
     if path is None:
         path = _DEFAULT_CONFIG
+    elif isinstance(path, str) and Path(path).name == path and not Path(path).suffix:
+        path = _CONFIG_DIR / f"{path}.yaml"
     path = Path(path)
     with open(path) as f:
         cfg = yaml.safe_load(f)

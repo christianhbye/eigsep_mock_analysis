@@ -34,6 +34,8 @@ import eigsim
 
 CASES = ("nohorizon", "quarry", "eigsep", "flat")
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+# Must match run_sims.py, whose t_sys these ground fractions correct.
+EIGSIM_CONFIG = "eigsep_v000"
 
 
 def parse_args():
@@ -58,7 +60,7 @@ def parse_args():
 def main():
     args = parse_args()
     cases = CASES if args.case is None else (args.case,)
-    cfg = eigsim.load_config()
+    cfg = eigsim.load_config(EIGSIM_CONFIG)
 
     horizons_file = OUTPUT_DIR / "horizons.npz"
     if not horizons_file.exists():
@@ -66,7 +68,7 @@ def main():
     hz = np.load(horizons_file)
 
     print("Loading beam...")
-    beam_freqs_hz, beam_data, lmax = eigsim.load_beam()
+    beam_freqs_hz, beam_data, lmax = eigsim.load_beam(config=EIGSIM_CONFIG)
     freqs_mhz = np.array(cfg["frequencies"], dtype=float)
     freq_idx = np.isin(beam_freqs_hz / 1e6, freqs_mhz)
     beam_data = beam_data[freq_idx]
