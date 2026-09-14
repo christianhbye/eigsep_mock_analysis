@@ -49,6 +49,10 @@ croissant-sim     s2fft (JAX)
 
 The `data/` directory contains `.npz` files (gitignored) with beam patterns and horizon masks in both HEALPix and MWSS samplings. MWSS variants (`*_mwss.npz`) are the defaults. Beam shape: `(N_freqs, N_theta, N_phi)`. Horizon: `(N_theta, N_phi)` with NaN for open sky.
 
+### Comparing with EIGSEP data
+
+The beams are free-space antenna models. They include neither balun loss nor the coax from the balun to the RF switch. EIGSEP calibrates at the switch, so a calibrated antenna temperature or a measured antenna S11 includes the balun and that coax. The Deployment 5 coax was destroyed, so there are no S-parameters for it, and every comparison with D5 data needs a balun and coax model with priors. Keep that model out of eigsim: the generator adds it (`eigsep_cal/docs/interface.md` § 3, § 4.3, branch `rebuild`).
+
 ### Key external dependencies
 
 - **croissant-sim** — `Simulator`, `Beam`, `Sky`, utility functions (Euler angle conversion, etc.)
