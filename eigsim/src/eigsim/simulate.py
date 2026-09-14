@@ -586,18 +586,28 @@ def simulate_path(
     at that group's times only; D5 orientations repeat (static at night,
     a raster on Jul 17), so this is much cheaper than a full grid.
 
+    Grouping is by exact equality of (elevation, azimuth): samples whose
+    angles differ by encoder jitter or floating-point rounding land in
+    separate groups and lose the speed-up. Pass block-median or
+    quantised angles, not raw per-sample telemetry.
+
     Unlike :func:`simulate`, no receiver temperature is added: the
     result is the free-space antenna temperature, ``t_ant_k`` of
     ``SkyTemperature`` in the eigsep_cal interface spec (§ 5.1). It
     includes sky, horizon and the configured ground model, but no balun
     or coax.
 
-    Each distinct group size compiles the per-orientation function
-    once more, because JIT specialises on the number of times.
+    The orientation graph (beam rotation, horizon masking, ground
+    fraction) compiles once per call, independent of group sizes. Only
+    croissant's sky convolution specialises on the number of times in
+    each group, and recompiling that per group size is cheap.
 
-    All samples are evaluated against croissant's reference epoch,
-    ``times_jd[0]``, with a fixed sidereal rotation for later times, so
-    splitting one path across several calls changes the result slightly.
+    croissant computes the observing frame at ``times_jd[0]`` and
+    rotates later times about a fixed pole, so the frame error grows
+    with a sample's offset from ``times_jd[0]`` within one call, not
+    from splitting a path across several calls; shorter calls are more
+    accurate. The measured frame error is about 1.5' after 40 minutes,
+    9' after 4 hours and 17' after 12 hours.
 
     Parameters
     ----------
