@@ -145,7 +145,7 @@ def main():
     print(f"Case '{args.case}': {n_ori} orientations")
 
     print("Pre-computing sky ALM...")
-    sky_alm = eigsim.precompute_sky_alm(sky)
+    sky_alm = eigsim.precompute_sky_alm(sky, times_jd)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     n_batches = int(np.ceil(n_ori / args.batch_size))

@@ -8,6 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import s2fft
+from astropy.time import Time
 from croissant.rotations import rotmat_to_eulerZYZ
 from croissant.simulator import convolve
 from croissant.simulator import correct_ground_loss as _cro_correct_ground_loss
@@ -363,29 +364,39 @@ def make_beam(
     return cro.Beam(data, freqs, sampling=sampling, niter=niter, **beam_kw)
 
 
-def precompute_sky_alm(sky, config=None):
+def precompute_sky_alm(sky, times_jd, config=None):
     """Compute sky ALM for reuse across multiple simulate() calls.
 
-    Returns the sky spherical harmonic coefficients in FK5 equatorial
-    coordinates.  Pass the result to ``simulate(sky_alm=...)`` to
-    skip redundant sky transforms in each batch.
+    Returns the sky spherical harmonic coefficients in croissant's
+    simulation frame for calls that start at ``times_jd[0]``: CIRS at
+    that epoch on Earth, whose z axis is the Earth's rotation axis.
+    Pass the result to ``simulate(sky_alm=...)`` to skip redundant sky
+    transforms in each batch, but only for calls with the same first
+    time.
 
     Parameters
     ----------
     sky : croissant.Sky
         Sky model.
+    times_jd : array_like
+        Times in Julian day of the calls the result is passed to.  Only
+        ``times_jd[0]`` is used: like ``croissant.Simulator``, it fixes
+        the frame's reference epoch.
     config : str, Path, or None
         Path to EIGSEP config YAML.  ``None`` uses the default.
 
     Returns
     -------
     sky_alm : jax.Array
-        Sky ALM in the equatorial frame, shape
+        Sky ALM in the simulation frame, shape
         ``(N_freqs, lmax+1, 2*lmax+1)``.
 
     """
     cfg = load_config(config)
-    return sky.compute_alm_eq(world=cfg["world"])
+    # The epoch croissant.Simulator uses (its et_ref) for these times.
+    t0 = Time(np.ravel(times_jd)[0], format="jd")
+    et = cro.rotations.jd_to_et(t0.tdb.jd)
+    return sky.compute_alm_eq(world=cfg["world"], et=et)
 
 
 class _Setup(NamedTuple):

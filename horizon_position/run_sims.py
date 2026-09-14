@@ -98,7 +98,7 @@ def main():
     times_jd = times.jd
 
     print("Pre-computing sky ALM...")
-    sky_alm = eigsim.precompute_sky_alm(sky)
+    sky_alm = eigsim.precompute_sky_alm(sky, times_jd)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     print(f"Running {n_pos} positions x {args.n_times} times x {n_freqs} freqs...")
