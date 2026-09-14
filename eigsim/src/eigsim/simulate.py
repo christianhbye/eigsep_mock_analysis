@@ -669,18 +669,21 @@ def simulate_path(
     )
     group = group.reshape(-1)
 
-    pieces, order = [], []
-    for g, (elev, az) in enumerate(orientations):
+    perm = np.argsort(group, kind="stable")
+    idx_per_group = np.split(
+        perm, np.cumsum(np.bincount(group, minlength=len(orientations)))[:-1]
+    )
+
+    pieces = []
+    for g, ((elev, az), idx) in enumerate(zip(orientations, idx_per_group)):
         if verbose:
             print(
                 f"    orientation {g + 1}/{len(orientations)}    ", end="\r", flush=True
             )
-        idx = np.flatnonzero(group == g)
         pieces.append(_run_orientation(setup, elev, az, setup.phases[idx]))
-        order.append(idx)
 
     if verbose:
         print()
 
-    order = np.concatenate(order)
+    order = np.concatenate(idx_per_group)
     return jnp.concatenate(pieces)[np.argsort(order)]
