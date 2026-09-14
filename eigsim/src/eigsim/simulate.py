@@ -274,7 +274,8 @@ def correct_ground_loss(t_sys, fgnd, Tgnd=None, t_rcvr=None, config=None):
         Ground temperature in K.  ``None`` reads it from the config.
     t_rcvr : float or None
         Receiver temperature in K.  ``None`` reads it from the config.
-        Pass ``0.0`` if *t_sys* is already an antenna temperature.
+        Pass ``0.0`` if *t_sys* is already an antenna temperature, as
+        it is from :func:`simulate_path`.
     config : str, Path, or None
         Path to EIGSEP config YAML.  ``None`` uses the default.
 
@@ -601,6 +602,10 @@ def simulate_path(
     fraction) compiles once per call, independent of group sizes. Only
     croissant's sky convolution specialises on the number of times in
     each group, and recompiling that per group size is cheap.
+
+    Passing the result to :func:`correct_ground_loss` needs
+    ``t_rcvr=0.0``: that function subtracts the config's receiver
+    temperature by default, and path mode never added it.
 
     Parameters
     ----------
