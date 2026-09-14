@@ -602,13 +602,6 @@ def simulate_path(
     croissant's sky convolution specialises on the number of times in
     each group, and recompiling that per group size is cheap.
 
-    croissant computes the observing frame at ``times_jd[0]`` and
-    rotates later times about a fixed pole, so the frame error grows
-    with a sample's offset from ``times_jd[0]`` within one call, not
-    from splitting a path across several calls; shorter calls are more
-    accurate. The measured frame error is about 1.5' after 40 minutes,
-    9' after 4 hours and 17' after 12 hours.
-
     Parameters
     ----------
     beam_data : array_like

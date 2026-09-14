@@ -102,13 +102,7 @@ class TestSimulatePath:
         np.testing.assert_allclose(path, want, rtol=0, atol=1e-10)
 
     def test_grouping_matches_per_sample_runs(self):
-        """Grouping by unique orientation equals evaluating each sample alone.
-
-        Each reference run keeps the full times_jd, so it shares croissant's
-        reference epoch (times_jd[0]) with the batched run; a run with only
-        one time would use that time as its epoch and differ by croissant's
-        sidereal-rotation approximation, not by grouping.
-        """
+        """Grouping by unique orientation equals evaluating each sample alone."""
         beam, sky, times = _beam(), _sky(), _times(5)
         els = np.array([0.0, 30.0, 0.0, 30.0, 0.0])
         azs = np.array([0.0, 45.0, 0.0, 45.0, 0.0])
