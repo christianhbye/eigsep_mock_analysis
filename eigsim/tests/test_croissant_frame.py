@@ -1,10 +1,11 @@
-"""Canary for croissant's fixed-pole frame error (christianhbye/croissant#147).
+"""Regression for croissant's fixed-pole frame error (christianhbye/croissant#147).
 
-croissant computes the sky frame at a call's first time and advances time
-by rotating about the J2000 pole instead of the pole of date, so samples far
-from ``times_jd[0]`` are simulated in a slightly tilted frame. A correct
-simulator gives the same temperature at a time whether that time starts a
-call or ends a long one; these tests compare the two.
+croissant used to compute the sky frame at a call's first time and then
+advance time about the J2000 pole instead of the pole of date, so samples
+far from ``times_jd[0]`` were simulated in a slightly tilted frame. Since
+v5.3.0.dev2 it turns about the pole of date. A correct simulator gives the
+same temperature at a time whether that time starts a call or ends a long
+one; these tests compare the two.
 """
 
 import jax
@@ -13,7 +14,6 @@ jax.config.update("jax_enable_x64", True)
 
 import croissant as cro  # noqa: E402
 import numpy as np  # noqa: E402
-import pytest  # noqa: E402
 import s2fft  # noqa: E402
 from astropy.time import Time  # noqa: E402
 from eigsim.simulate import simulate  # noqa: E402
@@ -77,16 +77,11 @@ class TestCroissantFrame:
         """
         assert _frame_error(SIDEREAL_DAY_S) < 1.0
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason=(
-            "croissant rotates the sky about the J2000 pole "
-            "(christianhbye/croissant#147). If this passes, croissant is "
-            "fixed: remove this xfail and the frame-error caveat in the "
-            "simulate_path docstring."
-        ),
-    )
     def test_no_frame_error_after_4_hours(self):
-        """Measured 25 with croissant 5.2.1 (8.7' frame error at D5)."""
+        """Regression for christianhbye/croissant#147.
+
+        Measured 25 with croissant 5.2.1 (8.7' frame error at D5), which
+        turned the sky about the J2000 pole; croissant v5.3.0.dev2 turns
+        it about the pole of date and this is now well under 1.
+        """
         assert _frame_error(4 * 3600) < 1.0
