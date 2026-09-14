@@ -37,7 +37,7 @@ croissant-sim     s2fft (JAX)
 - **`config.py`** — Loads YAML experiment config (defaults in `src/eigsim/configs/eigsep.yaml`). Returns a dict with location, frequencies, ground temperature, beam/horizon file paths.
 - **`data.py`** — Loads pre-computed `.npz` beam patterns and horizon masks from `data/`. Default files use MWSS sampling.
 - **`rotations.py`** — Models the EIGSEP mechanical drive (elevation via Rx, azimuth via Rz). `rotate_beam_data()` does forward SHT -> Wigner-D rotation -> inverse SHT using s2fft+JAX (`jax.vmap` over frequencies).
-- **`simulate.py`** — `simulate()` orchestrates multi-orientation runs: for each (elevation, azimuth) pair, rotates the beam, creates a `croissant.Simulator`, runs it, and stacks results into `(N_orientations, N_times, N_freqs)`.
+- **`simulate.py`** — `simulate()` orchestrates multi-orientation runs: for each (elevation, azimuth) pair, rotates the beam, convolves it with the sky (orientation graph JIT-compiled once per call; croissant's convolution outside it), and stacks results into `(N_orientations, N_times, N_freqs)`, adding the receiver temperature. `simulate_path()` is D5 path mode: one orientation per time sample, grouped by unique orientation, returning `(N_times, N_freqs)` with **no** receiver term (`SkyTemperature.t_ant_k`, interface spec § 5.1). Both share `_setup()`, so the beam transform and the orientation graph are compiled once per call; only croissant's sky convolution specialises on the number of times, which is cheap.
 
 ### Drive rotation convention
 
@@ -63,7 +63,9 @@ The `data/` directory contains `.npz` files (gitignored) with beam patterns and 
 
 ### Comparing with EIGSEP data
 
-The beams are free-space antenna models. They include neither balun loss nor the coax from the balun to the RF switch. EIGSEP calibrates at the switch, so a calibrated antenna temperature or a measured antenna S11 includes the balun and that coax. The Deployment 5 coax was destroyed, so there are no S-parameters for it, and every comparison with D5 data needs a balun and coax model with priors. Keep that model out of eigsim: the generator adds it (`eigsep_cal/docs/interface.md` § 3, § 4.3, branch `rebuild`).
+The beams are free-space antenna models. They include neither balun loss nor the coax from the balun to the RF switch. EIGSEP calibrates at the switch, so a calibrated antenna temperature or a measured antenna S11 includes the balun and that coax. The Deployment 5 coax was destroyed, so there are no S-parameters for it, and every comparison with D5 data needs a balun and coax model with priors. Keep that model out of eigsim: the generator adds it (`eigsep_cal/docs/interface.md` § 3, § 4.3, branch `feat/forward-model`).
+
+The receiver temperature differs between the two entry points. `simulate()` adds the config's `receiver.temperature`; `simulate_path()` adds nothing, so its output is `SkyTemperature.t_ant_k` (spec § 5.1, § 7). Pass `t_rcvr=0.0` when feeding path-mode output to `correct_ground_loss()`, or it subtracts a receiver term that was never added. The scalar is a placeholder that eigsep_cal's `ReceiverModel` supersedes, but do **not** remove it from `simulate()` yet: the spec pins the grid output as unchanged (§ 7), `horizon_position` and `horizon_chromaticity` save `t_sys` with it in and subtract it downstream, and the notebook re-runs check npz byte-identity. Dropping it is a follow-up for after the instrument paper is accepted.
 
 ### Key external dependencies
 
