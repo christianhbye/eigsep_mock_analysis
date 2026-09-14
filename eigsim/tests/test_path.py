@@ -10,7 +10,12 @@ import pytest  # noqa: E402
 import s2fft  # noqa: E402
 from astropy.time import Time  # noqa: E402
 from eigsim.config import load_config  # noqa: E402
-from eigsim.simulate import simulate, simulate_path  # noqa: E402
+from eigsim.simulate import (  # noqa: E402
+    _run_orientation,
+    _setup,
+    simulate,
+    simulate_path,
+)
 
 LMAX = 16
 L = LMAX + 1
@@ -153,3 +158,24 @@ class TestSimulatePath:
     def test_length_mismatch_raises(self, els, azs):
         with pytest.raises(ValueError, match="one orientation per time"):
             simulate_path(_beam(), FREQS_MHZ, _sky(), _times(3), els, azs)
+
+    def test_orientation_graph_compiles_once_across_group_sizes(self):
+        """The orientation graph must not retrace per group size.
+
+        simulate_path() calls _run_orientation() once per group, and
+        groups can have different numbers of times. The orientation
+        graph itself must be time-independent so it compiles once per
+        call regardless of group size; only croissant's convolve()
+        should specialise on the number of times.
+        """
+        setup = _setup(
+            _beam(), FREQS_MHZ, _sky(), _times(6), None, "mwss", None, None, {}
+        )
+        for n in (1, 2, 3):
+            _run_orientation(setup, 0.0, 0.0, setup.phases[:n])
+
+        # _cache_size() is JAX's private jit cache counter (number of
+        # distinct traces for this jitted function); there is no public
+        # API for this, but it is the simplest way to assert "compiled
+        # once" from a test.
+        assert setup.orient._cache_size() == 1

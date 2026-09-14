@@ -53,27 +53,23 @@ def _rotate_flms(flm, L, rotation, dl_array):
     return flm_rotated
 
 
-def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo):
-    """Return a JIT-compiled function for one beam orientation.
+def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo, beam_norm):
+    """Return a JIT-compiled function for the time-independent part of one
+    beam orientation.
 
-    Compile-time constants (resolutions, frame-rotation angles) are
-    captured in the closure.  The returned function accepts only dynamic
-    JAX arrays, so it compiles **once** and handles every drive
-    orientation without re-tracing.
+    Compile-time constants (resolutions, frame-rotation angles, the beam
+    normalization) are captured in the closure.  None of the returned
+    function's arguments depend on the number of time samples, so it
+    compiles **once** per call and handles every drive orientation
+    without re-tracing -- regardless of how many groups
+    :func:`simulate_path` makes or how large each group is.  The
+    time-dependent sky convolution happens afterwards, in
+    :func:`_run_orientation`, using croissant's own JIT-compiled
+    ``convolve``, which is cheap to recompile per group size.
     """
 
     @jax.jit
-    def _run(
-        beam_alm,
-        euler_drive,
-        dl_topo,
-        horizon,
-        quad_weights,
-        sky_alm,
-        phases,
-        beam_norm,
-        Tgnd,
-    ):
+    def _orient(beam_alm, euler_drive, dl_topo, horizon, quad_weights):
         # 1. Drive Wigner-D rotation at full beam resolution.
         dl_drive = _generate_rotate_dls(beam_L, euler_drive[1])
         alm_rot = jax.vmap(
@@ -129,14 +125,9 @@ def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo):
             )
         )(alm_trunc)
 
-        # 6. Convolve, normalize, add ground contribution.
-        vis_sky = convolve(beam_eq_alm, sky_alm, phases)
-        vis_sky /= beam_norm[None, :]
-        vis = vis_sky + fgnd * Tgnd
+        return beam_eq_alm, fgnd
 
-        return vis.real
-
-    return _run
+    return _orient
 
 
 def _build_fgnd_fn(beam_L, sampling, nside):
@@ -400,7 +391,7 @@ class _Setup(NamedTuple):
     """Everything one simulation shares across orientations."""
 
     alm: object
-    run: object
+    orient: object
     dl_topo: object
     horizon: object
     quad_weights: object
@@ -437,6 +428,7 @@ def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, 
 
     # Reference Simulator for the frame-rotation parameters.
     ref_beam = cro.Beam(beam_data, freqs, sampling=sampling, niter=0, **beam_kw)
+    beam_norm = ref_beam.compute_norm()
     ref_sim = cro.Simulator(ref_beam, sky, times_jd, freqs, **defaults)
     if sky_alm is None:
         sky_alm = ref_sim.precompute_sky_alm()
@@ -456,13 +448,15 @@ def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, 
 
     return _Setup(
         alm=alm,
-        run=_build_orientation_fn(beam_L, sim_L, sampling, nside, ref_sim.eul_topo),
+        orient=_build_orientation_fn(
+            beam_L, sim_L, sampling, nside, ref_sim.eul_topo, beam_norm
+        ),
         dl_topo=ref_sim.dl_topo[:sim_L, d:end, d:end],
         horizon=ref_beam.horizon,
         quad_weights=quad_weights,
         sky_alm=cro.utils.reduce_lmax(sky_alm, ref_sim.lmax),
         phases=ref_sim.phases,
-        beam_norm=ref_beam.compute_norm(),
+        beam_norm=beam_norm,
         Tgnd=jnp.asarray(defaults["Tgnd"], dtype=jnp.float64),
         t_rcvr=cfg["receiver"]["temperature"],
     )
@@ -472,17 +466,22 @@ def _run_orientation(setup, elevation_deg, azimuth_deg, phases):
     """Antenna temperature for one orientation at the times of *phases*."""
     R = drive_rotation_matrix(float(elevation_deg), float(azimuth_deg))
     euler = jnp.asarray(rotmat_to_eulerZYZ(R), dtype=jnp.float64)
-    return setup.run(
+    beam_eq_alm, fgnd = setup.orient(
         setup.alm,
         euler,
         setup.dl_topo,
         setup.horizon,
         setup.quad_weights,
-        setup.sky_alm,
-        phases,
-        setup.beam_norm,
-        setup.Tgnd,
     )
+
+    # Sky convolution happens outside the orientation graph: croissant's
+    # convolve() is itself JIT-compiled and specialises on the number of
+    # times, which is cheap, so it does not force the (expensive)
+    # orientation graph above to retrace per group size.
+    vis_sky = convolve(beam_eq_alm, setup.sky_alm, phases)
+    vis_sky = vis_sky / setup.beam_norm[None, :]
+    vis = vis_sky + fgnd * setup.Tgnd
+    return vis.real
 
 
 def simulate(
