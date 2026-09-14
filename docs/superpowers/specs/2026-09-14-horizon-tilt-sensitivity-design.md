@@ -175,11 +175,23 @@ the fraction of azimuths that switched, per axis and per step size. Storing
 `margin`, the runner-up horizon angle, gives the local predictor of where the
 derivative is fragile before any perturbation is run. The memo quotes both.
 
-**Stale batch guard.** `make_horizons.py` documents that `pos_sha` covers the
-positions only, so `run_sims.py`'s guard silently accepts stale
-`pos*_batch_*.npz` after a DEM or `N_AZ` change. Since this work extends that
-generator and changes `N_AZ` handling, the hash must cover the DEM identity and
-`N_AZ` as well.
+**No checkpoint/resume.** `run_sims.py` today checkpoints one
+`pos<tag>_batch_NN.npz` per position and skips batches already on disk, guarded
+by `pos_sha` (`run_sims.py:106-116`). That guard hashes the positions only, so
+it accepts stale batches after a DEM, `N_AZ` or mask change — exactly phase 1's
+case, where a pass would merge old-mask and new-mask positions into one
+`position_sims.npz` that is then finite-differenced to validate the Jacobian.
+
+Decided: **delete checkpoint/resume rather than extend the guard.** The full run
+is ~20 minutes, cheap enough that resumability does not earn its complexity, and
+removing the mechanism removes the failure mode instead of patching it. An
+interrupted run restarts from scratch; results accumulate in memory and
+`position_sims.npz` is written once.
+
+`pos_sha` stays in the *output* npz as a content identifier — the paper's
+`horizon_shift.npz` and `horizon_perturbations.npz` cite it to confirm they
+share the 19-position configuration, and M004's `PROVENANCE.json` will do the
+same. Only the resume path goes.
 
 **Azimuth convention.** `alpha_h` is defined on `az = atan2(E, N)` and the mask
 maps `phi = pi/2 - az`. `open_sky_weight` validates the grid's range and
