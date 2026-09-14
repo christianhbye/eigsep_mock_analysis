@@ -159,6 +159,26 @@ class TestSimulatePath:
         with pytest.raises(ValueError, match="one orientation per time"):
             simulate_path(_beam(), FREQS_MHZ, _sky(), _times(3), els, azs)
 
+    def test_empty_input_raises(self):
+        empty = np.array([], dtype=np.float64)
+        with pytest.raises(ValueError, match="at least one"):
+            simulate_path(_beam(), FREQS_MHZ, _sky(), empty, empty, empty)
+
+    @pytest.mark.parametrize(
+        "times_jd, elevations_deg, azimuths_deg",
+        [
+            ([np.nan, 1.0], [0.0, 0.0], [0.0, 0.0]),
+            ([0.0, 1.0], [np.nan, 0.0], [0.0, 0.0]),
+            ([0.0, 1.0], [0.0, 0.0], [0.0, np.inf]),
+        ],
+        ids=["nan-times_jd", "nan-elevations_deg", "inf-azimuths_deg"],
+    )
+    def test_non_finite_input_raises(self, times_jd, elevations_deg, azimuths_deg):
+        with pytest.raises(ValueError, match="finite"):
+            simulate_path(
+                _beam(), FREQS_MHZ, _sky(), times_jd, elevations_deg, azimuths_deg
+            )
+
     def test_orientation_graph_compiles_once_across_group_sizes(self):
         """The orientation graph must not retrace per group size.
 

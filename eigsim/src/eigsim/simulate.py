@@ -650,6 +650,16 @@ def simulate_path(
             f"azimuths_deg must be 1-D with equal length, got {sorted(shapes)}"
         )
 
+    if times_jd.size == 0:
+        raise ValueError("need at least one sample: times_jd is empty")
+
+    if not (
+        np.all(np.isfinite(times_jd))
+        and np.all(np.isfinite(elevations_deg))
+        and np.all(np.isfinite(azimuths_deg))
+    ):
+        raise ValueError("times_jd, elevations_deg and azimuths_deg must be finite")
+
     setup = _setup(
         beam_data, freqs_mhz, sky, times_jd, config, sampling, beam_kw, sky_alm, sim_kw
     )
