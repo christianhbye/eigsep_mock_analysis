@@ -1,8 +1,11 @@
 import jax
-import jax.numpy as jnp
-import numpy as np
-import pytest
-from eigsim.horizon import mwss_grid, open_sky_weight
+
+jax.config.update("jax_enable_x64", True)
+
+import jax.numpy as jnp  # noqa: E402
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+from eigsim.horizon import mwss_grid, open_sky_weight  # noqa: E402
 
 LMAX = 128
 N_AZ = 720
