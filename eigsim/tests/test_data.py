@@ -7,13 +7,15 @@ jax.config.update("jax_enable_x64", True)
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import s2fft  # noqa: E402
-from eigsim.config import load_config  # noqa: E402
 
-from eigsim.data import _DATA_DIR, load_beam, load_horizon  # noqa: E402
+# Import through the package: ruff sorts `eigsim.data` differently when the
+# gitignored eigsim/data/ directory exists, so local and CI lint disagree.
+import eigsim  # noqa: E402
+from eigsim import load_beam, load_config, load_horizon  # noqa: E402
 
 D5_CHANNEL_MHZ = 250 / 1024
 V001_FILES = [
-    _DATA_DIR / f
+    eigsim.data._DATA_DIR / f
     for f in ("eigsep_bowtie_v001_mwss.npz", "eigsep_bowtie_v001_1mhz_mwss.npz")
 ]
 
