@@ -509,18 +509,17 @@ wheels = [
 [[package]]
 name = "croissant-sim"
 version = "5.2.1"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/christianhbye/croissant.git?rev=v5.3.0.dev2#d972c5fbe3f93a00bd0d8fc01837ce16d2028ad2" }
 dependencies = [
     { name = "astropy" },
     { name = "equinox" },
     { name = "jax" },
     { name = "lunarsky" },
     { name = "numpy" },
+    { name = "pyerfa" },
     { name = "s2fft" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/05/da/07136830000d1812674d8aed468a616fad2dbcf76e0dfcaf55e52ba38172/croissant_sim-5.2.1.tar.gz", hash = "sha256:a36f2a93e64c0d6c1a6036f6d5e32cc6935c7c8f156b657e152912cefcd580ca", size = 18790520, upload-time = "2026-04-06T02:08:51.985Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/fc/adc45ee730a59b010fa901b5b77545dffcd501eb20dbee6c06313391c92d/croissant_sim-5.2.1-py3-none-any.whl", hash = "sha256:3ece4d0de5a9fcaa60814758a55c51cf9239c0b34dbd8c7c8ef5f3f15d0a534f", size = 24251, upload-time = "2026-04-06T02:08:50.484Z" },
+    { name = "scipy" },
+    { name = "spiceypy" },
 ]
 
 [[package]]
@@ -620,6 +619,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pygdsm" },
     { name = "pyyaml" },
+    { name = "s2fft" },
 ]
 
 [package.optional-dependencies]
@@ -630,12 +630,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "croissant-sim", specifier = ">=5.2.1" },
+    { name = "croissant-sim", git = "https://github.com/christianhbye/croissant.git?rev=v5.3.0.dev2" },
     { name = "numpy" },
     { name = "pygdsm" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pyyaml" },
     { name = "ruff", marker = "extra == 'dev'" },
+    { name = "s2fft", git = "https://github.com/slosar/s2fft.git?rev=cefdf468ec2540818bafb37ed60d7b1fbba2f21f" },
 ]
 provides-extras = ["dev"]
 
@@ -2465,18 +2466,11 @@ wheels = [
 
 [[package]]
 name = "s2fft"
-version = "1.4.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.dev1047"
+source = { git = "https://github.com/slosar/s2fft.git?rev=cefdf468ec2540818bafb37ed60d7b1fbba2f21f#cefdf468ec2540818bafb37ed60d7b1fbba2f21f" }
 dependencies = [
     { name = "jax" },
     { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/02/60/ac5914b6a5fce9df03d4c74eeeda9338c83eb3468fd856a08ea998b7656f/s2fft-1.4.0.tar.gz", hash = "sha256:b84c0c2bb0c3dfabe3431360bf90224705554e92966ab87e92affc0fe8f956ba", size = 22770481, upload-time = "2026-02-12T11:11:49.532Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/1f/39fc6e6f69a0c1f7de40f2defaa1ef80de33c66814b98506d850f18b0c18/s2fft-1.4.0-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:c5f984316b81fdfdcaffcfdcb2ba9bdf70b2c25d3ef23313f8123d360f566833", size = 129376, upload-time = "2026-02-12T11:11:40.906Z" },
-    { url = "https://files.pythonhosted.org/packages/bb/74/7ec92e611283b1a559a0b2e535621985b66c6c48128207887a999448e472/s2fft-1.4.0-cp312-abi3-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:60ef04398dc4481232609a11d7ba4e0a9fbe3b311bbbab5a600f058dbaa7e61c", size = 137534, upload-time = "2026-02-12T11:11:42.84Z" },
-    { url = "https://files.pythonhosted.org/packages/53/10/89793a12ecda9473651c4e8f395e9601fae02081e1f18e9b4af8c9035d85/s2fft-1.4.0-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:647edd6533035283e38567b8200937064e4e1fda3bad68f43c5c3259732816db", size = 130318, upload-time = "2026-02-12T11:11:45.132Z" },
-    { url = "https://files.pythonhosted.org/packages/2c/b6/77f99f38bb0f09bf85f7b3667015941d003ecd880060955c1f6ea9edeef6/s2fft-1.4.0-cp314-cp314t-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9ac7d4cee989d1e5d5724ec4bfd8259bade430c30bf916e5955548b541ba0b73", size = 138646, upload-time = "2026-02-12T11:11:47.24Z" },
 ]
 
 [[package]]
