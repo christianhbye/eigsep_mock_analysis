@@ -36,6 +36,9 @@ CASES = ("nohorizon", "quarry", "eigsep", "flat")
 T_START = "2026-07-01 06:00:00"  # UTC (July 1 2026 00:00 Mountain Time)
 SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+# Made with the v000 beam on its 1 MHz grid; pinning the config keeps a
+# change of eigsim's default out of the stored results.
+EIGSIM_CONFIG = "eigsep_v000"
 
 
 def parse_args():
@@ -83,7 +86,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    cfg = eigsim.load_config()
+    cfg = eigsim.load_config(EIGSIM_CONFIG)
 
     horizons_file = OUTPUT_DIR / "horizons.npz"
     if not horizons_file.exists():
@@ -100,7 +103,7 @@ def main():
     omega_blocked = float(hz[f"omega_blocked_{args.case}"])
 
     print("Loading beam...")
-    beam_freqs_hz, beam_data, lmax = eigsim.load_beam()
+    beam_freqs_hz, beam_data, lmax = eigsim.load_beam(config=EIGSIM_CONFIG)
     freqs_mhz = np.array(cfg["frequencies"], dtype=float)[:: args.freq_stride]
     freq_idx = np.isin(beam_freqs_hz / 1e6, freqs_mhz)
     beam_data = beam_data[freq_idx]

@@ -1,0 +1,36 @@
+# EIGSEP experiment configuration: v001 beam on a 1 MHz grid.
+# Identical to eigsep.yaml except for frequencies and beam file.
+# The beam is a cubic spline in frequency between the 3.906 MHz HFSS
+# channels; structure faster than that spacing is invented, not simulated.
+
+world: earth
+
+location:
+  lon: -113.4033
+  lat: 39.2477
+  alt: 0.0    # meters
+
+# The HFSS channels stop at 246.09 MHz, so the grid stops at 246 MHz.
+frequencies: {start: 50.0, stop: 247.0, step: 1.0}  # MHz
+
+ground:
+  temperature: 300.0  # K
+
+receiver:
+  temperature: 50.0   # K
+
+beam:
+  sampling: mwss
+  file: eigsep_bowtie_v001_1mhz_mwss.npz
+
+horizon:
+  file: horizon_mwss.npz
+
+sky:
+  model: gsm16
+  resolution: lo
+  include_cmb: true
+
+orientations:
+  elevations: {start: 0, stop: 360, step: 10}   # degrees
+  azimuths:   {start: 0, stop: 360, step: 10}   # degrees

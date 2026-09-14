@@ -1,0 +1,35 @@
+# EIGSEP experiment configuration: frozen at the v000 beam.
+# The default until 2026-09-13. horizon_position and horizon_chromaticity
+# (the instrument paper's simulations) pin it so their figures reproduce.
+# Do not edit; add a new config instead.
+
+world: earth
+
+location:
+  lon: -113.4033
+  lat: 39.2477
+  alt: 0.0    # meters
+
+frequencies: {start: 50.0, stop: 251.0, step: 1.0}  # MHz
+
+ground:
+  temperature: 300.0  # K
+
+receiver:
+  temperature: 50.0   # K
+
+beam:
+  sampling: mwss
+  file: eigsep_bowtie_v000_mwss.npz
+
+horizon:
+  file: horizon_mwss.npz
+
+sky:
+  model: gsm16
+  resolution: lo
+  include_cmb: true
+
+orientations:
+  elevations: {start: 0, stop: 360, step: 10}   # degrees
+  azimuths:   {start: 0, stop: 360, step: 10}   # degrees

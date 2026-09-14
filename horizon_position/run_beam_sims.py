@@ -44,6 +44,9 @@ T_START = "2026-07-01 06:00:00"  # UTC, identical to run_sims.py
 SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 DEFAULT_VIVALDI = "/home/christian/Documents/research/eigsep/eigsep_vivaldi.npz"
+# The instrument paper's figures were made with the v000 beam on its 1 MHz
+# grid; pinning the config keeps a change of eigsim's default out of them.
+EIGSIM_CONFIG = "eigsep_v000"
 
 
 def parse_args():
@@ -69,7 +72,7 @@ def load_beams(wanted, vivaldi_path, freqs_mhz):
     what licenses comparing a directive feed against a broad one on a grid
     sized for the latter.
     """
-    bow_freqs_hz, bow_bm, lmax = eigsim.load_beam()
+    bow_freqs_hz, bow_bm, lmax = eigsim.load_beam(config=EIGSIM_CONFIG)
 
     def on_grid(freqs_hz, bm, tag):
         idx = np.isin(freqs_hz / 1e6, freqs_mhz)
@@ -111,7 +114,7 @@ def load_beams(wanted, vivaldi_path, freqs_mhz):
 
 def main():
     args = parse_args()
-    cfg = eigsim.load_config()
+    cfg = eigsim.load_config(EIGSIM_CONFIG)
     freqs_mhz = np.array(cfg["frequencies"], dtype=float)
 
     hz_file = OUTPUT_DIR / "horizons_position.npz"
@@ -169,7 +172,7 @@ def main():
             print(f"       done in {time.time() - t0:.0f}s -> {ckpt[tag].name}")
     else:
         print("all per-beam checkpoints on disk; merging only")
-        lmax = int(eigsim.load_beam()[2])
+        lmax = int(eigsim.load_beam(config=EIGSIM_CONFIG)[2])
 
     tags = list(TAGS)
     t_sys = np.stack([np.load(ckpt[t])["t_sys"] for t in tags])
