@@ -6,11 +6,11 @@ jax.config.update("jax_enable_x64", True)
 
 import croissant as cro  # noqa: E402
 import numpy as np  # noqa: E402
-import pytest  # noqa: E402, F401
+import pytest  # noqa: E402
 import s2fft  # noqa: E402
 from astropy.time import Time  # noqa: E402
 from eigsim.config import load_config  # noqa: E402
-from eigsim.simulate import simulate  # noqa: E402
+from eigsim.simulate import simulate, simulate_path  # noqa: E402
 
 LMAX = 16
 L = LMAX + 1
@@ -76,3 +76,80 @@ class TestSimulateUnchanged:
         np.testing.assert_allclose(
             got[0], _croissant_t_ant(beam, sky, times) + RCVR_TEMP, rtol=0, atol=1e-10
         )
+
+
+class TestSimulatePath:
+    def test_matches_grid_mode_minus_receiver(self):
+        """At matching (orientation, time) samples, path = grid - receiver."""
+        beam, sky, times = _beam(), _sky(), _times(4)
+        els = np.array([0.0, 30.0, -60.0])
+        azs = np.array([0.0, 45.0, 150.0])
+        grid = np.asarray(simulate(beam, FREQS_MHZ, sky, times, els, azs))
+        ori_of_sample = np.array([2, 0, 1, 2])
+
+        path = np.asarray(
+            simulate_path(
+                beam, FREQS_MHZ, sky, times, els[ori_of_sample], azs[ori_of_sample]
+            )
+        )
+
+        want = grid[ori_of_sample, np.arange(times.size)] - RCVR_TEMP
+        np.testing.assert_allclose(path, want, rtol=0, atol=1e-10)
+
+    def test_grouping_matches_per_sample_runs(self):
+        """Grouping by unique orientation equals evaluating each sample alone.
+
+        Each reference run keeps the full times_jd, so it shares croissant's
+        reference epoch (times_jd[0]) with the batched run; a run with only
+        one time would use that time as its epoch and differ by croissant's
+        sidereal-rotation approximation, not by grouping.
+        """
+        beam, sky, times = _beam(), _sky(), _times(5)
+        els = np.array([0.0, 30.0, 0.0, 30.0, 0.0])
+        azs = np.array([0.0, 45.0, 0.0, 45.0, 0.0])
+
+        batched = np.asarray(simulate_path(beam, FREQS_MHZ, sky, times, els, azs))
+        single = np.stack(
+            [
+                np.asarray(simulate(beam, FREQS_MHZ, sky, times, [els[i]], [azs[i]]))[
+                    0, i
+                ]
+                for i in range(times.size)
+            ]
+        )
+
+        np.testing.assert_allclose(batched, single - RCVR_TEMP, rtol=0, atol=1e-10)
+
+    def test_no_receiver_term(self):
+        """Uniform sky, open horizon: T_ant is the sky, with nothing added."""
+        t0 = 1000.0
+        beam = np.ones((FREQS_MHZ.size, NTHETA, NPHI))
+        data = np.full((FREQS_MHZ.size, NTHETA, NPHI), t0)
+        sky = cro.Sky(data, FREQS_MHZ, sampling=SAMPLING, coord="equatorial")
+        open_sky = np.ones((NTHETA, NPHI), dtype=bool)
+
+        got = np.asarray(
+            simulate_path(
+                beam,
+                FREQS_MHZ,
+                sky,
+                _times(2),
+                [0.0, 30.0],
+                [0.0, 45.0],
+                beam_kw={"horizon": open_sky},
+            )
+        )
+
+        np.testing.assert_allclose(got, t0, rtol=1e-8)
+
+    def test_shape_and_dtype(self):
+        got = simulate_path(_beam(), FREQS_MHZ, _sky(), _times(3), [0.0] * 3, [0.0] * 3)
+        assert got.shape == (3, FREQS_MHZ.size)
+        assert got.dtype == np.float64
+
+    @pytest.mark.parametrize(
+        "els, azs", [([0.0, 0.0], [0.0, 0.0, 0.0]), ([0.0, 0.0, 0.0], [0.0])]
+    )
+    def test_length_mismatch_raises(self, els, azs):
+        with pytest.raises(ValueError, match="one orientation per time"):
+            simulate_path(_beam(), FREQS_MHZ, _sky(), _times(3), els, azs)

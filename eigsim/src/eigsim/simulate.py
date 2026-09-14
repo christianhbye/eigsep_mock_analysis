@@ -564,3 +564,104 @@ def simulate(
         print()
 
     return jnp.stack(results) + setup.t_rcvr
+
+
+def simulate_path(
+    beam_data,
+    freqs_mhz,
+    sky,
+    times_jd,
+    elevations_deg,
+    azimuths_deg,
+    config=None,
+    sampling="mwss",
+    beam_kw=None,
+    sky_alm=None,
+    verbose=False,
+    **sim_kw,
+):
+    """Simulate one antenna orientation per time sample (D5 path mode).
+
+    Motor telemetry gives one (elevation, azimuth) per sample. Samples
+    are grouped by unique orientation and each group is simulated once,
+    at that group's times only; D5 orientations repeat (static at night,
+    a raster on Jul 17), so this is much cheaper than a full grid.
+
+    Unlike :func:`simulate`, no receiver temperature is added: the
+    result is the free-space antenna temperature, ``t_ant_k`` of
+    ``SkyTemperature`` in the eigsep_cal interface spec (§ 5.1). It
+    includes sky, horizon and the configured ground model, but no balun
+    or coax.
+
+    Each distinct group size compiles the per-orientation function
+    once more, because JIT specialises on the number of times.
+
+    All samples are evaluated against croissant's reference epoch,
+    ``times_jd[0]``, with a fixed sidereal rotation for later times, so
+    splitting one path across several calls changes the result slightly.
+
+    Parameters
+    ----------
+    beam_data : array_like
+        Unrotated beam power pattern.
+    freqs_mhz : array_like
+        Frequencies in MHz, matching the beam's frequency axis.
+    sky : croissant.Sky
+        Sky model.
+    times_jd : array_like
+        Sample times in Julian day, shape ``(n_time,)``.
+    elevations_deg, azimuths_deg : array_like
+        Drive angles in degrees, one per sample, shape ``(n_time,)``.
+    config : str, Path, or None
+        Config for :func:`~eigsim.config.load_config`.
+    sampling : str
+        Beam sampling scheme.
+    beam_kw : dict or None
+        Extra kwargs for ``croissant.Beam`` (e.g. *horizon*).
+    sky_alm : jax.Array or None
+        Pre-computed sky ALM from :func:`precompute_sky_alm`.
+    verbose : bool
+        Print per-group progress.
+    **sim_kw
+        Override Simulator kwargs (lon, lat, alt, world, Tgnd, lmax).
+
+    Returns
+    -------
+    t_ant : jax.Array
+        Noiseless antenna temperature, shape ``(n_time, n_freq)``.
+
+    """
+    times_jd = np.asarray(times_jd, dtype=np.float64)
+    elevations_deg = np.asarray(elevations_deg, dtype=np.float64)
+    azimuths_deg = np.asarray(azimuths_deg, dtype=np.float64)
+    shapes = {times_jd.shape, elevations_deg.shape, azimuths_deg.shape}
+    if len(shapes) != 1 or times_jd.ndim != 1:
+        raise ValueError(
+            "need one orientation per time: times_jd, elevations_deg and "
+            f"azimuths_deg must be 1-D with equal length, got {sorted(shapes)}"
+        )
+
+    setup = _setup(
+        beam_data, freqs_mhz, sky, times_jd, config, sampling, beam_kw, sky_alm, sim_kw
+    )
+
+    orientations, group = np.unique(
+        np.column_stack([elevations_deg, azimuths_deg]), axis=0, return_inverse=True
+    )
+    group = group.reshape(-1)
+
+    pieces, order = [], []
+    for g, (elev, az) in enumerate(orientations):
+        if verbose:
+            print(
+                f"    orientation {g + 1}/{len(orientations)}    ", end="\r", flush=True
+            )
+        idx = np.flatnonzero(group == g)
+        pieces.append(_run_orientation(setup, elev, az, setup.phases[idx]))
+        order.append(idx)
+
+    if verbose:
+        print()
+
+    order = np.concatenate(order)
+    return jnp.concatenate(pieces)[np.argsort(order)]

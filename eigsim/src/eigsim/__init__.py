@@ -22,6 +22,7 @@ from .simulate import (
     make_beam,
     precompute_sky_alm,
     simulate,
+    simulate_path,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     "rotate_alm_to_beam",
     "rotate_beam_data",
     "simulate",
+    "simulate_path",
 ]
