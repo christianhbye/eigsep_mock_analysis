@@ -358,7 +358,7 @@ class TestSkyAlmReuse:
             beam_data, FREQS_MHZ, sky, times, [0.0, 10.0], [0.0, 0.0], **defaults
         )
 
-        sky_alm = precompute_sky_alm(sky)
+        sky_alm = precompute_sky_alm(sky, times)
         opt = simulate(
             beam_data,
             FREQS_MHZ,
@@ -374,7 +374,7 @@ class TestSkyAlmReuse:
 
     def test_precompute_sky_alm_shape(self):
         sky = _make_sky()
-        sky_alm = precompute_sky_alm(sky)
+        sky_alm = precompute_sky_alm(sky, _single_time())
 
         assert sky_alm.ndim == 3
         assert sky_alm.shape[0] == len(FREQS_MHZ)

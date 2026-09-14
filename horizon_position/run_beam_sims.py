@@ -151,7 +151,7 @@ def main():
         sky = cro.Sky(
             gsm.generate(freqs_mhz), freqs_mhz, sampling="healpix", coord="galactic"
         )
-        sky_alm = eigsim.precompute_sky_alm(sky)
+        sky_alm = eigsim.precompute_sky_alm(sky, times.jd)
         for tag in missing:
             print(f"  {tag:10s} simulating...", flush=True)
             t0 = time.time()

@@ -102,7 +102,7 @@ rng = np.random.default_rng(RNG_SEED)
 # Pre-compute sky ALM once (reused across all batches)
 # ---------------------------------------------------------------------------
 print("Pre-computing sky ALM...")
-sky_alm = eigsim.precompute_sky_alm(sky)
+sky_alm = eigsim.precompute_sky_alm(sky, times_jd)
 
 # ---------------------------------------------------------------------------
 # Run simulation in batches
