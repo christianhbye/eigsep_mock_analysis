@@ -44,6 +44,7 @@ croissant-sim     s2fft (JAX)
 - Composition order: `R = Rx(elevation) @ Rz(azimuth)`
 - Elevation 0 = zenith; positive tilts toward South (right-hand rule about East axis)
 - Azimuth positive = counterclockwise from above
+- Optional outer mount-to-ground misalignment: `R = R_mis @ Rx(elevation) @ Rz(azimuth)`, static in the topocentric frame. X misalignment is omitted because it is exactly an elevation encoder offset (`Rx(eps) @ Rx(el) == Rx(eps + el)`); only Y (levelling) and Z (azimuth-reference) tilts are identifiable. `simulate`, `simulate_path` and `compute_fgnd` take `misalignment=`.
 
 ### Data files
 

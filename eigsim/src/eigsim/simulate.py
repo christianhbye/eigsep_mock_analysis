@@ -178,6 +178,7 @@ def compute_fgnd(
     sampling="mwss",
     beam_kw=None,
     verbose=False,
+    misalignment=None,
 ):
     """Compute the ground fraction for multiple beam orientations.
 
@@ -208,6 +209,11 @@ def compute_fgnd(
         Extra kwargs for ``croissant.Beam`` (e.g. *horizon*).
     verbose : bool
         Print per-orientation progress.
+    misalignment : (3, 3) array or None
+        Outer mount-to-ground misalignment (3x3), applied outside the
+        drive for every orientation; see
+        :func:`~eigsim.rotations.misalignment_matrix`. ``None``
+        reproduces the bare drive exactly.
 
     Returns
     -------
@@ -244,7 +250,7 @@ def compute_fgnd(
         if verbose:
             print(f"    orientation {i + 1}/{n_ori}    ", end="\r", flush=True)
 
-        R = drive_rotation_matrix(float(elev), float(az))
+        R = drive_rotation_matrix(float(elev), float(az), misalignment=misalignment)
         euler = rotmat_to_eulerZYZ(R)
         euler_jax = jnp.asarray(euler, dtype=jnp.float64)
 
@@ -474,9 +480,11 @@ def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, 
     )
 
 
-def _run_orientation(setup, elevation_deg, azimuth_deg, phases):
+def _run_orientation(setup, elevation_deg, azimuth_deg, phases, misalignment=None):
     """Antenna temperature for one orientation at the times of *phases*."""
-    R = drive_rotation_matrix(float(elevation_deg), float(azimuth_deg))
+    R = drive_rotation_matrix(
+        float(elevation_deg), float(azimuth_deg), misalignment=misalignment
+    )
     euler = jnp.asarray(rotmat_to_eulerZYZ(R), dtype=jnp.float64)
     beam_eq_alm, fgnd = setup.orient(
         setup.alm,
@@ -508,6 +516,7 @@ def simulate(
     beam_kw=None,
     sky_alm=None,
     verbose=False,
+    misalignment=None,
     **sim_kw,
 ):
     """Run simulations for multiple beam orientations.
@@ -550,6 +559,11 @@ def simulate(
         ``None`` the sky ALM is computed internally.
     verbose : bool
         Print per-orientation progress.
+    misalignment : (3, 3) array or None
+        Outer mount-to-ground misalignment (3x3), applied outside the
+        drive for every orientation; see
+        :func:`~eigsim.rotations.misalignment_matrix`. ``None``
+        reproduces the bare drive exactly.
     **sim_kw
         Override Simulator kwargs (lon, lat, alt, world, Tgnd, lmax).
 
@@ -569,7 +583,9 @@ def simulate(
     for i, (elev, az) in enumerate(zip(elevations, azimuths)):
         if verbose:
             print(f"    orientation {i + 1}/{n_ori}    ", end="\r", flush=True)
-        results.append(_run_orientation(setup, elev, az, setup.phases))
+        results.append(
+            _run_orientation(setup, elev, az, setup.phases, misalignment=misalignment)
+        )
 
     if verbose:
         print()
@@ -589,6 +605,7 @@ def simulate_path(
     beam_kw=None,
     sky_alm=None,
     verbose=False,
+    misalignment=None,
     **sim_kw,
 ):
     """Simulate one antenna orientation per time sample (D5 path mode).
@@ -640,6 +657,11 @@ def simulate_path(
         Pre-computed sky ALM from :func:`precompute_sky_alm`.
     verbose : bool
         Print per-group progress.
+    misalignment : (3, 3) array or None
+        Outer mount-to-ground misalignment (3x3), applied outside the
+        drive for every orientation; see
+        :func:`~eigsim.rotations.misalignment_matrix`. ``None``
+        reproduces the bare drive exactly.
     **sim_kw
         Override Simulator kwargs (lon, lat, alt, world, Tgnd, lmax).
 
@@ -689,7 +711,11 @@ def simulate_path(
             print(
                 f"    orientation {g + 1}/{len(orientations)}    ", end="\r", flush=True
             )
-        pieces.append(_run_orientation(setup, elev, az, setup.phases[idx]))
+        pieces.append(
+            _run_orientation(
+                setup, elev, az, setup.phases[idx], misalignment=misalignment
+            )
+        )
 
     if verbose:
         print()
