@@ -890,6 +890,34 @@ git commit -m "test(horizon_position): validate the horizon Jacobian against the
 
 Write here which branch Task 3 selected, then implement only that branch in Step 3.
 
+**Task 3 decision** (full evidence in
+`.superpowers/sdd/2026-09-14-horizon-tilt-sensitivity-phase1/task-3-report.md`):
+
+- **Misalignment derivatives (`dT/d(eps_y, eps_z)`): finite-difference branch.**
+  The Wigner-D code `simulate()` actually runs (its private
+  `_generate_rotate_dls`/`_rotate_flms`) is differentiable in the Euler
+  angles (autodiff vs. central FD agree to 8.0e-11 relative), but at the
+  zenith/zero-misalignment operating point `R = I` is a ZYZ gimbal lock
+  (`beta = 0`), and `croissant.rotations.rotmat_to_eulerZYZ` is NumPy
+  with `np.isclose` branches: not traceable, and for `eps_y` not even
+  differentiable as a plain numerical function there — its Euler-angle
+  output either loses the sign of `eps_y` entirely or jumps by `pi` as
+  `eps_y` crosses the `np.isclose` threshold, so forward/backward finite
+  differences disagree by O(1), not truncation error. Fixing this needs
+  `jnp` replacements for `drive_rotation_matrix`/`rotmat_to_eulerZYZ`,
+  which is out of this spike's and this plan's scope. Use central
+  differences at ±0.25 deg on each of the two parameters (four
+  simulations), as already planned below.
+- **Position derivatives (`dT/d(E, N, U)`): `jax.jvp` through `simulate` directly.**
+  `jax.jvp(f, (alpha,), (tangent,))` with `f(alpha) = simulate(...,
+  beam_kw={"horizon": open_sky_weight(alpha, az, lmax)})` runs with no
+  exceptions at a small test size and agrees with central finite
+  differences to max relative error 3.8e-10, and with the affine
+  identity (`simulate(horizon=dW) - simulate(horizon=0)`, exact because
+  `t_sys` is affine in the horizon weight) to max relative error 2.1e-14
+  (machine precision). Implement as `jax.jvp` through `simulate`, one
+  call per axis, as sketched in Step 3 below.
+
 - [ ] **Step 2: Re-run the 19 positions**
 
 ```bash
