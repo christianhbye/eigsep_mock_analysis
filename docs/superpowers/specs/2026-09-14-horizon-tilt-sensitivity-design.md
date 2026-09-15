@@ -1,7 +1,42 @@
 # Horizon and Levelling Sensitivity for the D5 Forward Model — Design
 
 **Date:** 2026-09-14
-**Status:** Draft (awaiting review)
+**Status:** Draft (awaiting review); phase 1 executed, see the note below
+
+## Superseded during execution (2026-09-14)
+
+Three things in the body below did not survive phase 1. The body is left as
+written — it is the record of what was designed — but plan **phase 2 from the
+corrected story**, not from these:
+
+1. **"Closed-form calculus on one point per azimuth"** (§ *1. `mock_analysis`
+   — the horizon generator*) is not the whole derivative. A horizontal move
+   also shifts *at which azimuth* a fixed terrain point is seen, adding a
+   second, non-local term `alpha_h'(az) * d(az_p)/d(e0, n0)` — azimuthal
+   parallax. `dalpha_dE`/`dalpha_dN` in `horizons_position.npz` are therefore
+   **totals**: the pixel partial (kept as `dalpha_d{E,N}_pixel`) minus the
+   parallax term (`daz_d{E,N}`). Dropping it is off by 57–99 % on the
+   solid-angle-weighted open-sky fraction, against < 3 % for the total.
+   `dalpha_dU` is unaffected (`d az / d u0 = 0`). Corrected story:
+   `horizon_position/make_horizons.py`'s module docstring.
+
+2. **The pointwise `alpha_h + J·delta` validation** (§ *Validation*) is not
+   meaningful as prescribed. `alpha_h(az)` is piecewise constant — one
+   `hor_ang` per winning DEM pixel, copied across the bins its footprint
+   covers — so a horizontal move translates the curve's step edges, which a
+   pointwise comparison reads as an O(1) discontinuity however small the step
+   is. The pixel partials are validated pointwise only on the population where
+   the same pixel wins at both positions; the *total* tangent is validated in
+   W-space instead, with `jax.jvp` through `eigsim.open_sky_weight`. Corrected
+   story: `horizon_position/test_jacobian.py`'s module docstring.
+
+3. **`margin` was dropped** (referenced at the generator section, the data-flow
+   diagram and the memo outline). Computing it exactly needs the recursive
+   pruning inside `DEM.calc_horizon`, which this spec forbids touching; the
+   measured switch fraction from comparing `crds` across the 19 positions
+   serves the same purpose in M004. Corrected story: the plan's *Deviations
+   from the spec* § 1
+   (`docs/superpowers/plans/2026-09-14-horizon-tilt-sensitivity-phase1.md`).
 
 ## Goal
 
