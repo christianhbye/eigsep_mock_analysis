@@ -42,6 +42,9 @@ uv run python horizon_position/make_foreground_svd.py --check   # verify only
 # 2b. one nominal-horizon day per antenna, for the beam comparison.
 #     --vivaldi (or EIGSEP_VIVALDI_BEAM) points at the HEALPix Vivaldi beam,
 #     which lives outside this repo. Resampling it to MWSS takes a few minutes.
+#     Takes all inputs from run_sims.load_inputs and builds the same mask as
+#     run_sims.py's nominal row, so its bowtie row reproduces position_sims.npz
+#     row 0 (test_smoke.py). Written once at the end; nothing to resume.
 uv run python horizon_position/run_beam_sims.py     # -> output/beam_sims.npz
 
 # 3. the analysis + all three paper figures, in this order
@@ -82,19 +85,16 @@ up to 8.81 K.
 
 ## Caching traps when the horizon changes
 
-Three caches are keyed on things that do **not** change when the terrain model
-does. Clear all of them by hand after editing the DEM loader in
+One cache is keyed on something that does **not** change when the terrain
+model does. Clear it by hand after editing the DEM loader in
 `eigsep_terrain`, or `N_AZ` in `make_horizons.py`:
 
 ```bash
 rm -f horizon_position/output/marjum_dem.npz       # else the old DEM is reused
-rm -f horizon_position/output/beam_{bowtie,isotropic,vivaldi}.npz  # step 2b
 ```
 
 - `MarjumDEM(cache_file=...)` reloads `marjum_dem.npz` whenever it exists and
   never checks it against the source GeoTIFFs.
-- `run_beam_sims.py` skips any antenna whose `beam_<tag>.npz` checkpoint
-  exists, with no staleness check at all.
 
 ## The notebooks
 
