@@ -1,4 +1,4 @@
-"""Tests for simulate_path, eigsim's D5 path mode (interface spec § 7)."""
+"""Tests for simulate_path, eigsim's D5 path mode (D5 interface spec § 7)."""
 
 import jax
 

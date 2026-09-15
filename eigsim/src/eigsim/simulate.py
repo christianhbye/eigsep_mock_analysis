@@ -622,7 +622,7 @@ def simulate_path(
 
     Unlike :func:`simulate`, no receiver temperature is added: the
     result is the free-space antenna temperature, ``t_ant_k`` of
-    ``SkyTemperature`` in the eigsep_cal interface spec (§ 5.1). It
+    ``SkyTemperature`` in the eigsep_cal API spec (§ 5.1). It
     includes sky, horizon and the configured ground model, but no balun
     or coax.
 
