@@ -129,7 +129,7 @@ def test_linearization_improves_with_smaller_steps(hz, names, axis, idx):
       x: 0.1m=8.67e-07  1m=1.39e-04  10m=1.66e-02  ratio(1/.1)=160  ratio(10/1)=119
       y: 0.1m=6.00e-07  1m=3.50e-05  10m=2.16e-03  ratio(1/.1)=58   ratio(10/1)=62
       z: 0.1m=1.38e-06  1m=1.38e-04  10m=1.38e-02  ratio(1/.1)=100  ratio(10/1)=100
-    The tightest margin (y) is still ~2.9x the 10x bound and ~3.1x the 20x
+    The tightest margin (y) is still ~5.8x the 10x bound and ~3.1x the 20x
     bound asserted below. (Unchanged from before the totals/pixel split:
     `dalpha_dE_pixel`/`dalpha_dN_pixel` are byte-identical to the old
     `dalpha_dE`/`dalpha_dN`.)
@@ -222,6 +222,30 @@ def _frac_change(dW, w, denom):
     return float((dW * w[:, None]).sum() / denom)
 
 
+def _rel_err_on_w(hz, names, w_nom, name, tangent, tag=""):
+    """Solid-angle-weighted open-sky-fraction relative error for one
+    position and one tangent (total or pixel-only), via jax.jvp through
+    open_sky_weight. Prints the diagnostic row and returns rel_err."""
+    i_nom = names.index("nominal")
+    i = names.index(name)
+    alpha_nom = hz["alpha_h"][i_nom]
+
+    W_true = np.asarray(w_nom["W_fn"](hz["alpha_h"][i]))
+    dW_true = W_true - w_nom["W"]
+    _, dW_lin = jax.jvp(w_nom["W_fn"], (alpha_nom,), (tangent,))
+    dW_lin = np.asarray(dW_lin)
+
+    frac_true = _frac_change(dW_true, w_nom["w"], w_nom["denom"])
+    frac_lin = _frac_change(dW_lin, w_nom["w"], w_nom["denom"])
+    rel_err = abs(frac_lin - frac_true) / abs(frac_true)
+
+    print(
+        f"  {name:8s} {tag}frac_true={frac_true:+.4e}  frac_lin={frac_lin:+.4e}  "
+        f"rel_err={100 * rel_err:6.3f}%"
+    )
+    return rel_err
+
+
 # Bound for the total tangent's solid-angle-weighted open-sky-fraction error
 # (Task 4's fix report, task-4-report.md "Fix round 1", err_stored column;
 # T6-b effective deltas):
@@ -251,22 +275,9 @@ def test_total_tangent_matches_open_sky_fraction(hz, names, w_nom, name):
     i = names.index(name)
     delta = _calc_horizon_delta(hz["enu"][i], hz["enu"][i_nom])
 
-    alpha_nom = hz["alpha_h"][i_nom]
     dE, dN, dU = hz["dalpha_dE"], hz["dalpha_dN"], hz["dalpha_dU"]
     tangent = dE * delta[0] + dN * delta[1] + dU * delta[2]
-    W_true = np.asarray(w_nom["W_fn"](hz["alpha_h"][i]))
-    dW_true = W_true - w_nom["W"]
-    _, dW_lin = jax.jvp(w_nom["W_fn"], (alpha_nom,), (tangent,))
-    dW_lin = np.asarray(dW_lin)
-
-    frac_true = _frac_change(dW_true, w_nom["w"], w_nom["denom"])
-    frac_lin = _frac_change(dW_lin, w_nom["w"], w_nom["denom"])
-    rel_err = abs(frac_lin - frac_true) / abs(frac_true)
-
-    print(
-        f"  {name:8s} frac_true={frac_true:+.4e}  frac_lin={frac_lin:+.4e}  "
-        f"rel_err={100 * rel_err:6.3f}%"
-    )
+    rel_err = _rel_err_on_w(hz, names, w_nom, name, tangent)
     assert rel_err < W_FRAC_BOUND
 
 
@@ -275,7 +286,7 @@ def test_total_tangent_matches_open_sky_fraction(hz, names, w_nom, name):
 # (Task 4's fix report, err_pixel_only column, same T6-b deltas):
 #   x_m_0p1 = 59.412% (smallest of the six x cases in +/-0.1/1 m)
 #   y_p_0p1 = 98.967% (smallest of the six y cases in +/-0.1/1 m)
-# 40%/80% bounds give margins of ~1.5x / ~1.1x over those worst cases while
+# 40%/80% bounds give margins of ~1.5x / ~1.2x over those worst cases while
 # staying well clear of the total tangent's <3% (W_FRAC_BOUND=0.10) --
 # unambiguously "badly wrong", not a close call.
 _PIXEL_ONLY_GUARD = {"x": ("x_m_0p1", 0.40), "y": ("y_p_0p1", 0.80)}
@@ -291,23 +302,11 @@ def test_pixel_only_tangent_is_badly_wrong_on_w(hz, names, w_nom, axis):
     i = names.index(name)
     delta = _calc_horizon_delta(hz["enu"][i], hz["enu"][i_nom])
 
-    alpha_nom = hz["alpha_h"][i_nom]
     tangent_pixel = (
         hz["dalpha_dE_pixel"] * delta[0]
         + hz["dalpha_dN_pixel"] * delta[1]
         + hz["dalpha_dU"] * delta[2]
     )
-    W_true = np.asarray(w_nom["W_fn"](hz["alpha_h"][i]))
-    dW_true = W_true - w_nom["W"]
-    _, dW_lin = jax.jvp(w_nom["W_fn"], (alpha_nom,), (tangent_pixel,))
-    dW_lin = np.asarray(dW_lin)
-
-    frac_true = _frac_change(dW_true, w_nom["w"], w_nom["denom"])
-    frac_lin = _frac_change(dW_lin, w_nom["w"], w_nom["denom"])
-    rel_err = abs(frac_lin - frac_true) / abs(frac_true)
-
-    print(
-        f"  {name:8s} pixel-only rel_err={100 * rel_err:6.3f}%  "
-        f"(bound {100 * bound:.0f}%)"
-    )
+    rel_err = _rel_err_on_w(hz, names, w_nom, name, tangent_pixel, tag="pixel-only ")
+    print(f"    (bound {100 * bound:.0f}%)")
     assert rel_err > bound
