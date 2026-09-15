@@ -51,5 +51,3 @@ def test_run_sims_smoke():
         assert not np.allclose(d["t_sys"][0], d["t_sys"][i10])
     finally:
         out.unlink(missing_ok=True)
-        for b in OUT.glob(f"pos{tag}_batch_*.npz"):
-            b.unlink()
