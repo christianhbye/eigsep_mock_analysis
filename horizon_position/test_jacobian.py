@@ -1,42 +1,61 @@
-"""The analytic horizon Jacobian, checked against the DEM itself.
+"""The analytic horizon Jacobian, checked against the DEM and against W.
 
-The 19 stored positions are a ready-made finite-difference set: predict
-alpha_h(nominal) + J . delta and compare with the curve the DEM actually
-produced. Accuracy must degrade with step size -- a linearization that
-still looks good at 10 m is not being tested properly.
+`horizons_position.npz` (Task 4, fix round 1, commit c70d09b) stores two
+different derivatives of the horizon curve, and this file validates each
+against the observable it is actually good for:
 
-Two effects from the Task 4 report (task-4-report.md, concerns 2-3) shape
-how that comparison has to be built:
+1. **Pointwise, against `alpha_h` itself**: `dalpha_dE_pixel`,
+   `dalpha_dN_pixel`, `dalpha_dU` differentiate one fixed DEM pixel's angle
+   ``arctan2(dz, r_min)`` and hold that pixel fixed. `alpha_h(az)` is
+   *piecewise constant* (`calc_horizon` assigns one `hor_ang` value per
+   winning pixel and copies it across every azimuth bin the pixel's
+   footprint overlaps), so this is the *only* population where comparing
+   predicted vs. actual `alpha_h` pointwise means anything: azimuths where
+   the winning pixel changes between the two positions being compared are
+   a jump the pixel partials cannot see by construction, and a horizontal
+   move translates the curve's step edges, which a pointwise comparison
+   sees as an O(1) discontinuity regardless of how small the step is (see
+   task-6-report.md's "Parallax hypothesis test" section for the
+   measurements that pinned this down). `test_linearization_improves_
+   with_smaller_steps` therefore restricts to azimuths where the same
+   pixel wins at both positions being compared.
 
-- calc_horizon combines the float32 DEM with u0 as ``U - u0``; under NumPy's
-  NEP 50 promotion that subtraction runs in float32, so the u0 that
-  participates is effectively ``float32(u0)``, not the Python float. e0 and
-  n0 are only ever combined with float64 pixel edges (get_en, calc_rmin,
-  calc_az_bin_range in eigsep_terrain/utils.py), so they see no such
-  rounding. ``_calc_horizon_delta`` below reproduces this so the O(step^2)
-  residual comparisons are not contaminated by a constant ~2.4e-5 m
-  rounding floor on the Up step (Task 4 report concern 2).
-- calc_horizon assigns each azimuth to a single DEM pixel by argmax; the
-  Jacobian differentiates that one pixel's angle and cannot see a step that
-  hands the azimuth to a different pixel (documented in make_horizons.py).
-  At this file's resolution, a horizontal (E/N) move of just 0.1 m already
-  reassigns the winning pixel at ~27-28% of valid azimuths (Task 4 report
-  point 3), and residual RMS over *all* valid azimuths mixes that O(1)
-  pixel-reassignment jump with the genuine O(step^2) Taylor error. Task 4's
-  own check script sidestepped this for its informational FD sanity check
-  ("It skips azimuths where the pixel changes, because that adjudication is
-  Task 6's job."). The tests below do the same: the Taylor-scaling checks
-  restrict to azimuths where the same pixel wins at both positions being
-  compared, and a separate test quantifies the mixed population instead.
+2. **In W-space, against `eigsim.open_sky_weight`**: `dalpha_dE`,
+   `dalpha_dN` (no `_pixel` suffix) are *totals* -- the pixel partial
+   minus the azimuthal-parallax term `alpha_h'(az) * d(az_p)/d(e0,n0)`,
+   accounting for the fact that a horizontal move also shifts *where*
+   (at which azimuth) a fixed terrain point is seen. `dalpha_dU` is
+   unchanged (`d az/d u0 = 0`). This total is what `run_sims.py` feeds the
+   simulation, and it is a first-order translation of the piecewise-
+   constant curve: not meaningful pointwise, but exactly what a
+   cell-integrating, linearly-interpolating consumer like
+   `eigsim.open_sky_weight` needs (confirmed empirically in
+   task-6-report.md: the pixel-only tangent is off by 57-99% on the
+   solid-angle-weighted open-sky fraction, the total tangent by <3%).
+   `test_total_tangent_matches_open_sky_fraction` checks this with
+   `jax.jvp` through `open_sky_weight`, and
+   `test_pixel_only_tangent_is_badly_wrong_on_w` is a guard so nobody
+   silently drops the parallax term and regresses to the pixel-only
+   behaviour without a test noticing.
 """
 
+import os
+
+os.environ.setdefault("JAX_ENABLE_X64", "1")
+
+import time
 from pathlib import Path
 
+import jax
 import numpy as np
 import pytest
 
+import eigsim
+
 OUT = Path(__file__).resolve().parent / "output" / "horizons_position.npz"
 pytestmark = pytest.mark.skipif(not OUT.exists(), reason="run make_horizons.py first")
+
+W_LMAX = 128
 
 
 @pytest.fixture(scope="module")
@@ -57,25 +76,14 @@ def _calc_horizon_delta(enu_i, enu_nom):
     the float32 DEM, and NEP 50 promotion carries that out in float32 --
     u0 is effectively rounded to float32 before the subtraction. e0 and n0
     are combined only with float64 pixel edges throughout, so they see no
-    such rounding (see the module docstring). Using the nominal 0.1/1/10 m
-    step for dU instead of this effective, slightly smaller step would put
-    a constant rounding floor into what should be an O(step^2) residual.
+    such rounding. Using the nominal 0.1/1/10 m step for dU instead of
+    this effective, slightly smaller step would put a constant rounding
+    floor into what should be an O(step^2) residual.
     """
     e_i, n_i, u_i = (float(x) for x in enu_i)
     e0, n0, u0 = (float(x) for x in enu_nom)
     du = float(np.float32(u_i)) - float(np.float32(u0))
     return np.array([e_i - e0, n_i - n0, du], dtype=float)
-
-
-def _predict(hz, i_nom, delta):
-    J = np.stack([hz["dalpha_dE"], hz["dalpha_dN"], hz["dalpha_dU"]], axis=1)
-    return hz["alpha_h"][i_nom] + J @ np.asarray(delta, float)
-
-
-def _residual(hz, i_nom, i):
-    """predicted - actual alpha_h at position ``i``, effective-delta based."""
-    delta = _calc_horizon_delta(hz["enu"][i], hz["enu"][i_nom])
-    return _predict(hz, i_nom, delta) - hz["alpha_h"][i]
 
 
 def _rms_deg(x):
@@ -89,22 +97,42 @@ def _same_pixel_mask(crds, i_nom, i):
     return ~np.any(crds[i] != crds[i_nom], axis=0)
 
 
+# ---------------------------------------------------------------------------
+# 1. Pointwise: pixel partials against alpha_h, same-winning-pixel azimuths.
+# ---------------------------------------------------------------------------
+
+
+def _predict_pixel(hz, i_nom, delta):
+    """First-order alpha_h prediction from the *pixel* partials (pointwise)."""
+    J = np.stack(
+        [hz["dalpha_dE_pixel"], hz["dalpha_dN_pixel"], hz["dalpha_dU"]], axis=1
+    )
+    return hz["alpha_h"][i_nom] + J @ np.asarray(delta, float)
+
+
+def _residual_pixel(hz, i_nom, i):
+    delta = _calc_horizon_delta(hz["enu"][i], hz["enu"][i_nom])
+    return _predict_pixel(hz, i_nom, delta) - hz["alpha_h"][i]
+
+
 @pytest.mark.parametrize("axis,idx", [("x", 0), ("y", 1), ("z", 2)])
 def test_linearization_improves_with_smaller_steps(hz, names, axis, idx):
-    """O(step^2) Taylor scaling, isolated from DEM pixel reassignment.
+    """O(step^2) Taylor scaling of the *pixel* partials on alpha_h.
 
     Restricted to azimuths where the same DEM pixel wins at nominal and at
-    the shifted position (see module docstring) -- exactly the domain the
-    Jacobian is documented to be exact on. `idx` is unused directly; it
-    exists so the parametrization mirrors the (axis, column) pairing used
-    elsewhere in this file.
+    the shifted position -- the only domain where a pointwise comparison
+    of `alpha_h` against a first-order prediction is meaningful (module
+    docstring). `idx` is unused directly; it exists so the parametrization
+    mirrors the (axis, column) pairing used elsewhere in this file.
 
     Measured RMS residual [deg], '+' direction, same-pixel azimuths only:
       x: 0.1m=8.67e-07  1m=1.39e-04  10m=1.66e-02  ratio(1/.1)=160  ratio(10/1)=119
       y: 0.1m=6.00e-07  1m=3.50e-05  10m=2.16e-03  ratio(1/.1)=58   ratio(10/1)=62
       z: 0.1m=1.38e-06  1m=1.38e-04  10m=1.38e-02  ratio(1/.1)=100  ratio(10/1)=100
     The tightest margin (y) is still ~2.9x the 10x bound and ~3.1x the 20x
-    bound asserted below.
+    bound asserted below. (Unchanged from before the totals/pixel split:
+    `dalpha_dE_pixel`/`dalpha_dN_pixel` are byte-identical to the old
+    `dalpha_dE`/`dalpha_dN`.)
     """
     i_nom = names.index("nominal")
     valid = hz["jac_valid"]
@@ -115,7 +143,7 @@ def test_linearization_improves_with_smaller_steps(hz, names, axis, idx):
         name = f"{axis}_p_{tag}"
         i = names.index(name)
         mask = valid & _same_pixel_mask(crds, i_nom, i)
-        errs[step] = _rms_deg(_residual(hz, i_nom, i)[mask])
+        errs[step] = _rms_deg(_residual_pixel(hz, i_nom, i)[mask])
 
     print(
         f"  axis={axis} same-pixel RMS residual [deg]: "
@@ -166,75 +194,120 @@ def test_switch_fraction_table(hz, names):
         assert f_0p1 < f_1 < f_10
 
 
-# Measured switched-azimuth resid_sw / dalpha_sw at the 0.1 m step:
-#   x_p_0p1=0.980  x_m_0p1=0.978  y_p_0p1=1.019  y_m_0p1=1.020
-#   z_p_0p1=0.134  z_m_0p1=0.146
-# For z the switched-azimuth residual is a small fraction (<0.3, with a
-# ~2x margin) of the switched-azimuth horizon change: switches there are
-# mostly near-ties and the Jacobian, evaluated at the old pixel, still
-# predicts the new value reasonably. For x/y the ratio is ~1.0: a
-# horizontal 0.1 m move that reassigns the winning pixel typically hands
-# it to an unrelated ridge, not a near-tied neighbor, so the residual is
-# essentially the *entire* horizon jump, not a small correction -- i.e.
-# switches DO break the linearization for horizontal moves at this step.
-# That is expected (the Jacobian differentiates one fixed pixel's angle
-# and cannot see a reassignment) but it is not "small", so no passing
-# bound is asserted for x/y; they are marked as known (strict) failures
-# instead of inventing one. See task-6-report.md.
-_SWITCHED_RESIDUAL_BOUND = 0.3
+# ---------------------------------------------------------------------------
+# 2. W-space: the total tangent against eigsim.open_sky_weight.
+# ---------------------------------------------------------------------------
 
 
-def _xfail_switch_breaks_linearization(measured_ratio):
-    return pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "horizontal 0.1 m step: switched-azimuth residual is not a "
-            f"small fraction of the horizon change (measured ratio "
-            f"{measured_ratio:.3f} vs bound {_SWITCHED_RESIDUAL_BOUND}); "
-            "see task-6-report.md"
-        ),
-    )
+def _w_fn(az_grid):
+    return lambda a: eigsim.open_sky_weight(a, az_grid, W_LMAX)
 
 
-@pytest.mark.parametrize(
-    "pos_name",
-    [
-        pytest.param("x_p_0p1", marks=_xfail_switch_breaks_linearization(0.980)),
-        pytest.param("x_m_0p1", marks=_xfail_switch_breaks_linearization(0.978)),
-        pytest.param("y_p_0p1", marks=_xfail_switch_breaks_linearization(1.019)),
-        pytest.param("y_m_0p1", marks=_xfail_switch_breaks_linearization(1.020)),
-        "z_p_0p1",
-        "z_m_0p1",
-    ],
-)
-def test_switched_azimuth_residual_vs_horizon_change_at_0p1m(hz, names, pos_name):
-    """Does a pixel switch break the linearization at the 0.1 m step?
+@pytest.fixture(scope="module")
+def w_nom(hz, names):
+    """W(alpha_h[nominal]) plus the solid-angle weight, computed once."""
+    i_nom = names.index("nominal")
+    t0 = time.perf_counter()
+    W_fn = _w_fn(hz["az_grid"])
+    W = np.asarray(W_fn(hz["alpha_h"][i_nom]))
+    thetas, _ = eigsim.mwss_grid(W_LMAX)
+    w = np.sin(thetas)  # solid-angle weight per theta ring
+    denom = float((np.ones_like(W) * w[:, None]).sum())
+    dt = time.perf_counter() - t0
+    print(f"\n  W(nominal) computed in {dt:.2f}s, shape {W.shape}")
+    return {"W_fn": W_fn, "W": W, "w": w, "denom": denom}
 
-    Prints, for this position, the switch fraction plus the residual RMS
-    and the RMS horizon change, each split over switched vs. unswitched
-    valid azimuths -- the diagnostic memo M004 quotes. See the module-level
-    comment above for the measured numbers and why x/y are xfail.
+
+def _frac_change(dW, w, denom):
+    return float((dW * w[:, None]).sum() / denom)
+
+
+# Bound for the total tangent's solid-angle-weighted open-sky-fraction error
+# (Task 4's fix report, task-4-report.md "Fix round 1", err_stored column;
+# T6-b effective deltas):
+#   x: 0.138%/0.662% at +/-0.1 m, 0.468%/0.599% at +/-1 m
+#   y: 2.868%/0.752% at +/-0.1 m, 0.623%/0.776% at +/-1 m
+#   z: 0.018%/0.029% at +/-0.1 m, 0.742%/0.339% at +/-1 m
+# Worst case is y_p_0p1 at 2.868%; 10% gives a ~3.5x margin.
+W_FRAC_BOUND = 0.10
+
+_W_POSITIONS = [
+    f"{axis}_{sgn}_{tag}"
+    for axis in ("x", "y", "z")
+    for sgn in ("p", "m")
+    for tag in ("0p1", "1")
+]
+
+
+@pytest.mark.parametrize("name", _W_POSITIONS)
+def test_total_tangent_matches_open_sky_fraction(hz, names, w_nom, name):
+    """jax.jvp of open_sky_weight along the total tangent vs. the true W.
+
+    The total tangent (dalpha_dE/dN plus dalpha_dU) is what run_sims.py
+    feeds the simulation (Task 7). Checked on the solid-angle-weighted
+    open-sky fraction, the scalar closest to what t_ant sees.
     """
     i_nom = names.index("nominal")
-    i = names.index(pos_name)
-    valid = hz["jac_valid"]
-    crds = hz["crds"]
+    i = names.index(name)
+    delta = _calc_horizon_delta(hz["enu"][i], hz["enu"][i_nom])
 
-    switched = ~_same_pixel_mask(crds, i_nom, i)
-    sw = valid & switched
-    un = valid & ~switched
-    assert sw.any() and un.any()  # both populations are non-empty here
+    alpha_nom = hz["alpha_h"][i_nom]
+    dE, dN, dU = hz["dalpha_dE"], hz["dalpha_dN"], hz["dalpha_dU"]
+    tangent = dE * delta[0] + dN * delta[1] + dU * delta[2]
+    W_true = np.asarray(w_nom["W_fn"](hz["alpha_h"][i]))
+    dW_true = W_true - w_nom["W"]
+    _, dW_lin = jax.jvp(w_nom["W_fn"], (alpha_nom,), (tangent,))
+    dW_lin = np.asarray(dW_lin)
 
-    resid = _residual(hz, i_nom, i)
-    dalpha = hz["alpha_h"][i] - hz["alpha_h"][i_nom]
-    resid_sw, resid_un = _rms_deg(resid[sw]), _rms_deg(resid[un])
-    dalpha_sw, dalpha_un = _rms_deg(dalpha[sw]), _rms_deg(dalpha[un])
+    frac_true = _frac_change(dW_true, w_nom["w"], w_nom["denom"])
+    frac_lin = _frac_change(dW_lin, w_nom["w"], w_nom["denom"])
+    rel_err = abs(frac_lin - frac_true) / abs(frac_true)
 
     print(
-        f"  {pos_name:10s} switch_frac(valid)={100 * sw.sum() / valid.sum():6.2f}%  "
-        f"resid_sw={resid_sw:.3e} deg  resid_un={resid_un:.3e} deg  "
-        f"dalpha_sw={dalpha_sw:.3e} deg  dalpha_un={dalpha_un:.3e} deg  "
-        f"ratio_sw={resid_sw / dalpha_sw:.4f}  n_sw={sw.sum()}  n_un={un.sum()}"
+        f"  {name:8s} frac_true={frac_true:+.4e}  frac_lin={frac_lin:+.4e}  "
+        f"rel_err={100 * rel_err:6.3f}%"
     )
+    assert rel_err < W_FRAC_BOUND
 
-    assert resid_sw < _SWITCHED_RESIDUAL_BOUND * dalpha_sw
+
+# Guard: if the parallax term is ever silently dropped and dalpha_dE/dN
+# regress to the pixel-only partials, this must fail loudly. Measured
+# (Task 4's fix report, err_pixel_only column, same T6-b deltas):
+#   x_m_0p1 = 59.412% (smallest of the six x cases in +/-0.1/1 m)
+#   y_p_0p1 = 98.967% (smallest of the six y cases in +/-0.1/1 m)
+# 40%/80% bounds give margins of ~1.5x / ~1.1x over those worst cases while
+# staying well clear of the total tangent's <3% (W_FRAC_BOUND=0.10) --
+# unambiguously "badly wrong", not a close call.
+_PIXEL_ONLY_GUARD = {"x": ("x_m_0p1", 0.40), "y": ("y_p_0p1", 0.80)}
+
+
+@pytest.mark.parametrize("axis", ["x", "y"])
+def test_pixel_only_tangent_is_badly_wrong_on_w(hz, names, w_nom, axis):
+    """The pixel-only tangent (no parallax term) is not a usable W-space
+    approximation for a horizontal move -- nobody should drop the parallax
+    term without a test noticing."""
+    name, bound = _PIXEL_ONLY_GUARD[axis]
+    i_nom = names.index("nominal")
+    i = names.index(name)
+    delta = _calc_horizon_delta(hz["enu"][i], hz["enu"][i_nom])
+
+    alpha_nom = hz["alpha_h"][i_nom]
+    tangent_pixel = (
+        hz["dalpha_dE_pixel"] * delta[0]
+        + hz["dalpha_dN_pixel"] * delta[1]
+        + hz["dalpha_dU"] * delta[2]
+    )
+    W_true = np.asarray(w_nom["W_fn"](hz["alpha_h"][i]))
+    dW_true = W_true - w_nom["W"]
+    _, dW_lin = jax.jvp(w_nom["W_fn"], (alpha_nom,), (tangent_pixel,))
+    dW_lin = np.asarray(dW_lin)
+
+    frac_true = _frac_change(dW_true, w_nom["w"], w_nom["denom"])
+    frac_lin = _frac_change(dW_lin, w_nom["w"], w_nom["denom"])
+    rel_err = abs(frac_lin - frac_true) / abs(frac_true)
+
+    print(
+        f"  {name:8s} pixel-only rel_err={100 * rel_err:6.3f}%  "
+        f"(bound {100 * bound:.0f}%)"
+    )
+    assert rel_err > bound
