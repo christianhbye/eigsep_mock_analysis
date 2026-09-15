@@ -407,7 +407,15 @@ Every product must trace to one clean `main` commit, so `position_sims.npz` is r
 
 ```bash
 cd ~/Documents/research/eigsep/mock_analysis
-git switch main && git pull --ff-only && uv sync --dev
+git fetch origin
+# Local main held PR #18's three spec/plan docs commits (5b03bff, b651154, 77671cf)
+# and lacked b2824f5 (croissant dev3, PR #17), so it cannot fast-forward. After
+# PR #18 has merged, confirm those docs are on origin/main (expect no output):
+git diff --stat origin/main feat/horizon-tilt-sensitivity -- \
+    docs/superpowers/specs/2026-09-14-horizon-tilt-sensitivity-design.md \
+    docs/superpowers/plans/2026-09-14-horizon-tilt-sensitivity-phase1.md
+# then, with CHB's OK (this discards local main's copies of those commits):
+git switch main && git reset --hard origin/main && uv sync --dev
 git rev-parse --short HEAD   # record in the Task 5 document
 ```
 
@@ -434,7 +442,7 @@ for k in ("t_sys", "fgnd", "freqs_mhz", "times_jd"):
 assert str(a["pos_sha"]) == str(b["pos_sha"])
 ```
 Run: `uv run python $SCRATCH/cmp_sims.py`
-Expected: every key byte-equal, or at most ~1e-12 relative. Anything larger: stop and report, because something between `e47406e` and `main` changed the simulation.
+Expected: `freqs_mhz`, `times_jd` and `fgnd` byte-equal, and `t_sys` **not** byte-equal. The PR #18 run used croissant `v5.3.0.dev2`. `main` pins `v5.3.0.dev3` (PR #17), whose `rotmat_to_eulerZYZ` takes Euler angles from the nearest true rotation (croissant #152). That slightly changes the Earth-frame rotation behind the sky convolution. `fgnd` involves no sky, and the zenith drive rotation is exactly `I`, so it must not move: if it does, stop. Record `t_sys`'s max relative difference in the Task 5 document as the dev3 effect, and report it to CHB before Task 3.
 
 - [ ] **Step 4: Run the three beams (Vivaldi at the default path, which exists)**
 
@@ -583,7 +591,7 @@ Look at each pair. Expected from the dry run: Fig. 13 unchanged, Fig. 14 changed
 
 - [ ] **Step 4: Refresh the Zenodo staging set**
 
-Run the refresh loop documented at the top of `zenodo_upload/MANIFEST.txt`, with `MOCK=~/Documents/research/eigsep/mock_analysis`, then `md5sum zenodo_upload/*.npz zenodo_upload/*.csv`. In `MANIFEST.txt`, update the BYTES and MD5 of every row that changed (expected: `position_sims.npz`, `beam_comparison.npz`, `foreground_svd.npz`, `horizon_shift.npz`, `horizon_perturbations.npz`). Add a dated section "THE 2026-09 PHASE-1 REGENERATION" stating: the fractional phi-integrated mask, the croissant frame fix `754627c`, croissant v5.3.0.dev2, the `mock_analysis` tag from Task 0 Step 1, and that the round-2 set is archived at `mock_analysis/horizon_position/output/rasti_round2_deposit/`. Word the header per CHB's answer to Task 0 question 4.
+Run the refresh loop documented at the top of `zenodo_upload/MANIFEST.txt`, with `MOCK=~/Documents/research/eigsep/mock_analysis`, then `md5sum zenodo_upload/*.npz zenodo_upload/*.csv`. In `MANIFEST.txt`, update the BYTES and MD5 of every row that changed (expected: `position_sims.npz`, `beam_comparison.npz`, `foreground_svd.npz`, `horizon_shift.npz`, `horizon_perturbations.npz`). Add a dated section "THE 2026-09 PHASE-1 REGENERATION" stating: the fractional phi-integrated mask, the croissant frame fix `754627c`, croissant `v5.3.0.dev3` (including the #152 nearest-rotation Euler fix), the `mock_analysis` tag from Task 0 Step 1, and that the round-2 set is archived at `mock_analysis/horizon_position/output/rasti_round2_deposit/`. Word the header per CHB's answer to Task 0 question 4.
 
 - [ ] **Step 5: Commit** (ask CHB before pushing)
 
@@ -612,7 +620,7 @@ cd ~/Documents/research/papers/eigsep_instrument/eigsep_instrument_rasti && git 
 grep -n "730\\\\,K\|1.2\\\\times10\|6 modes\|10 modes for\|0.36--0.55\|0.87\\\\,mK\|7.7 per cent\|near \$N=6\|up to 9.5\|after 7 modes\|up to 5.7\|0.70\\\\,mK\|0.53 and 0.73\|3.3\\\\,mK" rasti_template.tex
 ```
 
-- [ ] **Step 2: Fill the table.** Start from the rows below. Dry-run values are measured from the phase-1 `position_sims.npz` with the round-2 code and must be confirmed from Task 3's printed output. Rows marked *trace* are quotes whose rounding or aggregation rule is not yet known: find the cell that produced the quote before writing a new value.
+- [ ] **Step 2: Fill the table.** Start from the rows below. Dry-run values are measured from the phase-1 `position_sims.npz` (croissant `v5.3.0.dev2`) with the round-2 notebook code. They must be confirmed from Task 3's printed output, which runs on dev3. Rows marked *trace* are quotes whose rounding or aggregation rule is not yet known: find the cell that produced the quote before writing a new value.
 
 | # | Quote in tex (today) | Source (notebook: printed table) | Round 2 printed | Dry run (phase-1) | New quote |
 |---|---|---|---|---|---|
@@ -657,7 +665,7 @@ Replace the README section "The re-run and the paper's copy (read before step 2a
 
 `output/position_sims.npz` is the simulation behind the paper's figures as of
 tag `<TAG>`: the phase-1 pipeline (`eigsim.open_sky_weight`'s phi-integrated
-mask, croissant's fixed-pole frame fix `754627c`, croissant `v5.3.0.dev2`).
+mask, croissant's fixed-pole frame fix `754627c`, croissant `v5.3.0.dev3` with the #152 Euler fix).
 Steps 2a-3 regenerate the deposit from it.
 
 - `output/position_sims_rasti_round2.npz` and `output/rasti_round2_deposit/`
@@ -700,7 +708,7 @@ In `docs/figures.md`: set the `NB commit` and `date` cells of the `beam_comparis
 
 ```markdown
 **Regenerated on the phase-1 pipeline (2026-09).** The fractional horizon
-mask, croissant's frame fix (`754627c`) and croissant `v5.3.0.dev2` moved
+mask, croissant's frame fix (`754627c`) and croissant `v5.3.0.dev3` moved
 Fig. 14's horizontal-displacement panels and several §4.7 numbers; see
 `docs/phase1-number-changes.md`. The round-2 state stays reproducible from tag
 `rasti-round2-figs` with the archived inputs in
