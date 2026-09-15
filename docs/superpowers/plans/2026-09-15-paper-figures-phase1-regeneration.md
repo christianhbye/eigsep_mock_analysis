@@ -36,6 +36,8 @@
 
 - [ ] **Step 1: Ask CHB, and record the answers at the top of the Task 5 document**
 
+Tracked in `eigsep_analysis/docs/open_questions.md`: questions 2 and 5 are Q-CHB-52, question 3 is Q-CHB-53, question 4 is Q-CHB-54, and Task 5's North-maximum precision is Q-CHB-55. Question 1 is a precondition. The task itself is queue item M2.
+
 1. Has PR #18 been merged into `mock_analysis` `main`? (Required: provenance strings must record a clean `main` commit.)
 2. Tag name for the new figure state. Proposed: `rasti-round2-figs-v2`.
 3. `eigsep_instrument_rasti` has an uncommitted `docs/figures.md` section ("Upstream data provenance") and an untracked `docs/deployment2025-rotation-data.md`. Commit them first as they are, or leave them to CHB?
