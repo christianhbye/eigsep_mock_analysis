@@ -254,3 +254,72 @@ class TestRotateBeamData:
         data = _dipole_beam()
         result = rotate_beam_data(data, LMAX, SAMPLING, 30.0, 45.0)
         assert jnp.isrealobj(result)
+
+
+def test_misalignment_none_is_unchanged():
+    from eigsim.rotations import (
+        drive_rotation_matrix,
+        rotation_matrix_x,
+        rotation_matrix_z,
+    )
+
+    R = drive_rotation_matrix(23.0, 61.0)
+    expected = rotation_matrix_x(np.radians(23.0)) @ rotation_matrix_z(np.radians(61.0))
+    assert np.array_equal(R, expected)
+
+
+def test_outer_x_misalignment_is_an_elevation_offset():
+    # Rotations about a shared axis commute and add, so an outer X
+    # misalignment is exactly an elevation encoder offset and carries no
+    # independent information.
+    from eigsim.rotations import drive_rotation_matrix, rotation_matrix_x
+
+    mis = rotation_matrix_x(np.radians(2.0))
+    tilted = drive_rotation_matrix(23.0, 61.0, misalignment=mis)
+    offset = drive_rotation_matrix(25.0, 61.0)
+    assert np.allclose(tilted, offset, atol=1e-12)
+
+
+def test_drive_alone_keeps_boresight_on_the_meridian():
+    # The drive is Rx(el) @ Rz(az); Rz leaves +Z fixed, so the boresight
+    # is Rx(el) @ zhat, whose East component is identically zero for every
+    # commanded orientation.
+    from eigsim.rotations import drive_rotation_matrix
+
+    zhat = np.array([0.0, 0.0, 1.0])
+    for el in (0.0, 15.0, 47.0, -30.0):
+        for az in (0.0, 90.0, 217.0):
+            boresight = drive_rotation_matrix(el, az) @ zhat
+            assert abs(boresight[0]) < 1e-12
+
+
+def test_y_and_z_misalignments_move_boresight_off_the_meridian():
+    # This is why they are identifiable: no commanded (el, az) can
+    # reproduce a boresight with a non-zero East component.
+    from eigsim.rotations import drive_rotation_matrix, misalignment_matrix
+
+    zhat = np.array([0.0, 0.0, 1.0])
+
+    b_y = (
+        drive_rotation_matrix(
+            20.0, 35.0, misalignment=misalignment_matrix(tilt_y_deg=1.5)
+        )
+        @ zhat
+    )
+    assert abs(b_y[0]) > 1e-4
+
+    b_z = (
+        drive_rotation_matrix(
+            20.0, 35.0, misalignment=misalignment_matrix(tilt_z_deg=1.5)
+        )
+        @ zhat
+    )
+    assert abs(b_z[0]) > 1e-4
+
+
+def test_rotation_matrix_y_is_orthonormal():
+    from eigsim.rotations import rotation_matrix_y
+
+    R = rotation_matrix_y(np.radians(17.0))
+    assert np.allclose(R @ R.T, np.eye(3), atol=1e-12)
+    assert np.isclose(np.linalg.det(R), 1.0)
