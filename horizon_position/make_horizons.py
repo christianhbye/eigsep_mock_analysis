@@ -23,11 +23,10 @@ cent, corr(+d,-d) for a +/-0.1 m pair reaches -0.989 (geometry: -1) and the
 RMS ratio 1 m / 0.1 m reaches 9.94 (geometry: 10). At 720 those are -0.058 and
 4.69. 46080 is 64 x masks.N_AZ_MASK so it reduces onto the mask grid exactly.
 
-WHO REDUCES, AND WHY: `run_sims.py` now uses `eigsim.open_sky_weight`, which
-integrates over the phi cell, so it has no reduction step of its own.
-`run_beam_sims.py` still uses `masks.open_sky_weight` with
-`masks.reduce_azimuth`, which is unchanged because the paper is pinned. The
-figures still plot alpha_h as it is stored here, because averaging hides
+WHO REDUCES, AND WHY: `run_sims.py` and `run_beam_sims.py` use
+`eigsim.open_sky_weight`, which integrates over the phi cell, so neither has a
+reduction step of its own; `masks.reduce_azimuth` survives only for its tests.
+The figures still plot alpha_h as it is stored here, because averaging hides
 55-60 per cent of the peak at cliff edges. Nothing derived is stored: the
 reduced curve (where one is still taken) is a function call, not an array in
 this file.

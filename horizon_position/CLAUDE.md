@@ -30,17 +30,14 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   into an **anti-aliased (fractional)** open-sky mask `W in [0,1]` on the
   MWSS beam grid. Fractional weighting is what lets sub-pixel (0.1 m)
   horizon shifts register — a boolean mask floors them to zero.
-  **Two consumers, two implementations** (see `make_horizons.py`'s
-  "WHO REDUCES, AND WHY"):
-  - `run_sims.py` and `make_sensitivity.py` use **`eigsim.open_sky_weight`**,
+  (see `make_horizons.py`'s "WHO REDUCES, AND WHY"):
+  - `run_sims.py`, `run_beam_sims.py` and `make_sensitivity.py` use
+    **`eigsim.open_sky_weight`**,
     which integrates over the phi *cell*. That integral **is** the
     band-limiting, so these call sites must **not** apply
     `masks.reduce_azimuth` first — reducing would apply it twice
     (eigsep_mock_analysis issue #10). It is also `jnp`-built and therefore
     differentiable, which is what `make_sensitivity.py`'s `jax.jvp` needs.
-  - `run_beam_sims.py` still uses **`masks.open_sky_weight` +
-    `masks.reduce_azimuth`** (theta-fractional, point-sampled in phi). That
-    path is frozen because the paper is pinned at `rasti-round2-figs`.
 - **Frame map:** croissant beam/grid azimuth `phi` is from ENU East;
   `calc_horizon` azimuth is from North. They are related by
   `phi = pi/2 - az`. Verified against the nominal `horizon_mwss.npz` in
@@ -56,10 +53,9 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 ## Files
 
 - `positions.py` / `masks.py` / `analysis.py` — pure, unit-tested.
-  `masks.py` is the **pinned-paper mask path only** (`run_beam_sims.py`);
-  everything else now goes through `eigsim.open_sky_weight`. Do not modify
-  `masks.py` or `run_beam_sims.py` while the paper is pinned at
-  `rasti-round2-figs`.
+  `masks.py` is no longer used by any pipeline script (only by
+  `test_masks.py` and `test_validation.py`); everything goes through
+  `eigsim.open_sky_weight`.
 - `make_horizons.py` -> `output/horizons_position.npz` (eigsep_terrain env).
   Also stores the nominal horizon Jacobian: `dalpha_dE/dN/dU` (**totals**,
   E and N including the azimuthal parallax term), `dalpha_d{E,N}_pixel` and
@@ -92,9 +88,12 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   pins it by reproducing eigsim's stored MWSS bowtie bit-for-bit, and
   asserts that niter=0 does *not*.
 - `run_beam_sims.py` -> `output/beam_sims.npz` (eigsim env; one
-  nominal-horizon sidereal day per beam, resumable per-beam checkpoints
-  `beam_<tag>.npz`). The Vivaldi HEALPix beam lives outside this repo:
-  `--vivaldi` / `EIGSEP_VIVALDI_BEAM`.
+  nominal-horizon sidereal day per beam, written once, not resumable).
+  Inputs come from `run_sims.load_inputs` and the mask from
+  `eigsim.open_sky_weight` exactly as run_sims.py's nominal row, so the
+  bowtie row reproduces `position_sims.npz` row 0 (gated smoke test). The
+  Vivaldi HEALPix beam lives outside this repo: `--vivaldi` /
+  `EIGSEP_VIVALDI_BEAM`.
 - `paper.py` — artifact locations + the constants the two figures share
   (`N_ANCHOR`, `N_SHOW`, `N_MODELS`). No analysis, by design.
 - **There is no generated LaTeX here any more.** `paper_text.tex.in`, the
