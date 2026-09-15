@@ -25,7 +25,7 @@ is not installed into its venv.
 ```bash
 # 1. horizon curves (eigsep_terrain env)
 PYTHONPATH=/home/christian/Documents/research/eigsep/eigsep_terrain \
-uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
+uv run --frozen --project /home/christian/Documents/research/eigsep/eigsep_terrain \
     python horizon_position/make_horizons.py        # -> output/horizons_position.npz
 
 # 2. per-position waterfalls (mock_analysis env, from monorepo root)
@@ -65,15 +65,11 @@ does. Clear all of them by hand after editing the DEM loader in
 
 ```bash
 rm -f horizon_position/output/marjum_dem.npz       # else the old DEM is reused
-rm -f horizon_position/output/pos*_batch_*.npz     # step 2 checkpoints
 rm -f horizon_position/output/beam_{bowtie,isotropic,vivaldi}.npz  # step 2b
 ```
 
 - `MarjumDEM(cache_file=...)` reloads `marjum_dem.npz` whenever it exists and
   never checks it against the source GeoTIFFs.
-- `run_sims.py`'s guard compares `pos_sha`, which `make_horizons.py` computes
-  from `enu` **only**. The positions do not change when the terrain does, so
-  the guard passes and stale batches are merged silently.
 - `run_beam_sims.py` skips any antenna whose `beam_<tag>.npz` checkpoint
   exists, with no staleness check at all.
 

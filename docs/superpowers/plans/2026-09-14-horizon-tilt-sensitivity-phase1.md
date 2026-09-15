@@ -23,7 +23,7 @@
 - `make_horizons.py` runs only in the `eigsep_terrain` environment:
   ```
   PYTHONPATH=/home/christian/Documents/research/eigsep/eigsep_terrain \
-  uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
+  uv run --frozen --project /home/christian/Documents/research/eigsep/eigsep_terrain \
       python horizon_position/make_horizons.py
   ```
 

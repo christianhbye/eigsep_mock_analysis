@@ -15,9 +15,11 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 ## Two environments (important)
 
 - `make_horizons.py` imports `eigsep_terrain` (NOT in the mock_analysis
-  env). Run it with `PYTHONPATH=<eigsep_terrain path> uv run --project
-  <eigsep_terrain path> python ...` (the PYTHONPATH is required because
-  eigsep_terrain uses a flat layout and is not installed into its venv).
+  env). Run it with `PYTHONPATH=<eigsep_terrain path> uv run --frozen
+  --project <eigsep_terrain path> python ...` (the PYTHONPATH is required
+  because eigsep_terrain uses a flat layout and is not installed into its
+  venv; `--frozen` keeps that read-only upstream's `uv.lock` from being
+  rewritten).
 - `run_sims.py`, the pure modules, and the tests use `eigsim`/`s2fft`
   in the default env: `uv run python ...` / `uv run pytest ...`.
 
@@ -45,9 +47,10 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 
 - `positions.py` / `masks.py` / `analysis.py` — pure, unit-tested.
 - `make_horizons.py` -> `output/horizons_position.npz` (eigsep_terrain env).
-- `run_sims.py` -> `output/position_sims.npz` (eigsim env; resumable
-  per-position checkpoints `pos*_batch_*.npz`; `pos_sha` guards against a
-  stale `horizons_position.npz`).
+- `run_sims.py` -> `output/position_sims.npz` (eigsim env; not resumable —
+  it writes the npz once, and an interrupted run restarts from scratch,
+  ~20 min; `pos_sha` is carried through as a content identifier for the
+  19-position configuration).
 - `notebooks/horizon_shift.ipynb`, `notebooks/signal_loss.ipynb`,
   `notebooks/beam_comparison.ipynb` — **the** analysis. See below.
 - `beams.py` — pure, unit-tested: HEALPix->MWSS beam resampling and the

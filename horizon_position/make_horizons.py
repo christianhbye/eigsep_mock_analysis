@@ -4,7 +4,7 @@ Runs in the eigsep_terrain environment (it imports eigsep_terrain, which
 is NOT available in the mock_analysis env):
 
     PYTHONPATH=/home/christian/Documents/research/eigsep/eigsep_terrain \
-    uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
+    uv run --frozen --project /home/christian/Documents/research/eigsep/eigsep_terrain \
         python horizon_position/make_horizons.py
 
 Note: PYTHONPATH is required because eigsep_terrain uses a flat (non-src)
@@ -23,12 +23,14 @@ cent, corr(+d,-d) for a +/-0.1 m pair reaches -0.989 (geometry: -1) and the
 RMS ratio 1 m / 0.1 m reaches 9.94 (geometry: 10). At 720 those are -0.058 and
 4.69. 46080 is 64 x masks.N_AZ_MASK so it reduces onto the mask grid exactly.
 
-WHO REDUCES, AND WHY: `masks.open_sky_weight` point-samples the curve at the
-~256 MWSS azimuths, so the simulations must band-limit it first --
-`masks.reduce_azimuth`, which is the only place that reduction happens. The
-figures plot alpha_h as it is stored here, because averaging hides 55-60 per
-cent of the peak at cliff edges. Nothing derived is stored: the reduced curve
-is a function call, not an array in this file.
+WHO REDUCES, AND WHY: `run_sims.py` now uses `eigsim.open_sky_weight`, which
+integrates over the phi cell, so it has no reduction step of its own.
+`run_beam_sims.py` still uses `masks.open_sky_weight` with
+`masks.reduce_azimuth`, which is unchanged because the paper is pinned. The
+figures still plot alpha_h as it is stored here, because averaging hides
+55-60 per cent of the peak at cliff edges. Nothing derived is stored: the
+reduced curve (where one is still taken) is a function call, not an array in
+this file.
 
 Output: output/horizons_position.npz with
   names      (19,)          position names
@@ -37,13 +39,15 @@ Output: output/horizons_position.npz with
   alpha_h    (19, n_az)     horizon elevation [rad] per position, float64
   crds       (19, 2, n_az)  centre of the DEM pixel that sets alpha_h [m],
                             float64, DEM frame, [:, 0] North, [:, 1] East;
-                            NaN where no pixel rises above 0 or none matches
+                            NaN where no pixel rises above 0, none matches,
+                            or the match is ambiguous
   dalpha_dE  (n_az,)        d alpha_h / d East at the nominal position [rad/m]
   dalpha_dN  (n_az,)        d alpha_h / d North at the nominal position [rad/m]
   dalpha_dU  (n_az,)        d alpha_h / d Up at the nominal position [rad/m]
   jac_valid  (n_az,)        bool; the three derivatives are 0 where False
   n_az       scalar
-  pos_sha    hash of enu  (staleness guard for run_sims.py)
+  pos_sha    hash of enu  (content identifier for the 19-position
+                          configuration)
 
 `calc_horizon` stores res * pixel index in an int array, which truncates crds
 to whole metres (two pixels per value at 0.5 m/px). The pixel is recovered by
@@ -52,10 +56,6 @@ the one that equals alpha_h exactly. The Jacobian differentiates that pixel's
 arctan2(U_p - u0, r_min), with r_min to the nearest point of the pixel, so it
 is exact while the same pixel keeps winning; a move that hands the azimuth to
 another pixel is a jump it does not see.
-
-CAUTION: pos_sha covers the POSITIONS ONLY. It does not change when the DEM or
-N_AZ changes, so run_sims.py's guard will silently accept stale
-pos*_batch_*.npz files after either. Delete them by hand when you rerun this.
 """
 
 import hashlib
