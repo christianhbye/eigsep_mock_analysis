@@ -33,29 +33,44 @@ reduced curve (where one is still taken) is a function call, not an array in
 this file.
 
 Output: output/horizons_position.npz with
-  names      (19,)          position names
-  enu        (19, 3)        antenna ENU positions [m]
-  az_grid    (n_az,)        azimuths [rad], = atan2(E, N), North->East
-  alpha_h    (19, n_az)     horizon elevation [rad] per position, float64
-  crds       (19, 2, n_az)  centre of the DEM pixel that sets alpha_h [m],
-                            float64, DEM frame, [:, 0] North, [:, 1] East;
-                            NaN where no pixel rises above 0, none matches,
-                            or the match is ambiguous
-  dalpha_dE  (n_az,)        d alpha_h / d East at the nominal position [rad/m]
-  dalpha_dN  (n_az,)        d alpha_h / d North at the nominal position [rad/m]
-  dalpha_dU  (n_az,)        d alpha_h / d Up at the nominal position [rad/m]
-  jac_valid  (n_az,)        bool; the three derivatives are 0 where False
-  n_az       scalar
-  pos_sha    hash of enu  (content identifier for the 19-position
-                          configuration)
+  names            (19,)          position names
+  enu              (19, 3)        antenna ENU positions [m]
+  az_grid          (n_az,)        azimuths [rad], = atan2(E, N), North->East
+  alpha_h          (19, n_az)     horizon elevation [rad] per position, float64
+  crds             (19, 2, n_az)  centre of the DEM pixel that sets alpha_h
+                                  [m], float64, DEM frame, [:, 0] North,
+                                  [:, 1] East; NaN where no pixel rises above
+                                  0, none matches, or the match is ambiguous
+  dalpha_dE        (n_az,)        total d alpha_h / d East at nominal, pixel
+                                  term plus azimuthal parallax [rad/m]
+  dalpha_dN        (n_az,)        total d alpha_h / d North, likewise [rad/m]
+  dalpha_dU        (n_az,)        d alpha_h / d Up at nominal [rad/m]; no
+                                  parallax term, so it is pointwise and total
+  dalpha_dE_pixel  (n_az,)        the winning pixel's own d alpha / d East
+  dalpha_dN_pixel  (n_az,)        the winning pixel's own d alpha / d North
+  daz_dE           (n_az,)        d az_p / d East of the winning pixel [rad/m]
+  daz_dN           (n_az,)        d az_p / d North of the winning pixel [rad/m]
+  jac_valid        (n_az,)        bool; every derivative above is 0 where False
+  n_az             scalar
+  pos_sha          hash of enu  (content identifier for the 19-position
+                                configuration)
 
 `calc_horizon` stores res * pixel index in an int array, which truncates crds
 to whole metres (two pixels per value at 0.5 m/px). The pixel is recovered by
 recomputing each candidate's horizon angle as calc_horizon does and keeping
-the one that equals alpha_h exactly. The Jacobian differentiates that pixel's
-arctan2(U_p - u0, r_min), with r_min to the nearest point of the pixel, so it
-is exact while the same pixel keeps winning; a move that hands the azimuth to
-another pixel is a jump it does not see.
+the one that equals alpha_h exactly.
+
+The pixel partials differentiate that pixel's arctan2(U_p - u0, r_min), with
+r_min to the pixel's nearest point p*. They are the pointwise derivative of
+alpha_h wherever the winning pixel does not change; a move that hands the
+azimuth to another pixel is a jump they do not see. A horizontal move also
+turns the pixel's azimuth az_p = atan2(p*_E - e0, p*_N - n0), which at fixed
+azimuth adds -alpha_h'(az) * d az_p / dx, with alpha_h' the central difference
+of the nominal curve. dalpha_dE and dalpha_dN include that term. They are a
+first-order translation of a piecewise-constant curve, so they hold for
+cell-integrated quantities (eigsim.open_sky_weight's W, t_ant, and jax.jvp
+through them), not pointwise on alpha_h: use them for the simulation tangent
+and the *_pixel keys for pointwise checks against alpha_h.
 """
 
 import hashlib
@@ -177,6 +192,32 @@ def horizon_jacobian(dem, ni, ei, e0, n0, u0):
     return d_alpha_de, d_alpha_dn, d_alpha_du, valid
 
 
+def azimuth_parallax(dem, ni, ei, valid, e0, n0):
+    """d az_p / d(e, n) of each azimuth's winning pixel [rad/m].
+
+    ``az_p = atan2(p*_E - e0, p*_N - n0)`` to the same nearest point ``p*`` and
+    ``r_min`` as ``horizon_jacobian``, so
+
+        d az_p/dE = -(p*_N - n0) / r_min**2
+        d az_p/dN = +(p*_E - e0) / r_min**2
+
+    Both are 0 where ``valid`` (``horizon_jacobian``'s) is False. There is no
+    Up term: raising the antenna does not turn a pixel's azimuth.
+    """
+    ni_s, ei_s = np.where(valid, ni, 0), np.where(valid, ei, 0)
+    de, dn, r_min = pixel_offset(dem, ni_s, ei_s, e0, n0)
+    r2_safe = np.where(valid, r_min, 1.0) ** 2
+    daz_de = np.where(valid, -dn / r2_safe, 0.0)
+    daz_dn = np.where(valid, de / r2_safe, 0.0)
+    return daz_de, daz_dn
+
+
+def azimuth_slope(alpha_h):
+    """Central difference d alpha_h / d az on the periodic native grid [rad/rad]."""
+    d_az = 2 * np.pi / alpha_h.size
+    return (np.roll(alpha_h, -1) - np.roll(alpha_h, 1)) / (2 * d_az)
+
+
 def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
     print("Building / loading Marjum DEM...")
@@ -217,9 +258,13 @@ def main():
 
     i_nom = names.index("nominal")
     e0, n0, u0 = (float(x) for x in enu[i_nom])
-    d_alpha_de, d_alpha_dn, d_alpha_du, jac_valid = horizon_jacobian(
+    d_alpha_de_px, d_alpha_dn_px, d_alpha_du, jac_valid = horizon_jacobian(
         dem, *pixels[i_nom], e0, n0, u0
     )
+    daz_de, daz_dn = azimuth_parallax(dem, *pixels[i_nom], jac_valid, e0, n0)
+    slope = azimuth_slope(alpha_h[i_nom])
+    d_alpha_de = d_alpha_de_px - slope * daz_de
+    d_alpha_dn = d_alpha_dn_px - slope * daz_dn
     print(
         f"  Jacobian at nominal: {jac_valid.sum()}/{N_AZ} azimuths valid, "
         f"|d alpha/dU| median {np.median(np.abs(d_alpha_du[jac_valid])):.3e} rad/m"
@@ -237,6 +282,10 @@ def main():
         dalpha_dE=d_alpha_de,
         dalpha_dN=d_alpha_dn,
         dalpha_dU=d_alpha_du,
+        dalpha_dE_pixel=d_alpha_de_px,
+        dalpha_dN_pixel=d_alpha_dn_px,
+        daz_dE=daz_de,
+        daz_dN=daz_dn,
         jac_valid=jac_valid,
         n_az=N_AZ,
         pos_sha=pos_sha,
