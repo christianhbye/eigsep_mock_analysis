@@ -14,13 +14,33 @@ it cannot be differentiated (task-3 spike); at 0.25 deg it takes its
 regular branch and represents the rotation exactly.
 
 Cross-check: the jvp is compared with central differences of the
-19-position re-run (``position_sims.npz``) at +/-0.1 m, asserting agreement
-to 5 per cent RMS over LST and frequency; +/-1 m is printed as a
-diagnostic. The step is the displacement ``calc_horizon`` actually saw:
+19-position re-run (``position_sims.npz``) at both +/-0.1 m and +/-1 m,
+asserting agreement to 5 per cent RMS over LST and frequency at each step.
+Both references are stored (``fd_dT_d{E,N,U}`` at 0.1 m,
+``fd_dT_d{E,N,U}_1m`` at 1 m) because neither is authoritative: the two
+references disagree with each other by ~4.9 per cent, which is larger than
+the jvp's 0.14 per cent disagreement with the 1 m one -- the 0.1 m
+difference is the noisier estimate (a small difference of two large
+waterfalls, on a horizon whose winning DEM pixel switches under the move),
+not the jvp. The step is the displacement ``calc_horizon`` actually saw:
 E and N exact, U rounded to float32 (``calc_horizon`` subtracts it from the
 float32 DEM). The output is written before the assertion, so a failed
 check can be investigated from the stored agreement numbers; the run
 still exits non-zero.
+
+SCOPE: ZENITH ONLY, AND eps_z IS DEGENERATE THERE. Every simulation here
+is run at the single orientation ``elevation = azimuth = 0`` (stored as
+``elevation_deg``/``azimuth_deg`` in the output). At zenith the outer
+misalignment reduces to ``R_mis = Rz(eps_z) @ Ry(eps_y)`` acting on a
+boresight the drive leaves at +Z, and ``Rz(eps_z) @ Rx(0) @ Rz(az)`` is
+identically ``Rx(0) @ Rz(az + eps_z)`` (eigsim's
+``test_zenith_z_misalignment_matches_azimuth_offset``). So ``dT_deps_z``
+here is the derivative with respect to *turntable azimuth knowledge*, not
+an independent constraint on the azimuth reference against true North:
+the two are the same parameter at this pointing and separate only across
+drive orientations. Quote it as such. ``dT_deps_y`` carries no such
+degeneracy -- no commanded (el, az) can produce a Y tilt at all -- but it
+too is a single-pointing number.
 
 The receiver temperature ``simulate`` adds is constant and cancels in
 every derivative.
@@ -46,7 +66,7 @@ import numpy as np
 import eigsim
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from run_sims import OUTPUT_DIR, load_inputs  # noqa: E402
+from run_sims import EIGSIM_CONFIG, OUTPUT_DIR, load_inputs  # noqa: E402
 
 # Position axis -> (prefix in the position names, column of enu).
 AXES = {"E": ("x", 0), "N": ("y", 1), "U": ("z", 2)}
@@ -54,6 +74,11 @@ AXES = {"E": ("x", 0), "N": ("y", 1), "U": ("z", 2)}
 TILTS = {"eps_y": "tilt_y_deg", "eps_z": "tilt_z_deg"}
 EPS_DEG = 0.25
 RMS_TOL = 0.05
+# The one orientation everything here is evaluated at; see __doc__'s SCOPE.
+ELEVATION_DEG = 0.0
+AZIMUTH_DEG = 0.0
+# Finite-difference steps (position name suffix) the cross-check uses.
+FD_STEPS = ("0p1", "1")
 
 
 def parse_args():
@@ -85,11 +110,12 @@ def zenith_t_sys(inp, W, misalignment=None):
         inp.freqs_mhz,
         inp.sky,
         inp.times_jd,
-        [0.0],
-        [0.0],
+        [ELEVATION_DEG],
+        [AZIMUTH_DEG],
         beam_kw={"horizon": W},
         sky_alm=inp.sky_alm,
         misalignment=misalignment,
+        config=EIGSIM_CONFIG,
     )[0]
 
 
@@ -194,8 +220,14 @@ def main():
         times_jd=inp.times_jd,
         pos_sha=inp.pos_sha,
         eigsim_version=eigsim.__version__,
+        eigsim_config=EIGSIM_CONFIG,
         misalignment_step_deg=EPS_DEG,
         axes=np.array(list(AXES)),
+        # The single pointing everything here is evaluated at. Without it
+        # the file reads as orientation-independent, which it is not: see
+        # __doc__'s SCOPE paragraph on the eps_z / azimuth degeneracy.
+        elevation_deg=ELEVATION_DEG,
+        azimuth_deg=AZIMUTH_DEG,
     )
     agreement = {}
     if same_grid:
@@ -205,7 +237,7 @@ def main():
         print(f"jvp primal vs position_sims nominal: max rel diff {primal_err:.2e}")
         assert primal_err < 1e-9, "jvp primal does not reproduce position_sims"
 
-        for step in ("0p1", "1"):
+        for step in FD_STEPS:
             fd, deltas = finite_differences(sims, step)
             errs = np.array(
                 [rms_rel_err(out[f"dT_d{a}"], fd[f"fd_dT_d{a}"]) for a in AXES]
@@ -216,20 +248,29 @@ def main():
             print(f"jvp vs central difference at +/-{step.replace('p', '.')} m:")
             for a, d, e in zip(AXES, deltas, errs):
                 print(f"  {a}: delta = {d:.10f} m  RMS rel err = {100 * e:.3f}%")
-            if step == "0p1":
-                out.update(fd)
+            # Store both references: the 0.1 m one is the noisier estimate
+            # (the two disagree with each other by more than the jvp
+            # disagrees with either), so gating on it alone would gate on
+            # the worse reference. 0.1 m keeps the bare names.
+            suffix = "" if step == "0p1" else f"_{step}m"
+            out.update({f"{k}{suffix}": v for k, v in fd.items()})
 
     out_file = OUTPUT_DIR / f"position_sensitivity{args.output_tag}.npz"
     np.savez_compressed(out_file, **out, **meta)
     print(f"Saved {out_file}  ({time.time() - wall0:.0f}s total)")
 
     if same_grid:
-        worst = float(agreement["0p1"].max())
-        assert worst < RMS_TOL, (
-            f"jvp vs +/-0.1 m central difference: worst RMS rel err "
-            f"{100 * worst:.2f}% exceeds {100 * RMS_TOL:.0f}%"
-        )
-        print(f"Cross-check passed: worst axis {100 * worst:.3f}% < 5%")
+        for step in FD_STEPS:
+            worst = float(agreement[step].max())
+            pretty = step.replace("p", ".")
+            assert worst < RMS_TOL, (
+                f"jvp vs +/-{pretty} m central difference: worst RMS rel err "
+                f"{100 * worst:.2f}% exceeds {100 * RMS_TOL:.0f}%"
+            )
+            print(
+                f"Cross-check passed at +/-{pretty} m: "
+                f"worst axis {100 * worst:.3f}% < {100 * RMS_TOL:.0f}%"
+            )
 
 
 if __name__ == "__main__":

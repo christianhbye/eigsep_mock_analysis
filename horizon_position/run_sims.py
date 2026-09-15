@@ -32,6 +32,13 @@ SIDEREAL_DAY_S = cro.constants.sidereal_day["earth"]
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 # The instrument paper's figures were made with the v000 beam on its 1 MHz
 # grid; pinning the config keeps a change of eigsim's default out of them.
+# Pass it to EVERY eigsim entry point, not just load_beam/load_config: the
+# ground and receiver temperatures and the site are read from the config
+# inside simulate/compute_fgnd, and this script writes the v000 values into
+# the npz metadata. They agree with the current default today, so leaving
+# the call sites on None was inert -- until eigsep.yaml moves, at which
+# point the metadata would be a silent lie. make_sensitivity.py imports
+# this constant and does the same.
 EIGSIM_CONFIG = "eigsep_v000"
 
 
@@ -103,7 +110,7 @@ def load_inputs(n_times, freq_stride=1):
     times_jd = times.jd
 
     print("Pre-computing sky ALM...")
-    sky_alm = eigsim.precompute_sky_alm(sky, times_jd)
+    sky_alm = eigsim.precompute_sky_alm(sky, times_jd, config=EIGSIM_CONFIG)
 
     return SimpleNamespace(
         cfg=cfg,
@@ -149,6 +156,7 @@ def main():
                     [0.0],
                     beam_kw={"horizon": W},
                     sky_alm=inp.sky_alm,
+                    config=EIGSIM_CONFIG,
                 )
             )[0]
         )
@@ -160,6 +168,7 @@ def main():
                     [0.0],
                     [0.0],
                     beam_kw={"horizon": W},
+                    config=EIGSIM_CONFIG,
                 )
             )[0]
         )
