@@ -93,7 +93,7 @@ not rotate with the drive. The horizon does not move. Inner (antenna-to-mount)
 misalignment is assumed not to be an issue and is out of scope.
 
 **Everything else** — beam model, balun, coax, sky — is out of scope, on
-`eigsep_cal`'s side of `eigsep_cal/docs/interface.md`.
+`eigsep_cal`'s side of `eigsep_cal/docs/api.md`.
 
 ### Which misalignment components are free
 
