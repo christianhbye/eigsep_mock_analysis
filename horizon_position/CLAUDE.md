@@ -66,7 +66,8 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   `daz_d{E,N}`. See its docstring and `test_jacobian.py`'s.
 - `run_sims.py` -> `output/position_sims.npz` (eigsim env; not resumable —
   it writes the npz once, and an interrupted run restarts from scratch,
-  ~20 min; `pos_sha` is carried through as a content identifier for the
+  ~50 min, dominated by per-call recompilation in `simulate`/`compute_fgnd`;
+  `pos_sha` is carried through as a content identifier for the
   19-position configuration).
 - **`output/position_sims.npz` is the phase-1 re-run, NOT the paper's.**
   Since 2026-09-14 it carries the phi-integrated mask, croissant's frame fix

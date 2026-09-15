@@ -5,7 +5,8 @@ open-sky mask per position with eigsim.open_sky_weight, and runs
 eigsim.simulate (zenith pointing, N_ori=1) plus eigsim.compute_fgnd.
 Results accumulate in memory and output/position_sims<tag>.npz is written
 once at the end; an interrupted run has nothing to resume from and
-restarts from scratch (~20 min).
+restarts from scratch (~50 min: simulate and compute_fgnd recompile their
+orientation graph on every call, ~2.5 min per position at lmax 128).
 
 Usage (from the monorepo root):
     uv run python horizon_position/run_sims.py
