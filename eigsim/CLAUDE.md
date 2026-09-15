@@ -25,17 +25,18 @@ eigsim is a thin simulation wrapper around [croissant-sim](https://github.com/ch
 ### Module dependency flow
 
 ```
-config.py          data.py
-   |                  |
-   v                  v
-simulate.py <---- rotations.py
-   |                  |
+config.py          data.py          horizon.py
+   |                  |                 |
+   v                  v                 v
+simulate.py <---- rotations.py   (open-sky weight W,
+   |                  |            passed in as beam_kw={"horizon": W})
    v                  v
 croissant-sim     s2fft (JAX)
 ```
 
 - **`config.py`** — Loads YAML experiment config (defaults in `src/eigsim/configs/eigsep.yaml`). Returns a dict with location, frequencies, ground temperature, beam/horizon file paths.
 - **`data.py`** — Loads pre-computed `.npz` beam patterns and horizon masks from `data/`. Default files use MWSS sampling.
+- **`horizon.py`** — `open_sky_weight(alpha_h, az_grid, lmax, sub=180)` turns a continuous horizon elevation curve `alpha_h(az)` (with `az = atan2(E, N)`, North->East) into the fractional open-sky weight `W(theta, phi)` in `[0, 1]` on the beam's MWSS grid — 1 = open sky, 0 = blocked. Frame map: the grid's `phi` runs from ENU East (croissant `beam_rot=0`), so `phi = pi/2 - az`. `W` is the fraction of each grid **cell** above the horizon, integrated over theta *and* over phi (`sub` sub-samples per phi cell). **That phi-cell integral is the band-limiting**, so there is deliberately no `reduce_azimuth` counterpart and callers must not pre-reduce the curve — doing so applies the averaging twice (`horizon_position/make_horizons.py`, "WHO REDUCES, AND WHY"). Everything is built in `jnp` so `dW/d alpha_h` comes from autodiff, which is the point: a boolean mask has zero gradient almost everywhere and cannot carry a horizon derivative at all (`horizon_position/make_sensitivity.py` `jax.jvp`s through it). It is an *alternative* to, not a replacement for, `data.load_horizon`, which still loads the packaged `.npz` mask (NaN = open sky) that the pinned-paper scripts use. `mwss_grid(lmax)` returns the grid's `(thetas, phis)`.
 - **`rotations.py`** — Models the EIGSEP mechanical drive (elevation via Rx, azimuth via Rz). `rotate_beam_data()` does forward SHT -> Wigner-D rotation -> inverse SHT using s2fft+JAX (`jax.vmap` over frequencies).
 - **`simulate.py`** — `simulate()` orchestrates multi-orientation runs: for each (elevation, azimuth) pair, rotates the beam, convolves it with the sky (orientation graph JIT-compiled once per call; croissant's convolution outside it), and stacks results into `(N_orientations, N_times, N_freqs)`, adding the receiver temperature. `simulate_path()` is D5 path mode: one orientation per time sample, grouped by unique orientation, returning `(N_times, N_freqs)` with **no** receiver term (`SkyTemperature.t_ant_k`, interface spec § 5.1). Both share `_setup()`, so the beam transform and the orientation graph are compiled once per call; only croissant's sky convolution specialises on the number of times, which is cheap.
 
@@ -44,6 +45,8 @@ croissant-sim     s2fft (JAX)
 - Composition order: `R = Rx(elevation) @ Rz(azimuth)`
 - Elevation 0 = zenith; positive tilts toward South (right-hand rule about East axis)
 - Azimuth positive = counterclockwise from above
+- Optional outer mount-to-ground misalignment: `R = R_mis @ Rx(elevation) @ Rz(azimuth)`, static in the topocentric frame. X misalignment is omitted because it is exactly an elevation encoder offset (`Rx(eps) @ Rx(el) == Rx(eps + el)`); only Y (levelling) and Z (azimuth-reference) tilts are identifiable. `simulate`, `simulate_path` and `compute_fgnd` take `misalignment=`; `rotate_beam_data`/`rotate_alm_to_beam` do **not** — they model the commanded drive only.
+- Misalignment sign convention, right-handed about each ENU axis and load-bearing for the sign of `dT/d eps`: positive `tilt_y_deg` tilts the boresight toward **East** (mirror of elevation, which tilts toward South); positive `tilt_z_deg` rotates the azimuth reference **East toward North**, the same sense as the turntable, and at zenith is exactly an azimuth offset of the same sign (`Rz(eps) @ Rx(0) @ Rz(az) == Rx(0) @ Rz(az + eps)`), so at zenith `eps_z` is not separately identifiable from turntable azimuth.
 
 ### Data files
 

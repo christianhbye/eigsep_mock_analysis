@@ -14,6 +14,16 @@ else is metadata. Run it after `run_sims.py`, before the notebooks:
 Output: the paper repo's foreground_svd.npz (see paper.PAPER, overridable with
 EIGSEP_PAPER_NOTEBOOKS). Pass --check to verify the existing file matches
 without writing.
+
+DO NOT RUN THIS WHILE THE PAPER IS PINNED AT `rasti-round2-figs`. Since the
+phase-1 re-run (2026-09-14) `output/position_sims.npz` is no longer the array
+the paper's figures were made from: it is the phi-integrated-mask +
+croissant-frame-fix + croissant-bump re-run, and its row 0 differs from the
+deposited `foreground_svd.npz` by up to 8.81 K. The paper's own simulation is
+preserved as `output/position_sims_rasti_round2.npz`, which still matches the
+deposit exactly. A plain run therefore REFUSES to overwrite a deposit whose
+arrays differ from what it would write; `--force` overrides, and is only
+correct once the paper's figures are being regenerated deliberately.
 """
 
 import argparse
@@ -104,6 +114,23 @@ def build():
     )
 
 
+#: Arrays the deposit is judged on: the load-bearing ones, not the metadata.
+CHECKED_KEYS = ("t_sys", "fgnd", "freqs_MHz", "time_hr", "t_ground", "t_receiver")
+
+
+def differing_keys(out):
+    """Which of CHECKED_KEYS in the existing deposit differ from ``out``.
+
+    Raises FileNotFoundError if there is no deposit yet.
+    """
+    have = np.load(FG_NPZ, allow_pickle=True)
+    return [
+        k
+        for k in CHECKED_KEYS
+        if not np.array_equal(np.asarray(have[k]), np.asarray(out[k]))
+    ]
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
@@ -111,18 +138,36 @@ def main():
         action="store_true",
         help="compare against the existing file instead of writing",
     )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite an existing deposit whose arrays differ (see __doc__)",
+    )
     args = p.parse_args()
 
     out = build()
     if args.check:
-        have = np.load(FG_NPZ, allow_pickle=True)
-        bad = [
-            k
-            for k in ("t_sys", "fgnd", "freqs_MHz", "time_hr", "t_ground", "t_receiver")
-            if not np.array_equal(np.asarray(have[k]), np.asarray(out[k]))
-        ]
+        bad = differing_keys(out)
         print(f"{FG_NPZ}: arrays {'MATCH' if not bad else 'DIFFER: ' + ', '.join(bad)}")
         raise SystemExit(1 if bad else 0)
+
+    if not args.force and FG_NPZ.exists():
+        # Same comparison --check makes: refuse to replace a deposit that
+        # does not already agree with position_sims.npz row 0. While the
+        # paper is pinned at rasti-round2-figs the deposit is the pinned
+        # array and this source is the phase-1 re-run, so writing would
+        # silently move the published figures.
+        bad = differing_keys(out)
+        if bad:
+            raise SystemExit(
+                f"REFUSING to overwrite {FG_NPZ}: it differs from what this run "
+                f"would write ({', '.join(bad)}).\n"
+                f"Source: {paper.SIMS_NPZ} row 0. If that is the phase-1 re-run "
+                "and the paper is still pinned at rasti-round2-figs, this would "
+                "replace the published figures' input -- do not.\n"
+                "Pass --force only when the paper's figures are being "
+                "regenerated deliberately."
+            )
 
     np.savez(FG_NPZ, **out)
     print(f"Saved {FG_NPZ}  t_sys {out['t_sys'].shape}")

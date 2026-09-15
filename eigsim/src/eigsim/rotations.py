@@ -40,10 +40,50 @@ def rotation_matrix_z(angle_rad):
     return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
 
+def rotation_matrix_y(angle_rad):
+    """Rotation matrix around the Y-axis (North in ENU).
+
+    The drive cannot produce this rotation — it has only an elevation
+    axis (X) and a turntable (Z) — which is exactly why a Y tilt is an
+    identifiable misalignment rather than an encoder offset.
+
+    **Direction (load-bearing for the sign of dT/d eps_y).** Right-hand
+    rule about +Y (North), so a *positive* angle tilts the zenith toward
+    **East**: ``R_y(a) @ zhat == (sin a, 0, cos a)``.  Mirror of
+    elevation, which tilts toward South for a positive angle about +X.
+    """
+    c, s = np.cos(angle_rad), np.sin(angle_rad)
+    return np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+
+
+def misalignment_matrix(tilt_y_deg=0.0, tilt_z_deg=0.0):
+    """Outer (mount-to-ground) misalignment of the whole instrument.
+
+    ``tilt_y_deg`` is the levelling error about the North axis and
+    ``tilt_z_deg`` the error of the azimuth reference against true North.
+    A tilt about X is omitted on purpose: it is exactly an elevation
+    encoder offset (``Rx(eps) @ Rx(el) == Rx(eps + el)``) and carries no
+    independent information.
+
+    **Directions**, both right-handed about their ENU axis, and both
+    load-bearing for the signs of ``dT/d eps_y`` and ``dT/d eps_z``:
+
+    * positive ``tilt_y_deg`` tilts the boresight toward **East** (the
+      East component of the boresight becomes ``+sin(eps_y) cos(el)``);
+    * positive ``tilt_z_deg`` rotates the azimuth reference **East toward
+      North**, i.e. the same sense as the turntable's own azimuth, and
+      simply adds to it: at zenith ``Rz(eps) @ Rx(0) @ Rz(az) ==
+      Rx(0) @ Rz(az + eps)``.
+    """
+    return rotation_matrix_z(np.radians(tilt_z_deg)) @ rotation_matrix_y(
+        np.radians(tilt_y_deg)
+    )
+
+
 # ── EIGSEP drive rotation ────────────────────────────────────────────
 
 
-def drive_rotation_matrix(elevation_deg, azimuth_deg):
+def drive_rotation_matrix(elevation_deg, azimuth_deg, misalignment=None):
     """Combined rotation matrix for the EIGSEP drive system.
 
     Parameters
@@ -55,6 +95,11 @@ def drive_rotation_matrix(elevation_deg, azimuth_deg):
     azimuth_deg : float
         Turntable angle in degrees.  Positive = counterclockwise
         when viewed from above (East toward North).
+    misalignment : (3, 3) array or None
+        Outer mount-to-ground misalignment, applied *outside* the drive
+        as ``R_mis @ Rx(el) @ Rz(az)`` so that it is static in the
+        topocentric frame and does not rotate with the drive.  ``None``
+        reproduces the bare drive exactly.
 
     Returns
     -------
@@ -62,9 +107,12 @@ def drive_rotation_matrix(elevation_deg, azimuth_deg):
         3x3 rotation matrix.
 
     """
-    return rotation_matrix_x(np.radians(elevation_deg)) @ rotation_matrix_z(
+    R = rotation_matrix_x(np.radians(elevation_deg)) @ rotation_matrix_z(
         np.radians(azimuth_deg)
     )
+    if misalignment is None:
+        return R
+    return np.asarray(misalignment) @ R
 
 
 # ── beam-data rotation ───────────────────────────────────────────────
@@ -118,6 +166,13 @@ def rotate_alm_to_beam(
     nside=None,
 ):
     """Wigner-D rotation of alm followed by inverse SHT.
+
+    Models the **commanded drive only** — ``Rx(elevation) @
+    Rz(azimuth)``.  It takes no misalignment: a mount-to-ground
+    misalignment is applied by :func:`eigsim.simulate`,
+    :func:`eigsim.simulate_path` and :func:`eigsim.compute_fgnd` through
+    their ``misalignment=`` argument, which they pass to
+    :func:`drive_rotation_matrix` themselves.
 
     Parameters
     ----------
@@ -184,6 +239,12 @@ def rotate_beam_data(
     orientations of the same beam, prefer computing the alm once with
     :func:`beam_to_alm` and then calling :func:`rotate_alm_to_beam`
     per orientation.
+
+    Like :func:`rotate_alm_to_beam`, this models the **commanded drive
+    only**.  A mount-to-ground misalignment is applied by
+    :func:`eigsim.simulate`, :func:`eigsim.simulate_path` and
+    :func:`eigsim.compute_fgnd` through their ``misalignment=``
+    argument; it is not reachable from here.
 
     Parameters
     ----------

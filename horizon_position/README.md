@@ -25,7 +25,7 @@ is not installed into its venv.
 ```bash
 # 1. horizon curves (eigsep_terrain env)
 PYTHONPATH=/home/christian/Documents/research/eigsep/eigsep_terrain \
-uv run --project /home/christian/Documents/research/eigsep/eigsep_terrain \
+uv run --frozen --project /home/christian/Documents/research/eigsep/eigsep_terrain \
     python horizon_position/make_horizons.py        # -> output/horizons_position.npz
 
 # 2. per-position waterfalls (mock_analysis env, from monorepo root)
@@ -34,6 +34,8 @@ uv run python horizon_position/run_sims.py          # -> output/position_sims.np
 # 2a. the paper's foreground_svd.npz: position_sims row 0 plus metadata.
 #     Every notebook reads it and horizon_shift.ipynb asserts byte-equality of
 #     its t_sys against row 0, so it must be rebuilt whenever the sims are.
+#     *** DO NOT RUN THIS WHILE THE PAPER IS PINNED AT rasti-round2-figs. ***
+#     See "The re-run and the paper's copy" below; a plain run now refuses.
 uv run python horizon_position/make_foreground_svd.py   # -> PAPER/foreground_svd.npz
 uv run python horizon_position/make_foreground_svd.py --check   # verify only
 
@@ -57,6 +59,27 @@ uv run pytest horizon_position/ -v                  # pure-module unit tests
 EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 ```
 
+## The re-run and the paper's copy (read before step 2a)
+
+`output/position_sims.npz` is **no longer the paper's simulation**. Since
+2026-09-14 it is the phase-1 re-run: `eigsim.open_sky_weight`'s phi-integrated
+fractional mask, croissant's fixed-pole frame fix (`754627c`) and the croissant
+bump (`1384c8b`). Row 0 differs from the array behind the published figures by
+up to 8.81 K.
+
+- The paper's own run is preserved as
+  `output/position_sims_rasti_round2.npz`. It still reproduces the deposited
+  `foreground_svd.npz` exactly. **Never delete or overwrite it** — `output/`
+  is gitignored, so it is the only copy.
+- **Do not run step 2a while the paper is pinned at `rasti-round2-figs`.** It
+  would deposit numbers the pinned tag does not produce, and
+  `horizon_shift.ipynb`'s byte-equality assert against row 0 would then fail
+  against the pinned `position_sims.npz`. A plain run refuses to overwrite a
+  differing deposit; `--force` overrides, and is only correct once the paper's
+  figures are being regenerated deliberately.
+- `make_foreground_svd.py --check` is read-only and safe; it reports DIFFER
+  today, which is the expected state, not a defect.
+
 ## Caching traps when the horizon changes
 
 Three caches are keyed on things that do **not** change when the terrain model
@@ -65,15 +88,11 @@ does. Clear all of them by hand after editing the DEM loader in
 
 ```bash
 rm -f horizon_position/output/marjum_dem.npz       # else the old DEM is reused
-rm -f horizon_position/output/pos*_batch_*.npz     # step 2 checkpoints
 rm -f horizon_position/output/beam_{bowtie,isotropic,vivaldi}.npz  # step 2b
 ```
 
 - `MarjumDEM(cache_file=...)` reloads `marjum_dem.npz` whenever it exists and
   never checks it against the source GeoTIFFs.
-- `run_sims.py`'s guard compares `pos_sha`, which `make_horizons.py` computes
-  from `enu` **only**. The positions do not change when the terrain does, so
-  the guard passes and stale batches are merged silently.
 - `run_beam_sims.py` skips any antenna whose `beam_<tag>.npz` checkpoint
   exists, with no staleness check at all.
 
@@ -124,8 +143,15 @@ byte-identical to the version that produced the PDF.
 
 ## Outputs (`output/`, gitignored)
 
-- `horizons_position.npz` — `alpha_h(az)` per position (+ enu, az grid).
-- `position_sims.npz` — `t_sys (19, n_times, n_freqs)`, `fgnd (19, n_freqs)`, axes, metadata.
+- `horizons_position.npz` — `alpha_h(az)` per position (+ enu, az grid), the
+  nominal horizon Jacobian and the winning-pixel coordinates.
+- `position_sims.npz` — `t_sys (19, n_times, n_freqs)`, `fgnd (19, n_freqs)`,
+  axes, metadata. **The phase-1 re-run, not the paper's** — see above.
+- `position_sims_rasti_round2.npz` — the paper's copy of the above, preserved.
+  Do not delete or overwrite.
+- `position_sensitivity.npz` — `dT_ant/d(E, N, U)` and `dT_ant/d(eps_y, eps_z)`
+  at zenith (`make_sensitivity.py`), with the finite-difference cross-check
+  arrays at ±0.1 m and ±1 m.
 
 ## Analysis modes
 

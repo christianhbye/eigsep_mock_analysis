@@ -15,9 +15,11 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 ## Two environments (important)
 
 - `make_horizons.py` imports `eigsep_terrain` (NOT in the mock_analysis
-  env). Run it with `PYTHONPATH=<eigsep_terrain path> uv run --project
-  <eigsep_terrain path> python ...` (the PYTHONPATH is required because
-  eigsep_terrain uses a flat layout and is not installed into its venv).
+  env). Run it with `PYTHONPATH=<eigsep_terrain path> uv run --frozen
+  --project <eigsep_terrain path> python ...` (the PYTHONPATH is required
+  because eigsep_terrain uses a flat layout and is not installed into its
+  venv; `--frozen` keeps that read-only upstream's `uv.lock` from being
+  rewritten).
 - `run_sims.py`, the pure modules, and the tests use `eigsim`/`s2fft`
   in the default env: `uv run python ...` / `uv run pytest ...`.
 
@@ -26,9 +28,19 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 - The horizon is a **continuous** elevation curve `alpha_h(az)` from
   `calc_horizon` (azimuth = `atan2(E, N)`, North->East). It is turned
   into an **anti-aliased (fractional)** open-sky mask `W in [0,1]` on the
-  MWSS beam grid (`masks.open_sky_weight`). Fractional weighting is what
-  lets sub-pixel (0.1 m) horizon shifts register — a boolean mask floors
-  them to zero.
+  MWSS beam grid. Fractional weighting is what lets sub-pixel (0.1 m)
+  horizon shifts register — a boolean mask floors them to zero.
+  **Two consumers, two implementations** (see `make_horizons.py`'s
+  "WHO REDUCES, AND WHY"):
+  - `run_sims.py` and `make_sensitivity.py` use **`eigsim.open_sky_weight`**,
+    which integrates over the phi *cell*. That integral **is** the
+    band-limiting, so these call sites must **not** apply
+    `masks.reduce_azimuth` first — reducing would apply it twice
+    (eigsep_mock_analysis issue #10). It is also `jnp`-built and therefore
+    differentiable, which is what `make_sensitivity.py`'s `jax.jvp` needs.
+  - `run_beam_sims.py` still uses **`masks.open_sky_weight` +
+    `masks.reduce_azimuth`** (theta-fractional, point-sampled in phi). That
+    path is frozen because the paper is pinned at `rasti-round2-figs`.
 - **Frame map:** croissant beam/grid azimuth `phi` is from ENU East;
   `calc_horizon` azimuth is from North. They are related by
   `phi = pi/2 - az`. Verified against the nominal `horizon_mwss.npz` in
@@ -44,10 +56,35 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
 ## Files
 
 - `positions.py` / `masks.py` / `analysis.py` — pure, unit-tested.
+  `masks.py` is the **pinned-paper mask path only** (`run_beam_sims.py`);
+  everything else now goes through `eigsim.open_sky_weight`. Do not modify
+  `masks.py` or `run_beam_sims.py` while the paper is pinned at
+  `rasti-round2-figs`.
 - `make_horizons.py` -> `output/horizons_position.npz` (eigsep_terrain env).
-- `run_sims.py` -> `output/position_sims.npz` (eigsim env; resumable
-  per-position checkpoints `pos*_batch_*.npz`; `pos_sha` guards against a
-  stale `horizons_position.npz`).
+  Also stores the nominal horizon Jacobian: `dalpha_dE/dN/dU` (**totals**,
+  E and N including the azimuthal parallax term), `dalpha_d{E,N}_pixel` and
+  `daz_d{E,N}`. See its docstring and `test_jacobian.py`'s.
+- `run_sims.py` -> `output/position_sims.npz` (eigsim env; not resumable —
+  it writes the npz once, and an interrupted run restarts from scratch,
+  ~50 min, dominated by per-call recompilation in `simulate`/`compute_fgnd`;
+  `pos_sha` is carried through as a content identifier for the
+  19-position configuration).
+- **`output/position_sims.npz` is the phase-1 re-run, NOT the paper's.**
+  Since 2026-09-14 it carries the phi-integrated mask, croissant's frame fix
+  and the croissant bump; row 0 differs from the deposited
+  `foreground_svd.npz` by up to 8.81 K. The paper's simulation is preserved
+  as `output/position_sims_rasti_round2.npz` (still byte-matching the
+  deposit) — never delete or overwrite it, `output/` is gitignored and it is
+  the only copy. Consequently **do not run `make_foreground_svd.py` while
+  the paper is pinned at `rasti-round2-figs`**: it would deposit numbers the
+  pinned tag does not produce and break `horizon_shift.ipynb`'s
+  byte-equality assert. A plain run now refuses to overwrite a differing
+  deposit (`--force` overrides); `--check` is read-only and reporting DIFFER
+  is the expected state.
+- `make_sensitivity.py` -> `output/position_sensitivity.npz` (eigsim env;
+  ~15 min, 5.5 GB peak). Zenith-only, and `dT_deps_z` is degenerate with a
+  turntable-azimuth offset there — see its module docstring before quoting
+  it in a memo.
 - `notebooks/horizon_shift.ipynb`, `notebooks/signal_loss.ipynb`,
   `notebooks/beam_comparison.ipynb` — **the** analysis. See below.
 - `beams.py` — pure, unit-tested: HEALPix->MWSS beam resampling and the

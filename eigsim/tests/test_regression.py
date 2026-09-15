@@ -11,8 +11,19 @@ import pytest  # noqa: E402
 import s2fft  # noqa: E402
 from astropy.time import Time  # noqa: E402
 from eigsim.config import load_config  # noqa: E402
-from eigsim.rotations import beam_to_alm, rotate_alm_to_beam  # noqa: E402
-from eigsim.simulate import make_beam, precompute_sky_alm, simulate  # noqa: E402
+from eigsim.rotations import (  # noqa: E402
+    beam_to_alm,
+    misalignment_matrix,
+    rotate_alm_to_beam,
+    rotation_matrix_z,
+)
+from eigsim.simulate import (  # noqa: E402
+    compute_fgnd,
+    make_beam,
+    precompute_sky_alm,
+    simulate,
+    simulate_path,
+)
 
 # ── constants ────────────────────────────────────────────────────────────
 
@@ -380,3 +391,136 @@ class TestSkyAlmReuse:
         assert sky_alm.shape[0] == len(FREQS_MHZ)
         # lmax+1 for ell axis
         assert sky_alm.shape[1] == sky_alm.shape[2] // 2 + 1
+
+
+# ── Test 8: outer misalignment threading (Task 2 addendum) ───────────────
+
+
+def _phi_asymmetric_horizon():
+    """Horizon open only for phi < pi.
+
+    The packaged default horizon (``theta <= pi/2``) is uniform in phi,
+    so compute_fgnd's ground fraction is invariant to the drive azimuth
+    with it -- a test built on that horizon could not tell a correctly
+    threaded misalignment from one silently dropped. This mask breaks
+    that symmetry.
+    """
+    _, phi_grid = _make_grids()
+    return phi_grid < np.pi
+
+
+class TestMisalignment:
+    """`misalignment=` on simulate / simulate_path / compute_fgnd."""
+
+    def test_none_matches_omitted_argument(self):
+        """misalignment=None must be bit-identical to omitting it."""
+        beam_data = _dipole_beam()
+        sky = _make_sky()
+        times = _single_time()
+        defaults = _sim_defaults()
+
+        omitted = simulate(beam_data, FREQS_MHZ, sky, times, [10.0], [20.0], **defaults)
+        explicit = simulate(
+            beam_data,
+            FREQS_MHZ,
+            sky,
+            times,
+            [10.0],
+            [20.0],
+            misalignment=None,
+            **defaults,
+        )
+
+        assert np.array_equal(np.asarray(omitted), np.asarray(explicit))
+
+    def test_zenith_z_misalignment_matches_azimuth_offset(self):
+        """At zenith, an outer Rz misalignment equals an azimuth offset.
+
+        R_mis @ Rx(0) @ Rz(0) == Rz(eps) == Rx(0) @ Rz(eps), so the two
+        calls must agree. Uses the dipole beam (not azimuthally
+        symmetric) so the test can actually fail.
+        """
+        eps = 7.0  # degrees
+        beam_data = _dipole_beam()
+        sky = _make_sky()
+        times = _single_time()
+        defaults = _sim_defaults()
+
+        tilted = simulate(
+            beam_data,
+            FREQS_MHZ,
+            sky,
+            times,
+            [0.0],
+            [0.0],
+            misalignment=rotation_matrix_z(np.radians(eps)),
+            **defaults,
+        )
+        offset = simulate(beam_data, FREQS_MHZ, sky, times, [0.0], [eps], **defaults)
+
+        np.testing.assert_allclose(np.asarray(tilted), np.asarray(offset), atol=1e-10)
+
+    def test_zenith_z_misalignment_matches_azimuth_offset_fgnd(self):
+        """Same identity as above, for compute_fgnd.
+
+        Needs a phi-asymmetric horizon: see _phi_asymmetric_horizon().
+        """
+        eps = 7.0  # degrees
+        beam_data = _dipole_beam()
+        horizon = _phi_asymmetric_horizon()
+
+        tilted = compute_fgnd(
+            beam_data,
+            FREQS_MHZ,
+            [0.0],
+            [0.0],
+            beam_kw={"horizon": horizon},
+            misalignment=rotation_matrix_z(np.radians(eps)),
+        )
+        offset = compute_fgnd(
+            beam_data,
+            FREQS_MHZ,
+            [0.0],
+            [eps],
+            beam_kw={"horizon": horizon},
+        )
+
+        np.testing.assert_allclose(np.asarray(tilted), np.asarray(offset), atol=1e-10)
+
+    def test_simulate_path_forwards_misalignment(self):
+        """simulate_path threads misalignment through like simulate does.
+
+        Mirrors test_path.py's grid-vs-path equality: at a matching
+        orientation and time, path output equals the simulate() row
+        minus the receiver temperature.
+        """
+        beam_data = _dipole_beam()
+        sky = _make_sky()
+        times = _single_time()
+        defaults = _sim_defaults()
+        mis = misalignment_matrix(tilt_y_deg=3.0, tilt_z_deg=7.0)
+
+        grid = simulate(
+            beam_data,
+            FREQS_MHZ,
+            sky,
+            times,
+            [20.0],
+            [35.0],
+            misalignment=mis,
+            **defaults,
+        )
+        path = simulate_path(
+            beam_data,
+            FREQS_MHZ,
+            sky,
+            times,
+            [20.0],
+            [35.0],
+            misalignment=mis,
+            **defaults,
+        )
+
+        np.testing.assert_allclose(
+            np.asarray(path), np.asarray(grid[0]) - RCVR_TEMP, atol=1e-10
+        )

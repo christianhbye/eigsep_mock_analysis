@@ -9,6 +9,7 @@ __version__ = version("eigsim")
 
 from .config import load_config
 from .data import load_beam, load_horizon
+from .horizon import mwss_grid, open_sky_weight
 from .noise import radiometer_noise
 from .rotations import (
     beam_to_alm,
@@ -34,6 +35,8 @@ __all__ = [
     "load_config",
     "load_horizon",
     "make_beam",
+    "mwss_grid",
+    "open_sky_weight",
     "precompute_sky_alm",
     "radiometer_noise",
     "rotate_alm_to_beam",
