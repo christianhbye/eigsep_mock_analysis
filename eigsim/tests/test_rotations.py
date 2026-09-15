@@ -12,9 +12,11 @@ import s2fft  # noqa: E402
 from eigsim.rotations import (  # noqa: E402
     beam_to_alm,
     drive_rotation_matrix,
+    misalignment_matrix,
     rotate_alm_to_beam,
     rotate_beam_data,
     rotation_matrix_x,
+    rotation_matrix_y,
     rotation_matrix_z,
 )
 
@@ -257,12 +259,6 @@ class TestRotateBeamData:
 
 
 def test_misalignment_none_is_unchanged():
-    from eigsim.rotations import (
-        drive_rotation_matrix,
-        rotation_matrix_x,
-        rotation_matrix_z,
-    )
-
     R = drive_rotation_matrix(23.0, 61.0)
     expected = rotation_matrix_x(np.radians(23.0)) @ rotation_matrix_z(np.radians(61.0))
     assert np.array_equal(R, expected)
@@ -272,8 +268,6 @@ def test_outer_x_misalignment_is_an_elevation_offset():
     # Rotations about a shared axis commute and add, so an outer X
     # misalignment is exactly an elevation encoder offset and carries no
     # independent information.
-    from eigsim.rotations import drive_rotation_matrix, rotation_matrix_x
-
     mis = rotation_matrix_x(np.radians(2.0))
     tilted = drive_rotation_matrix(23.0, 61.0, misalignment=mis)
     offset = drive_rotation_matrix(25.0, 61.0)
@@ -284,8 +278,6 @@ def test_drive_alone_keeps_boresight_on_the_meridian():
     # The drive is Rx(el) @ Rz(az); Rz leaves +Z fixed, so the boresight
     # is Rx(el) @ zhat, whose East component is identically zero for every
     # commanded orientation.
-    from eigsim.rotations import drive_rotation_matrix
-
     zhat = np.array([0.0, 0.0, 1.0])
     for el in (0.0, 15.0, 47.0, -30.0):
         for az in (0.0, 90.0, 217.0):
@@ -296,8 +288,6 @@ def test_drive_alone_keeps_boresight_on_the_meridian():
 def test_y_and_z_misalignments_move_boresight_off_the_meridian():
     # This is why they are identifiable: no commanded (el, az) can
     # reproduce a boresight with a non-zero East component.
-    from eigsim.rotations import drive_rotation_matrix, misalignment_matrix
-
     zhat = np.array([0.0, 0.0, 1.0])
 
     b_y = (
@@ -318,8 +308,50 @@ def test_y_and_z_misalignments_move_boresight_off_the_meridian():
 
 
 def test_rotation_matrix_y_is_orthonormal():
-    from eigsim.rotations import rotation_matrix_y
-
     R = rotation_matrix_y(np.radians(17.0))
     assert np.allclose(R @ R.T, np.eye(3), atol=1e-12)
     assert np.isclose(np.linalg.det(R), 1.0)
+
+
+def test_positive_tilt_y_tilts_the_boresight_toward_east():
+    # DIRECTIONAL, not just non-zero: the sign of dT/d eps_y depends on it,
+    # and a transposed rotation_matrix_y would pass every other test here.
+    # R_y(a) @ zhat = (sin a, 0, cos a), and the drive's Rz leaves +Z fixed,
+    # so the boresight's East component is +sin(eps_y) * cos(elevation).
+    zhat = np.array([0.0, 0.0, 1.0])
+    eps = 1.0  # degrees
+
+    b = misalignment_matrix(tilt_y_deg=eps) @ zhat
+    assert b[0] > 0.0  # East
+    assert np.isclose(b[0], np.sin(np.radians(eps)), atol=1e-12)
+    assert np.isclose(b[1], 0.0, atol=1e-12)
+
+    for el, az in ((0.0, 0.0), (20.0, 35.0), (-15.0, 200.0)):
+        b = (
+            drive_rotation_matrix(
+                el, az, misalignment=misalignment_matrix(tilt_y_deg=eps)
+            )
+            @ zhat
+        )
+        assert b[0] > 0.0
+        assert np.isclose(
+            b[0], np.sin(np.radians(eps)) * np.cos(np.radians(el)), atol=1e-12
+        )
+
+
+def test_positive_tilt_z_turns_east_toward_north():
+    # DIRECTIONAL: positive tilt_z_deg rotates the azimuth reference in the
+    # same sense as the turntable (East -> North), so at zenith it is
+    # exactly a *positive* azimuth offset, not a negative one.
+    eps = 3.0  # degrees
+    R = misalignment_matrix(tilt_z_deg=eps)
+
+    east = R @ np.array([1.0, 0.0, 0.0])
+    assert east[1] > 0.0  # North
+    assert np.isclose(east[1], np.sin(np.radians(eps)), atol=1e-12)
+
+    assert np.allclose(
+        drive_rotation_matrix(0.0, 40.0, misalignment=R),
+        drive_rotation_matrix(0.0, 40.0 + eps),
+        atol=1e-12,
+    )

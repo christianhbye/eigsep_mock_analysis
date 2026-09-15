@@ -46,6 +46,11 @@ def rotation_matrix_y(angle_rad):
     The drive cannot produce this rotation — it has only an elevation
     axis (X) and a turntable (Z) — which is exactly why a Y tilt is an
     identifiable misalignment rather than an encoder offset.
+
+    **Direction (load-bearing for the sign of dT/d eps_y).** Right-hand
+    rule about +Y (North), so a *positive* angle tilts the zenith toward
+    **East**: ``R_y(a) @ zhat == (sin a, 0, cos a)``.  Mirror of
+    elevation, which tilts toward South for a positive angle about +X.
     """
     c, s = np.cos(angle_rad), np.sin(angle_rad)
     return np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
@@ -59,6 +64,16 @@ def misalignment_matrix(tilt_y_deg=0.0, tilt_z_deg=0.0):
     A tilt about X is omitted on purpose: it is exactly an elevation
     encoder offset (``Rx(eps) @ Rx(el) == Rx(eps + el)``) and carries no
     independent information.
+
+    **Directions**, both right-handed about their ENU axis, and both
+    load-bearing for the signs of ``dT/d eps_y`` and ``dT/d eps_z``:
+
+    * positive ``tilt_y_deg`` tilts the boresight toward **East** (the
+      East component of the boresight becomes ``+sin(eps_y) cos(el)``);
+    * positive ``tilt_z_deg`` rotates the azimuth reference **East toward
+      North**, i.e. the same sense as the turntable's own azimuth, and
+      simply adds to it: at zenith ``Rz(eps) @ Rx(0) @ Rz(az) ==
+      Rx(0) @ Rz(az + eps)``.
     """
     return rotation_matrix_z(np.radians(tilt_z_deg)) @ rotation_matrix_y(
         np.radians(tilt_y_deg)
@@ -152,6 +167,13 @@ def rotate_alm_to_beam(
 ):
     """Wigner-D rotation of alm followed by inverse SHT.
 
+    Models the **commanded drive only** — ``Rx(elevation) @
+    Rz(azimuth)``.  It takes no misalignment: a mount-to-ground
+    misalignment is applied by :func:`eigsim.simulate`,
+    :func:`eigsim.simulate_path` and :func:`eigsim.compute_fgnd` through
+    their ``misalignment=`` argument, which they pass to
+    :func:`drive_rotation_matrix` themselves.
+
     Parameters
     ----------
     alm : jax.Array
@@ -217,6 +239,12 @@ def rotate_beam_data(
     orientations of the same beam, prefer computing the alm once with
     :func:`beam_to_alm` and then calling :func:`rotate_alm_to_beam`
     per orientation.
+
+    Like :func:`rotate_alm_to_beam`, this models the **commanded drive
+    only**.  A mount-to-ground misalignment is applied by
+    :func:`eigsim.simulate`, :func:`eigsim.simulate_path` and
+    :func:`eigsim.compute_fgnd` through their ``misalignment=``
+    argument; it is not reachable from here.
 
     Parameters
     ----------
