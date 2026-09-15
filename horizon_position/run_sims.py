@@ -169,7 +169,6 @@ def main():
                     [0.0],
                     [0.0],
                     beam_kw={"horizon": W},
-                    config=EIGSIM_CONFIG,
                 )
             )[0]
         )
