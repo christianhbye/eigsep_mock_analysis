@@ -65,18 +65,11 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   ~50 min, dominated by per-call recompilation in `simulate`/`compute_fgnd`;
   `pos_sha` is carried through as a content identifier for the
   19-position configuration).
-- **`output/position_sims.npz` is the phase-1 re-run, NOT the paper's.**
-  Since 2026-09-14 it carries the phi-integrated mask, croissant's frame fix
-  and the croissant bump; row 0 differs from the deposited
-  `foreground_svd.npz` by up to 8.81 K. The paper's simulation is preserved
-  as `output/position_sims_rasti_round2.npz` (still byte-matching the
-  deposit) — never delete or overwrite it, `output/` is gitignored and it is
-  the only copy. Consequently **do not run `make_foreground_svd.py` while
-  the paper is pinned at `rasti-round2-figs`**: it would deposit numbers the
-  pinned tag does not produce and break `horizon_shift.ipynb`'s
-  byte-equality assert. A plain run now refuses to overwrite a differing
-  deposit (`--force` overrides); `--check` is read-only and reporting DIFFER
-  is the expected state.
+- `output/position_sims.npz` is the paper's simulation as of tag
+  `rasti-round2-figs-v2` (phase-1 pipeline). The round-2 run is archived as
+  `output/position_sims_rasti_round2.npz` plus `output/rasti_round2_deposit/`;
+  never delete either (`output/` is gitignored). `make_foreground_svd.py`
+  refuses to overwrite a differing deposit without `--force`.
 - `make_sensitivity.py` -> `output/position_sensitivity.npz` (eigsim env;
   ~15 min, 5.5 GB peak). Zenith-only, and `dT_deps_z` is degenerate with a
   turntable-azimuth offset there — see its module docstring before quoting

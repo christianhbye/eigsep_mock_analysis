@@ -34,8 +34,9 @@ uv run python horizon_position/run_sims.py          # -> output/position_sims.np
 # 2a. the paper's foreground_svd.npz: position_sims row 0 plus metadata.
 #     Every notebook reads it and horizon_shift.ipynb asserts byte-equality of
 #     its t_sys against row 0, so it must be rebuilt whenever the sims are.
-#     *** DO NOT RUN THIS WHILE THE PAPER IS PINNED AT rasti-round2-figs. ***
-#     See "The re-run and the paper's copy" below; a plain run now refuses.
+#     A plain run refuses to overwrite a deposit whose arrays differ; pass
+#     --force when regenerating the figures deliberately. See "The paper's
+#     simulation and the round-2 archive" below.
 uv run python horizon_position/make_foreground_svd.py   # -> PAPER/foreground_svd.npz
 uv run python horizon_position/make_foreground_svd.py --check   # verify only
 
@@ -62,26 +63,20 @@ uv run pytest horizon_position/ -v                  # pure-module unit tests
 EIGSEP_SMOKE=1 uv run pytest horizon_position/test_smoke.py -v
 ```
 
-## The re-run and the paper's copy (read before step 2a)
+## The paper's simulation and the round-2 archive
 
-`output/position_sims.npz` is **no longer the paper's simulation**. Since
-2026-09-14 it is the phase-1 re-run: `eigsim.open_sky_weight`'s phi-integrated
-fractional mask, croissant's fixed-pole frame fix (`754627c`) and the croissant
-bump (`1384c8b`). Row 0 differs from the array behind the published figures by
-up to 8.81 K.
+`output/position_sims.npz` is the simulation behind the paper's figures as of
+tag `rasti-round2-figs-v2`: the phase-1 pipeline (`eigsim.open_sky_weight`'s
+phi-integrated mask, croissant's fixed-pole frame fix `754627c`, croissant
+`v5.3.0.dev3` with the #152 Euler fix). Steps 2a-3 regenerate the deposit from
+it.
 
-- The paper's own run is preserved as
-  `output/position_sims_rasti_round2.npz`. It still reproduces the deposited
-  `foreground_svd.npz` exactly. **Never delete or overwrite it** — `output/`
-  is gitignored, so it is the only copy.
-- **Do not run step 2a while the paper is pinned at `rasti-round2-figs`.** It
-  would deposit numbers the pinned tag does not produce, and
-  `horizon_shift.ipynb`'s byte-equality assert against row 0 would then fail
-  against the pinned `position_sims.npz`. A plain run refuses to overwrite a
-  differing deposit; `--force` overrides, and is only correct once the paper's
-  figures are being regenerated deliberately.
-- `make_foreground_svd.py --check` is read-only and safe; it reports DIFFER
-  today, which is the expected state, not a defect.
+- `output/position_sims_rasti_round2.npz` and `output/rasti_round2_deposit/`
+  hold the round-2 simulation and the deposit set built from it (tag
+  `rasti-round2-figs`). **Never delete them**: `output/` is gitignored, so
+  they are the only local copies.
+- `make_foreground_svd.py` still refuses to overwrite a deposit whose arrays
+  differ; pass `--force` when regenerating deliberately.
 
 ## Caching traps when the horizon changes
 

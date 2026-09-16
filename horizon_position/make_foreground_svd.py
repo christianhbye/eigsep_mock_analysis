@@ -15,15 +15,10 @@ Output: the paper repo's foreground_svd.npz (see paper.PAPER, overridable with
 EIGSEP_PAPER_NOTEBOOKS). Pass --check to verify the existing file matches
 without writing.
 
-DO NOT RUN THIS WHILE THE PAPER IS PINNED AT `rasti-round2-figs`. Since the
-phase-1 re-run (2026-09-14) `output/position_sims.npz` is no longer the array
-the paper's figures were made from: it is the phi-integrated-mask +
-croissant-frame-fix + croissant-bump re-run, and its row 0 differs from the
-deposited `foreground_svd.npz` by up to 8.81 K. The paper's own simulation is
-preserved as `output/position_sims_rasti_round2.npz`, which still matches the
-deposit exactly. A plain run therefore REFUSES to overwrite a deposit whose
-arrays differ from what it would write; `--force` overrides, and is only
-correct once the paper's figures are being regenerated deliberately.
+A plain run REFUSES to overwrite a deposit whose arrays differ from what it
+would write, so a stray run cannot silently move the published figures;
+`--force` overrides when the figures are being regenerated deliberately. The
+round-2 deposit is archived under output/rasti_round2_deposit/.
 """
 
 import argparse
@@ -153,18 +148,17 @@ def main():
 
     if not args.force and FG_NPZ.exists():
         # Same comparison --check makes: refuse to replace a deposit that
-        # does not already agree with position_sims.npz row 0. While the
-        # paper is pinned at rasti-round2-figs the deposit is the pinned
-        # array and this source is the phase-1 re-run, so writing would
-        # silently move the published figures.
+        # does not already agree with position_sims.npz row 0. A deposit that
+        # disagrees is the input to figures that are already committed, so
+        # writing without being asked would silently move them.
         bad = differing_keys(out)
         if bad:
             raise SystemExit(
                 f"REFUSING to overwrite {FG_NPZ}: it differs from what this run "
                 f"would write ({', '.join(bad)}).\n"
-                f"Source: {paper.SIMS_NPZ} row 0. If that is the phase-1 re-run "
-                "and the paper is still pinned at rasti-round2-figs, this would "
-                "replace the published figures' input -- do not.\n"
+                f"Source: {paper.SIMS_NPZ} row 0. The deposit on disk is the "
+                "input to the committed figures, so this would replace it "
+                "under them.\n"
                 "Pass --force only when the paper's figures are being "
                 "regenerated deliberately."
             )
