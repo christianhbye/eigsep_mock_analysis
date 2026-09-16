@@ -107,12 +107,12 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   moves no quoted mK number while absolute values do shift. Its inputs are
   gitignored and cost ~1 h each to rebuild, so it pins their sha256.
 
-## The notebooks are the only figure producers
+## The notebooks are the only data producers
 
-Three notebooks produce all four paper figures. There are no
-`make_*_figure.py` scripts — do not add one. Each goes raw inputs ->
-derived quantities -> figures -> paper-repo export, deriving everything
-in-notebook rather than importing it.
+Three notebooks produce the data behind all four paper figures. There are
+no `make_*_figure.py` scripts — do not add one. Each goes raw inputs ->
+derived quantities -> preview figures -> the paper's npz, deriving
+everything in-notebook rather than importing it.
 
 - `horizon_shift.ipynb` -> `horizon_perturbations_1col.pdf` and
   `horizon_shift.pdf`. Inputs: `output/position_sims.npz`,
@@ -173,15 +173,22 @@ in-notebook rather than importing it.
 - Neither notebook imports the other. Shared values live in `paper.py` as
   constants; each notebook re-derives them and asserts. Do not move a
   derivation into `paper.py` — that is what makes the assert meaningful.
-- Exports into the paper's `notebooks/` dir:
-  `horizon_shift.{npz,ipynb,pdf}`, `horizon_perturbations.{npz,ipynb}` +
-  `horizon_perturbations_1col.pdf`, `signal_loss.{npz,ipynb,pdf}` and
-  `beam_comparison.{npz,ipynb,pdf}`.
-- The exported notebooks must be **standalone** (Zenodo convention: they
-  load the committed npz and import nothing from this repo). Their code is
-  lifted from the live kernel with `inspect.getsource`, so there is exactly
-  one copy of every plotting function. Change a figure by editing the
-  function in the notebook and re-running — never by editing the export.
+- **This repo deposits npz, and nothing else.** Under the figure-workflow
+  spec (`eigsep_instrument_rasti/docs/figure-workflow-spec.md`, 2026-09-09)
+  `eigsep_paper_notebooks` owns the paper figures and the notebooks that
+  draw them, and builds them through `eigsep_style` — which is what holds
+  them to the manuscript's geometry contract, enforced by that repo's
+  `tests/`. Writes into the paper's `notebooks/` dir:
+  `horizon_shift.npz`, `horizon_perturbations.npz` and
+  `beam_comparison.npz`. (`signal_loss.ipynb` still writes
+  `signal_loss.{npz,pdf}` there; that figure is not in the manuscript.)
+- A deposit ships the **primary arrays**, not the curves the figure draws:
+  the paper's notebook does the reduction. `beam_comparison.npz` ships the
+  per-beam `t_sys` waterfalls, and `horizon_shift.npz` ships `Vh`/`dT_disp`.
+- Figures rendered here go to `output/preview/`, for reading the notebook.
+  Do **not** write a paper PDF or a paper notebook from this repo: an
+  `export()` helper in `beam_comparison.ipynb` used to overwrite the paper's
+  hand-maintained notebook, and did so silently on 2026-09-15.
 - **The 21 cm ensemble is in antenna temperature.** Both figures work in
   uncorrected antenna temperature (ground pickup in, receiver out), so both
   notebooks multiply the models by the beam-weighted open-sky fraction
