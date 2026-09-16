@@ -100,6 +100,12 @@ Plan:  `../docs/superpowers/plans/2026-06-13-horizon-position-sensitivity.md`
   how a number is checked now. Do not reintroduce a template.
 - `reionization_sensitivity.py` — one-off audit of `models_21cm`'s
   reionization threshold; settled, not part of the figure pipeline.
+- `compare_dev_runs.py` — one-off audit of what the croissant dev2 -> dev3
+  bump did to `position_sims.npz`; settled, not part of the figure pipeline.
+  The answer is the *filtered* difference (0.0009 mK at `N_ANCHOR`, 0.1 per
+  cent of the foreground floor), not the raw one (up to 0.25 K), so the bump
+  moves no quoted mK number while absolute values do shift. Its inputs are
+  gitignored and cost ~1 h each to rebuild, so it pins their sha256.
 
 ## The notebooks are the only figure producers
 
