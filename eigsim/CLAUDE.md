@@ -56,12 +56,15 @@ The `data/` directory contains `.npz` files (gitignored) with beam patterns and 
 
 | Config | Beam file | Frequencies | Use |
 |---|---|---|---|
-| `eigsep` (default) | `eigsep_bowtie_v001_mwss.npz` | the 52 HFSS channels, 46.875–246.09 MHz, 3.906 MHz apart (D5 channels k = 192, 208, …, 1008) | new work |
-| `eigsep_1mhz` | `eigsep_bowtie_v001_1mhz_mwss.npz` | 50–246 MHz, 1 MHz | studies that need a 1 MHz grid; the beam between channels is a cubic spline |
+| `eigsep` (default) | `eigsep_bowtie_v002_mwss.npz` | the 52 HFSS frequencies, 50.78–250.00 MHz, 3.906 MHz apart (D5 channels c = 208, 224, …, 1024) | new work |
+| `eigsep_1mhz` | `eigsep_bowtie_v002_1mhz_mwss.npz` | 51–250 MHz, 1 MHz | studies that need a 1 MHz grid; the beam between channels is a cubic spline |
+| `eigsep_v001` | `eigsep_bowtie_v001_mwss.npz` | 46.875–246.09 MHz as labelled (**one step low**) | frozen; reproduces studies made with the v001 default |
+| `eigsep_v001_1mhz` | `eigsep_bowtie_v001_1mhz_mwss.npz` | 50–246 MHz | frozen |
 | `eigsep_v000` | `eigsep_bowtie_v000_mwss.npz` | 50–250 MHz, 1 MHz | frozen; `horizon_position` and `horizon_chromaticity` (instrument paper) pin it |
 
-- **v001** is |E|² from Dominic's HFSS complex far field (`data-analysis/hfss_beam_maps/bowtie_beam.npz`), which matches BK's 2025-10-31 bowtie-on-box simulation. Each channel is normalised to directivity (integral 4π); `realized_efficiency` is stored alongside. The source is HEALPix nside 32, transformed at lmax 64 and zero-padded to lmax 128 to share the horizon's grid. Rebuild with `uv run python eigsim/scripts/make_bowtie_v001.py`; each file carries `description` and `provenance`.
-- **v000** is an older bowtie model of unrecorded provenance. It agrees with v001 at 50 MHz but not above about 150 MHz (pattern correlation 0.33 at 246 MHz).
+- **v002** is |E|² from Dominic's **native** HFSS complex far field: the 1° θ/φ export (`~/Documents/research/eigsep/beam_models/hfss_native_sep2026/`, built into `bowtie_native_mwss_L180.npz` by its `build_mwss.py`), which is exactly MWSS at L = 180. Each channel is normalised to directivity (integral 4π) with the source's own quadrature; `realized_efficiency` is stored alongside. The transform is exact and truncated to the horizon's lmax 128 (dropped power ≤ 2e-12). Rebuild with `uv run python eigsim/scripts/make_bowtie_v002.py`; each file carries `description` and `provenance`. **No HEALPix anywhere: use MWSS beams only** (eigsep_analysis MOD-62).
+- **v001** was built from `data-analysis/hfss_beam_maps/bowtie_beam.npz`, the same export resampled onto HEALPix nside 32, whose **frequency labels are one 3.906 MHz step low**: v001 slice i is the v002 beam at index i (pattern within a few percent, the HEALPix residue) but labelled 46.875 + 3.90625·i MHz instead of 50.78125 + 3.90625·i MHz (confirmed by Dominic, 2026-09-16; pinned by `test_v001_is_v002_one_frequency_label_low`). At a given label the two beams differ by up to ~30 % pointwise. Kept frozen only to reproduce earlier results.
+- **v000** is an older bowtie model of unrecorded provenance. It agrees with v001 at 50 MHz but not above about 150 MHz (pattern correlation 0.33 at 246 MHz); that comparison was made on v001's mislabelled grid and has not been repeated against v002.
 - Do not change `eigsep_v000.yaml`; add a new config instead.
 
 ### Comparing with EIGSEP data

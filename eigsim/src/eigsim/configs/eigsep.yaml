@@ -2,8 +2,10 @@
 # Single source of truth for experiment-specific parameters.
 # Override individual fields by passing a custom YAML to load_config().
 # Packaged alternatives, loaded by name with load_config("<name>"):
-#   eigsep_1mhz  the same beam, interpolated to a 1 MHz grid
-#   eigsep_v000  the previous beam and grid, for reproducing earlier studies
+#   eigsep_1mhz       the same beam, interpolated to a 1 MHz grid
+#   eigsep_v001       frozen v001 beam and grid (frequency labels one step low)
+#   eigsep_v001_1mhz  frozen v001 on its 1 MHz grid
+#   eigsep_v000       the older beam and grid, for reproducing earlier studies
 
 world: earth
 
@@ -12,9 +14,11 @@ location:
   lat: 39.2477
   alt: 0.0    # meters
 
-# The 52 D5 correlator channels the HFSS beam was simulated at:
-# k = 192, 208, ..., 1008 on f_k = k * 250 / 1024 MHz.
-frequencies: {start: 46.875, stop: 250.0, step: 3.90625}  # MHz
+# The 52 frequencies the HFSS beam was simulated at, from the native export:
+# k * 3.90625 MHz for k = 13..64, i.e. 50.78125-250.0 MHz. On the D5 grid
+# f = c * 250 / 1024 these are channels c = 208, 224, ..., 1024 (1024 is
+# Nyquist, one past the last correlator channel).
+frequencies: {start: 50.78125, stop: 253.90625, step: 3.90625}  # MHz
 
 ground:
   temperature: 300.0  # K
@@ -24,7 +28,7 @@ receiver:
 
 beam:
   sampling: mwss
-  file: eigsep_bowtie_v001_mwss.npz
+  file: eigsep_bowtie_v002_mwss.npz
 
 horizon:
   file: horizon_mwss.npz
