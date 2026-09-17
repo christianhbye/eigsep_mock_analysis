@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 """Build the v001 EIGSEP bowtie beam from the HFSS complex far field.
 
+SUPERSEDED by make_bowtie_v002.py. The source's frequency labels are one
+3.90625 MHz step low (its 46.875 MHz slice is the 50.78 MHz beam; confirmed
+by Dominic 2026-09-16), so every v001 beam sits at the wrong frequency.
+Kept to reproduce v001 exactly; configs eigsep_v001*.
+
 The source is Dominic's HFSS export as committed to data-analysis
 (``hfss_beam_maps/bowtie_beam.npz``): a complex Cartesian E-field
 ``beam_cart`` (Ex, Ey, Ez) in mV at 1 W incident power, HEALPix RING at

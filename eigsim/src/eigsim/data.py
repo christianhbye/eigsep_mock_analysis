@@ -19,9 +19,9 @@ def load_beam(path=None, config=None):
         the config's ``beam.file`` from the package data directory.
     config : str, Path, or None
         Config for :func:`~eigsim.config.load_config`, read only when
-        *path* is None.  ``None`` uses the default config.  Pin
-        ``"eigsep_v000"`` to reproduce studies made before the v001
-        beam.
+        *path* is None.  ``None`` uses the default config (beam
+        v002).  Pin ``"eigsep_v001"`` or ``"eigsep_v000"`` to reproduce
+        studies made with those beams.
 
     Returns
     -------

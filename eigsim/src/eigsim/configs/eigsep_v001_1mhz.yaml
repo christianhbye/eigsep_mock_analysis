@@ -1,4 +1,9 @@
-# EIGSEP experiment configuration: v002 beam on a 1 MHz grid.
+# FROZEN: the v001 beam and grid, for reproducing studies made with it.
+# v001's frequency labels are one 3.90625 MHz step low: the beam it calls
+# 46.875 MHz is the 50.78 MHz beam (confirmed by Dominic, 2026-09-16), so
+# every beam here sits at the wrong frequency. Use eigsep (v002) for new work.
+# Do not change this file.
+# EIGSEP experiment configuration: v001 beam on a 1 MHz grid.
 # Identical to eigsep.yaml except for frequencies and beam file.
 # The beam is a cubic spline in frequency between the 3.906 MHz HFSS
 # channels; structure faster than that spacing is invented, not simulated.
@@ -10,8 +15,8 @@ location:
   lat: 39.2477
   alt: 0.0    # meters
 
-# The HFSS channels span 50.78-250.0 MHz, so the grid is 51-250 MHz.
-frequencies: {start: 51.0, stop: 251.0, step: 1.0}  # MHz
+# The HFSS channels stop at 246.09 MHz, so the grid stops at 246 MHz.
+frequencies: {start: 50.0, stop: 247.0, step: 1.0}  # MHz
 
 ground:
   temperature: 300.0  # K
@@ -21,7 +26,7 @@ receiver:
 
 beam:
   sampling: mwss
-  file: eigsep_bowtie_v002_1mhz_mwss.npz
+  file: eigsep_bowtie_v001_1mhz_mwss.npz
 
 horizon:
   file: horizon_mwss.npz

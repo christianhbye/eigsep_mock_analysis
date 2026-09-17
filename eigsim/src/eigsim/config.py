@@ -32,7 +32,8 @@ def load_config(path=None):
     ----------
     path : str or Path or None
         Path to a YAML config file, or the bare name of a packaged
-        config: ``"eigsep"`` (the default), ``"eigsep_1mhz"`` or
+        config: ``"eigsep"`` (the default, beam v002), ``"eigsep_1mhz"``,
+        or the frozen ``"eigsep_v001"``, ``"eigsep_v001_1mhz"`` and
         ``"eigsep_v000"``. If None, loads the default configuration.
 
     Returns
