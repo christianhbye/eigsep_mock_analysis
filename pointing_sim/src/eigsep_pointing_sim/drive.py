@@ -91,13 +91,20 @@ def uniform_micro_means(edges, moves, *, y0=0.0, n_sub=64):
     if n_sub < 1 or int(n_sub) != n_sub:
         raise ValueError("positive integer n_sub required")
     n_sub = int(n_sub)
+    origin = edges[0]
+    edges = edges - origin
+    table = _moves(moves).copy()
+    table[:, :2] -= origin
     fraction = np.arange(n_sub) / n_sub
     micro_left = (edges[:-1, None] + np.diff(edges)[:, None] * fraction).ravel()
     micro_edges = np.r_[micro_left, edges[-1]]
     return dict(
-        time=(micro_edges[:-1] + micro_edges[1:]) / 2,
-        y_mean=uniform_window_means(micro_edges, moves, y0=y0),
-        edges=micro_edges,
+        time=origin + (micro_edges[:-1] + micro_edges[1:]) / 2,
+        time_relative=(micro_edges[:-1] + micro_edges[1:]) / 2,
+        time_origin=float(origin),
+        y_mean=uniform_window_means(micro_edges, table, y0=y0),
+        edges=origin + micro_edges,
+        edges_relative=micro_edges,
         n_sub=n_sub,
         representation="exact microbin means; midpoint representative times",
     )

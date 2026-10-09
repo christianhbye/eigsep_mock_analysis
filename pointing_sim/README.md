@@ -25,5 +25,13 @@ uv run ruff check pointing_sim
 uv run ruff format --check pointing_sim
 ```
 
-The lag/play/transient/noise injection layer and analysis adapter are still in
-development. These first functions do not establish a calibrated D5 result.
+`inject.play_model` converts a monotone constant-rate drive to exact box moves
+with play takeup, including a declared synthetic initial condition.
+`simulate_windows` adds lag, a ramped reversal transient, cruise windup,
+harmonics/linear gain and stationary per-row AR(1) noise. Drive/play moments
+are exact; nonlinear effects are evaluated at microbin resolution. Returned
+angles are unwrapped, with all truth parameters beside them.
+
+The independent analysis reference fixtures, real-count reconstruction/adapter,
+burst sensitivity and real-data calibration remain in development. These
+functions do not establish a calibrated D5 result.

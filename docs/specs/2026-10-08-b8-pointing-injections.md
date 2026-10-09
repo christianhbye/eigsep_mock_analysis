@@ -30,3 +30,28 @@ identity, the failed midpoint counterpart, Unix-epoch stability and invalid
 move/window rejection. The remaining injection effects, independent physical
 reference fixtures, analysis adapter and real-data calibration remain pending;
 this component alone does not make PR #8 merge-ready.
+
+## Injection layer: bounded implementation
+
+The play path is integrated analytically by shortening each monotone drive
+move by its takeup duration; short moves may not take up the gap at all.
+The default synthetic initial state arrived from the direction opposite the
+first move, and its offset is returned explicitly. This is not a D5 hardware
+fact. Positive report lag evaluates the physical path at report time + tau.
+Play and drive window moments remain exact at both resolutions and at Unix
+epochs (microbin construction uses relative coordinates to retain precision).
+
+Transient and windup follow the declared drive advance. The transient rises
+linearly over the supplied ramp length before its exponential decay, only
+during motion; windup is present only in cruise outside the edge ramp lengths.
+The angular transfer applies (1-eps)*attitude + Phi(attitude) to the physical
+attitude including these effects, with Phi's columns cosine/sine coefficients.
+Those nonlinear/edge terms still need resolution/recovery checks. Noise is
+stationary AR(1) with marginal sd, added after row averaging. The caller owns
+sensor wrapping and records its RNG seed beside the returned truth parameters.
+
+Six focused tests pass: the three moment checks plus exact play takeup/short
+moves/zero-play, zero-effect and lagged identity, and AR(1) scale/correlation
+and seeded repeatability. Remaining work is independent physical-reference
+fixtures, the analysis adapter/inverse checks, burst sensitivity and real-data
+calibration. No real calibrated result or ready-to-merge claim follows.
