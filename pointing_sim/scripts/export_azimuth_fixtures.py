@@ -39,6 +39,36 @@ def main(output):
                 rng=rng,
             )
             cases.append(dict(tau_s=tau, realization=realization, tone=tone.tolist()))
+    neighbors = []
+    pre_u, post_u = np.linspace(-30, 0, 80), np.linspace(0, -30, 80)
+    all_u = np.r_[pre_u, u, post_u]
+    all_time = (np.arange(len(all_u)) + 0.5) * 0.537
+    for curvature in [0.0, 0.0006]:
+
+        def profile(x):
+            return 0.243 * x / 10.7 + curvature * x**2
+
+        window = simulate_azimuth_window(
+            edges,
+            count_start=start,
+            duration=duration,
+            tau_s=0.2,
+            step=0.113,
+            contamination=profile(u),
+        )
+        neighbors.append(
+            dict(
+                curvature=curvature,
+                time=all_time.tolist(),
+                el=((all_u + 179.7 + 180) % 360 - 180).tolist(),
+                tone=np.r_[profile(pre_u), window, 0.113 + profile(post_u)].tolist(),
+                az=np.r_[np.zeros(80), az, np.full(80, 5)].tolist(),
+                leg_id=np.r_[np.zeros(86), np.ones(86)].astype(int).tolist(),
+                windows=[[80, 92]],
+                dwell_i0=84,
+                dwell_i1=87,
+            )
+        )
     output.write_text(
         json.dumps(
             dict(
@@ -53,6 +83,7 @@ def main(output):
                 count_start=start,
                 duration=duration,
                 cases=cases,
+                neighbors=neighbors,
             ),
             separators=(",", ":"),
         )
