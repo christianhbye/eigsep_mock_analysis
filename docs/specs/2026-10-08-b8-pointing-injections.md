@@ -55,3 +55,12 @@ moves/zero-play, zero-effect and lagged identity, and AR(1) scale/correlation
 and seeded repeatability. Remaining work is independent physical-reference
 fixtures, the analysis adapter/inverse checks, burst sensitivity and real-data
 calibration. No real calibrated result or ready-to-merge claim follows.
+
+The azimuth helper adds a declared lagged unit ramp to externally supplied
+per-row elevation contamination. Its ramp/window moments are analytic, and
+noise is explicitly per-row Gaussian. The independent reference exporter
+uses a parked-middle/elevation-moving-outer geometry, 0.243-nat elevation
+structure versus a 0.113-nat azimuth step, 50 realizations for each of lags
+0/0.2/0.4 seconds. Neither generator nor exporter imports analysis. This
+fixture tests removal of linear elevation contamination; a real neighboring-
+leg contamination and quadratic sensitivity remain separate requirements.
