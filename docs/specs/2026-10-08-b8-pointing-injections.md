@@ -64,3 +64,13 @@ structure versus a 0.113-nat azimuth step, 50 realizations for each of lags
 0/0.2/0.4 seconds. Neither generator nor exporter imports analysis. This
 fixture tests removal of linear elevation contamination; a real neighboring-
 leg contamination and quadratic sensitivity remain separate requirements.
+
+Batch sensitivity expands a declared cycle-average macro motion into 72-ms
+active ramps every 179 ms, with a shortened last batch preserving total angle.
+The first batch starts at the macro onset. These approximate timings are a
+synthetic sensitivity convention, not firmware replay or a measured sampling
+phase. Batch fixture effects are restricted to lag/play with zero transient
+and windup; the current transient generator resets on each supplied move and
+has not defined an inter-batch mechanical response. Do not use it silently
+for nonzero batch transient/windup. Independent burst references are exported
+by summing analytic ramp-window overlaps, not the analysis inverse formula.
