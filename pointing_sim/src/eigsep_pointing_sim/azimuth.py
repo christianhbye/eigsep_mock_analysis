@@ -22,13 +22,16 @@ def simulate_azimuth_window(
     independent Gaussian here; this is an explicitly declared idealization.
     """
     contamination = np.asarray(contamination, float)
-    if contamination.shape != (len(edges) - 1,):
+    n = len(edges) - 1
+    if contamination.shape not in ((n,), (2, n)):
         raise ValueError("one contamination value per integration required")
     if not np.isfinite([count_start, tau_s, step, noise_sd]).all() or noise_sd < 0:
         raise ValueError("finite step parameters and nonnegative noise required")
     rng = np.random.default_rng() if rng is None else rng
-    return (
-        step * ramp_window_means(edges, count_start - tau_s, duration)
-        + contamination
-        + noise_sd * rng.normal(size=len(contamination))
-    )
+    ramp = ramp_window_means(edges, count_start - tau_s, duration)
+    if contamination.ndim == 2:
+        # Two measured neighboring-azimuth profiles, supplied by the
+        # caller and normalized independently at the turnaround. Their
+        # variation across the injected slew is an explicit blend model.
+        contamination = (1 - ramp) * contamination[0] + ramp * contamination[1]
+    return step * ramp + contamination + noise_sd * rng.normal(size=len(contamination))
