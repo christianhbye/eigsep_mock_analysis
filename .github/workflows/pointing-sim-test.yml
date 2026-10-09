@@ -1,0 +1,26 @@
+name: pointing simulation tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["pointing_sim/**", "pyproject.toml", "uv.lock"]
+  pull_request:
+    branches: [main]
+    paths: ["pointing_sim/**", "pyproject.toml", "uv.lock"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --frozen --dev
+      - run: uv run ruff check pointing_sim
+      - run: uv run ruff format --check pointing_sim
+      - run: uv run pytest pointing_sim/tests -q

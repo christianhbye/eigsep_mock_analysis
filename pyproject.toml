@@ -5,7 +5,7 @@ description = "Simulation and analysis workspace for the EIGSEP experiment"
 requires-python = ">=3.12"
 
 [tool.uv.workspace]
-members = ["eigsim", "rotis"]
+members = ["eigsim", "rotis", "pointing_sim"]
 # models_21cm is a standalone project, not a member: it depends on classy,
 # which compiles CLASS from source and has no place in the workspace lock
 # or in CI. Run it with `uv run --project models_21cm ...`.
@@ -14,10 +14,12 @@ exclude = ["models_21cm"]
 [tool.uv.sources]
 eigsim = { workspace = true }
 rotis = { workspace = true }
+eigsep-pointing-sim = { workspace = true }
 
 [dependency-groups]
 dev = [
     "eigsim",
+    "eigsep-pointing-sim",
     "jupyter",
     "matplotlib",
     "pre-commit",
@@ -35,4 +37,4 @@ extend-exclude = ["notebooks"]
 select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
-testpaths = ["eigsim/tests", "rotis/tests"]
+testpaths = ["eigsim/tests", "rotis/tests", "pointing_sim/tests"]
