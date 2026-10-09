@@ -74,3 +74,10 @@ and windup; the current transient generator resets on each supplied move and
 has not defined an inter-batch mechanical response. Do not use it silently
 for nonzero batch transient/windup. Independent burst references are exported
 by summing analytic ramp-window overlaps, not the analysis inverse formula.
+
+Detector controls retain supplied observed residuals/voltages while adding a
+signed discrete or spread loss on one leg, or a declared voltage-equivalent
+angle shift. A separate affine-voltage/walk benchmark draws Gaussian noise in
+angle units from a supplied seed/scale. These controls do not infer a pot fault,
+shaft slip or hardware state. Analysis owns detector eligibility and recovery
+statistics; simulation code owns the perturbation. Inputs are never mutated.
