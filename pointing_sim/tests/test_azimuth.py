@@ -42,3 +42,18 @@ def test_azimuth_contamination_shape_and_noise_reproducibility():
     kwargs["contamination"] = np.zeros(3)
     with pytest.raises(ValueError, match="per integration"):
         simulate_azimuth_window(np.arange(5.0), **kwargs)
+
+
+def test_neighboring_profiles_blend_across_the_injected_slew():
+    ramp = ramp_window_means(np.arange(5.0), 0.25, 1.5)
+    pre = np.array([0.2, 0.1, -0.1, -0.2])
+    post = 2 * pre
+    out = simulate_azimuth_window(
+        np.arange(5.0),
+        count_start=0.5,
+        duration=1.5,
+        tau_s=0.25,
+        step=0.113,
+        contamination=np.stack([pre, post]),
+    )
+    np.testing.assert_allclose(out, 0.113 * ramp + (1 - ramp) * pre + ramp * post)
