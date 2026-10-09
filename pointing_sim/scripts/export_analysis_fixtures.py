@@ -45,6 +45,11 @@ def make_fixture():
     for phase in [0.17, 0.43, 0.81]:
         edges, moves, leg_id, direction = declared_path(phase)
         y = uniform_window_means(edges, moves, y0=-180)
+        # These declared paths end exactly at +/-180 degrees. Remove
+        # floating-point integration roundoff there so strict dwell/target
+        # equality has its intended synthetic meaning. No real data enter.
+        for endpoint in [-180.0, 180.0]:
+            y[np.abs(y - endpoint) < 1e-10] = endpoint
         effects = []
         if phase == 0.43:
             for zeta in [0.0, 0.16, 0.5]:
