@@ -23,3 +23,18 @@ def test_partial_final_batch_keeps_total_motion_and_invalid_timing():
     assert uniform_drive([3], batch)[0] == pytest.approx(-1.3)
     with pytest.raises(ValueError, match="duration"):
         batch_moves([(0, 1, 1)], period_s=0.1, on_s=0.2)
+
+
+def test_batch_advance_resets_at_macro_reversal_not_each_pulse():
+    from eigsep_pointing_sim.inject import simulate_windows
+
+    macro = [(1, 4, 1), (5, 8, -1)]
+    pulses = batch_moves(macro, period_s=1, on_s=0.25)
+    edges = np.arange(0, 9, 0.125)
+    out = simulate_windows(edges, pulses, macro_moves=macro)
+    # Just before the next macro command, the full three-degree motion
+    # stays completed. At the reversal, advance resets to the new leg.
+    assert out["advance"][38] == pytest.approx(3)
+    assert out["advance"][40] == pytest.approx(0.25)
+    with pytest.raises(ValueError, match="batch transient"):
+        simulate_windows(edges, pulses, macro_moves=macro, T0_deg=-0.6)
