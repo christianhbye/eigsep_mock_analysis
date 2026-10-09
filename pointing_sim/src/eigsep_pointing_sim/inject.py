@@ -78,6 +78,7 @@ def simulate_windows(
     n_sub=64,
     ramp_deg=100 * 180 / 11300,
     initial_offset=None,
+    macro_moves=None,
 ):
     """Inject declared pointing effects, then average on the supplied windows.
 
@@ -96,6 +97,9 @@ def simulate_windows(
     estimator is involved.
     """
     table = _moves(moves).copy()
+    macro = None if macro_moves is None else _moves(macro_moves).copy()
+    if macro is not None and (T0_deg != 0 or windup_deg != 0):
+        raise ValueError("batch transient and windup response are not defined")
     scalars = [tau_s, T0_deg, d_rev_deg, eps, windup_deg, ramp_deg]
     if not np.isfinite(scalars).all() or d_rev_deg <= 0 or ramp_deg <= 0:
         raise ValueError("finite parameters and positive decay/ramp scales required")
@@ -132,6 +136,16 @@ def simulate_windows(
         cruise = moving & (distance >= ramp_deg)
         cruise &= (abs(rate) * (stop - start) - distance) >= ramp_deg
         windup[cruise] = -np.sign(rate) * windup_deg
+    if macro is not None:
+        macro[:, :2] -= fine["time_origin"]
+        true_drive = uniform_window_means(fine["edges_relative"] + tau_s, table, y0=y0)
+        start_angle = float(y0)
+        for start, stop, rate in macro:
+            latest = true_time >= start
+            advance[latest] = np.maximum(
+                np.sign(rate) * (true_drive[latest] - start_angle), 0
+            )
+            start_angle += rate * (stop - start)
     attitude = box_mean + transient + windup
     transformed = (1 - eps) * attitude
     for order, (cosine, sine) in enumerate(coeff, 1):
@@ -173,5 +187,8 @@ def simulate_windows(
             ar1=None if ar1 is None else list(map(float, ar1)),
             initial_offset=box_model["initial_offset"],
             n_sub=n_sub,
+            macro_moves=None
+            if macro_moves is None
+            else np.asarray(macro_moves).tolist(),
         ),
     )
