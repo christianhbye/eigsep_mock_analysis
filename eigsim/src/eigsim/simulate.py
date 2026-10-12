@@ -28,32 +28,6 @@ def _generate_rotate_dls(L, beta):
     return dl
 
 
-def _rotate_flms(flm, L, rotation, dl_array):
-    """``s2fft.utils.rotation.rotate_flms`` with *rotation* dynamic."""
-    alpha = jnp.exp(-1j * jnp.arange(-L + 1, L) * rotation[0])
-    gamma = jnp.exp(-1j * jnp.arange(-L + 1, L) * rotation[2])
-
-    flm_rotated = jnp.zeros_like(flm)
-    for el in range(L):
-        n_max = min(el, L - 1)
-        m = jnp.arange(-el, el + 1)
-        n = jnp.arange(-n_max, n_max + 1)
-
-        flm_rotated = flm_rotated.at[el, L - 1 + m].add(
-            jnp.einsum(
-                "mn,n->m",
-                jnp.einsum(
-                    "mn,m->mn",
-                    dl_array[el, m + L - 1][:, n + L - 1],
-                    alpha[m + L - 1],
-                    optimize=True,
-                ),
-                gamma[n + L - 1] * flm[el, n + L - 1],
-            )
-        )
-    return flm_rotated
-
-
 def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo, beam_norm):
     """Return a JIT-compiled function for the time-independent part of one
     beam orientation.
@@ -73,14 +47,11 @@ def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo, beam_norm):
     def _orient(beam_alm, euler_drive, dl_topo, horizon, quad_weights):
         # 1. Drive Wigner-D rotation at full beam resolution.
         dl_drive = _generate_rotate_dls(beam_L, euler_drive[1])
-        alm_rot = jax.vmap(
-            partial(
-                _rotate_flms,
-                L=beam_L,
-                rotation=euler_drive,
-                dl_array=dl_drive,
-            )
-        )(beam_alm)
+        # croissant's rotation with traced angles; [None]/[0] is a batch
+        # of one orientation.
+        alm_rot = cro.rotations.rotate_alm_batched(
+            beam_alm, euler_drive[None], dl_drive[None]
+        )[0]
 
         # 2. Inverse SHT to pixel space (needed for horizon masking).
         pixel = jax.vmap(
@@ -117,14 +88,7 @@ def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo, beam_norm):
         #    Wigner-D is ell-by-ell so truncation commutes with rotation;
         #    doing it first is much cheaper when sim_L << beam_L.
         alm_trunc = cro.utils.reduce_lmax(alm_topo, sim_L - 1)
-        beam_eq_alm = jax.vmap(
-            partial(
-                _rotate_flms,
-                L=sim_L,
-                rotation=eul_topo,
-                dl_array=dl_topo,
-            )
-        )(alm_trunc)
+        beam_eq_alm = cro.rotations.rotate_alm(alm_trunc, eul_topo, dl_array=dl_topo)
 
         return beam_eq_alm, fgnd
 
@@ -142,14 +106,11 @@ def _build_fgnd_fn(beam_L, sampling, nside):
     @jax.jit
     def _run(beam_alm, euler_drive, horizon, quad_weights, beam_norm):
         dl_drive = _generate_rotate_dls(beam_L, euler_drive[1])
-        alm_rot = jax.vmap(
-            partial(
-                _rotate_flms,
-                L=beam_L,
-                rotation=euler_drive,
-                dl_array=dl_drive,
-            )
-        )(beam_alm)
+        # croissant's rotation with traced angles; [None]/[0] is a batch
+        # of one orientation.
+        alm_rot = cro.rotations.rotate_alm_batched(
+            beam_alm, euler_drive[None], dl_drive[None]
+        )[0]
 
         pixel = jax.vmap(
             partial(
