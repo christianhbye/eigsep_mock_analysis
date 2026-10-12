@@ -17,8 +17,13 @@ needed or wanted (eigsep_mock_analysis issue #10).
 Everything is built in ``jnp`` so that ``dW/d alpha_h`` comes from
 autodiff: a boolean mask has zero gradient almost everywhere and cannot
 carry a horizon derivative at all.
+
+The cell integral is ``croissant.horizon_weights`` with
+``horizon_subsamples``; this module adds the ``alpha_h(az)`` curve, its
+validation and the MWSS grid.
 """
 
+import croissant as cro
 import jax.numpy as jnp
 import numpy as np
 import s2fft.sampling.s2_samples as s2
@@ -37,19 +42,22 @@ def mwss_grid(lmax):
     return thetas, phis
 
 
-def _theta_edges(thetas):
-    """Cell edges: midpoints between thetas, with poles at 0 and pi."""
-    mid = 0.5 * (thetas[1:] + thetas[:-1])
-    return np.concatenate([[0.0], mid, [np.pi]])
-
-
 def open_sky_weight(alpha_h, az_grid, lmax, sub=DEFAULT_SUB):
     """Fractional open-sky weight ``W(theta, phi)`` in ``[0, 1]``.
+
+    Cell edges in theta lie halfway between rows, with the poles at 0
+    and pi.  Within a cell the open fraction is linear in theta, not
+    sin-theta weighted: cells are ~1.4 deg, so sin is nearly constant
+    across one, making this first-order accurate in the sub-cell horizon
+    position.  It is averaged over *sub* azimuths spread evenly across
+    each phi cell.
 
     Parameters
     ----------
     alpha_h : (n_az,) array
-        Horizon elevation [rad] vs azimuth.  Differentiable input.
+        Horizon elevation [rad] vs azimuth, within ``[-pi/2, pi/2]``.
+        Differentiable input; the range is checked only when it is
+        concrete, not under a JAX trace.
     az_grid : (n_az,) array
         Azimuth [rad] of each ``alpha_h`` sample, ``= atan2(E, N)``,
         ascending on ``[0, 2 pi)``.
@@ -84,24 +92,9 @@ def open_sky_weight(alpha_h, az_grid, lmax, sub=DEFAULT_SUB):
         )
     az_grid = jnp.asarray(az_np)
 
+    def theta_h(az):
+        # croissant passes compass azimuth, which is our az = atan2(E, N)
+        return jnp.pi / 2 - jnp.interp(az, az_grid, alpha_h, period=2 * jnp.pi)
+
     thetas, phis = mwss_grid(lmax)
-    n_theta, n_phi = thetas.size, phis.size
-    dphi = 2.0 * np.pi / n_phi
-
-    # phi cell centres -> sub sample points spanning each cell
-    off = (jnp.arange(sub) + 0.5) / sub - 0.5
-    fine_phi = (jnp.asarray(phis)[:, None] + off[None, :] * dphi).ravel()
-
-    az_of_phi = jnp.mod(jnp.pi / 2 - fine_phi, 2 * jnp.pi)
-    alpha_fine = jnp.interp(az_of_phi, az_grid, alpha_h, period=2 * jnp.pi)
-    theta_h = jnp.pi / 2 - alpha_fine
-
-    edges = _theta_edges(thetas)
-    lo = jnp.asarray(edges[:-1])[:, None]
-    hi = jnp.asarray(edges[1:])[:, None]
-    # Fraction of [lo, hi] with theta < theta_h.  Linear in theta, not
-    # sin-theta weighted: cells are ~1.4 deg so sin is nearly constant
-    # across one, making this first-order accurate in the sub-cell
-    # horizon position.
-    frac = jnp.clip((theta_h[None, :] - lo) / (hi - lo), 0.0, 1.0)
-    return frac.reshape(n_theta, n_phi, sub).mean(axis=2)
+    return cro.horizon_weights(thetas, phis, theta_h, horizon_subsamples=sub)
