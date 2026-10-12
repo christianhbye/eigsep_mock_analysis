@@ -8,7 +8,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import s2fft
-from astropy.time import Time
 from croissant.rotations import rotmat_to_eulerZYZ
 from croissant.simulator import convolve
 from croissant.simulator import correct_ground_loss as _cro_correct_ground_loss
@@ -361,8 +360,7 @@ def precompute_sky_alm(sky, times_jd, config=None):
     """
     cfg = load_config(config)
     # The epoch croissant.Simulator uses (its et_ref) for these times.
-    t0 = Time(np.ravel(times_jd)[0], format="jd")
-    et = cro.rotations.jd_to_et(t0.tdb.jd)
+    et = cro.simulation_epoch(times_jd)
     return sky.compute_alm_eq(world=cfg["world"], et=et)
 
 
