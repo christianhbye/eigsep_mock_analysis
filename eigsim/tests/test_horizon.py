@@ -105,6 +105,12 @@ def test_rejects_mismatched_shapes():
         open_sky_weight(np.zeros(N_AZ - 1), _az_grid(), LMAX)
 
 
+def test_rejects_an_elevation_beyond_the_zenith():
+    # croissant's range check: theta_h = pi/2 - alpha_h must lie in [0, pi]
+    with pytest.raises(ValueError, match=r"within \[0, pi\]"):
+        open_sky_weight(np.full(N_AZ, 1.6), _az_grid(), LMAX)
+
+
 def test_check_grads_on_the_mask():
     # numerical-vs-autodiff agreement, at a small band limit for speed
     from jax.test_util import check_grads
