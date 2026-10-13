@@ -159,3 +159,24 @@ def test_team_curves_are_physical_and_order_by_height():
         open_frac[era] = float((w * W).sum() / (w * np.ones_like(W)).sum())
     # a higher antenna sees more open sky
     assert open_frac["30m"] < open_frac["87.5m"] < open_frac["91m"]
+
+
+def test_d5_open_sky_weight_is_open_sky_weight_on_the_loaded_curve(tmp_path):
+    from eigsim.horizon import d5_open_sky_weight
+
+    az = np.linspace(0, 2 * np.pi, 360, endpoint=False)
+    path = tmp_path / "h.npz"
+    np.savez(
+        path,
+        az=az,
+        alpha_h_30m=np.full(360, 0.3),
+        alpha_h_87p5m=np.full(360, 0.2),
+        alpha_h_91m=0.1 + 0.05 * np.sin(az),
+        stamp=np.array("s"),
+        source_sha256=np.array("0" * 64),
+        convergence_deg=np.array(1.5208),
+    )
+    W, info = d5_open_sky_weight(32, era="91m", path=path)
+    expected = open_sky_weight(0.1 + 0.05 * np.sin(az), az, 32)
+    assert np.array_equal(np.asarray(W), np.asarray(expected))
+    assert info["era"] == "91m" and info["stamp"] == "s"
