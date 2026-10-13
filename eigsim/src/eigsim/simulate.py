@@ -11,28 +11,19 @@ import s2fft
 from croissant.rotations import rotmat_to_eulerZYZ
 from croissant.simulator import convolve
 from croissant.simulator import correct_ground_loss as _cro_correct_ground_loss
-from s2fft.recursions.risbo_jax import compute_full as _risbo_compute_full
 
 from .config import load_config
 from .rotations import beam_to_alm, drive_rotation_matrix, rotate_beam_data
 
 
-def _generate_rotate_dls(L, beta):
-    """``s2fft.generate_rotate_dls`` with *beta* as a dynamic arg."""
-    dl = jnp.zeros((L, 2 * L - 1, 2 * L - 1), dtype=jnp.float64)
-    dl_iter = jnp.zeros((2 * L - 1, 2 * L - 1), dtype=jnp.float64)
-    for el in range(L):
-        dl_iter = _risbo_compute_full(dl_iter, beta, L, el)
-        dl = dl.at[el].add(dl_iter)
-    return dl
-
-
-def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo, beam_norm):
+def _build_orientation_fn(beam_L, sim_L, sampling, nside, beam_norm):
     """Return a JIT-compiled function for the time-independent part of one
     beam orientation.
 
-    Compile-time constants (resolutions, frame-rotation angles, the beam
-    normalization) are captured in the closure.  None of the returned
+    Compile-time constants (resolutions, the beam normalization) are
+    captured in the closure.  The reference ``Simulator`` that supplies
+    the topocentric-to-simulation rotation is an argument instead: closed
+    over, its ``dl_topo`` would become a compile-time constant.  None of the returned
     function's arguments depend on the number of time samples, so it
     compiles **once** per call and handles every drive orientation
     without re-tracing -- regardless of how many groups
@@ -43,27 +34,13 @@ def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo, beam_norm):
     """
 
     @jax.jit
-    def _orient(beam_alm, euler_drive, dl_topo, horizon, quad_weights):
-        # 1. Drive Wigner-D rotation at full beam resolution.
-        dl_drive = _generate_rotate_dls(beam_L, euler_drive[1])
-        # croissant's rotation with traced angles; [None]/[0] is a batch
-        # of one orientation.
-        alm_rot = cro.rotations.rotate_alm_batched(
-            beam_alm, euler_drive[None], dl_drive[None]
-        )[0]
-
-        # 2. Inverse SHT to pixel space (needed for horizon masking).
-        pixel = jax.vmap(
-            partial(
-                s2fft.inverse,
-                L=beam_L,
-                spin=0,
-                nside=nside,
-                sampling=sampling,
-                method="jax",
-                reality=True,
-            )
-        )(alm_rot)
+    def _orient(beam_alm, euler_drive, sim, horizon, quad_weights):
+        # 1-2. Drive Wigner-D rotation at full beam resolution, with the
+        #      angles traced, then the inverse SHT to pixel space (needed
+        #      for horizon masking).
+        pixel = cro.rotations.rotate_to_grid(
+            beam_alm, euler_drive, sampling=sampling, nside=nside
+        )
 
         # 3. Horizon mask and ground fraction.
         pixel_masked = pixel * horizon[None]
@@ -83,18 +60,18 @@ def _build_orientation_fn(beam_L, sim_L, sampling, nside, eul_topo, beam_norm):
             )
         )(pixel_masked)
 
-        # 5. Truncate to simulation lmax, then topo -> equatorial.
+        # 5. Truncate to simulation lmax, then topo -> simulation frame.
         #    Wigner-D is ell-by-ell so truncation commutes with rotation;
         #    doing it first is much cheaper when sim_L << beam_L.
         alm_trunc = cro.utils.reduce_lmax(alm_topo, sim_L - 1)
-        beam_eq_alm = cro.rotations.rotate_alm(alm_trunc, eul_topo, dl_array=dl_topo)
+        beam_eq_alm = sim.topo_to_sim(alm_trunc)
 
         return beam_eq_alm, fgnd
 
     return _orient
 
 
-def _build_fgnd_fn(beam_L, sampling, nside):
+def _build_fgnd_fn(sampling, nside):
     """Return a JIT-compiled ground-fraction function for one orientation.
 
     Mirrors steps 1-3 of :func:`_build_orientation_fn` exactly, so the
@@ -104,24 +81,9 @@ def _build_fgnd_fn(beam_L, sampling, nside):
 
     @jax.jit
     def _run(beam_alm, euler_drive, horizon, quad_weights, beam_norm):
-        dl_drive = _generate_rotate_dls(beam_L, euler_drive[1])
-        # croissant's rotation with traced angles; [None]/[0] is a batch
-        # of one orientation.
-        alm_rot = cro.rotations.rotate_alm_batched(
-            beam_alm, euler_drive[None], dl_drive[None]
-        )[0]
-
-        pixel = jax.vmap(
-            partial(
-                s2fft.inverse,
-                L=beam_L,
-                spin=0,
-                nside=nside,
-                sampling=sampling,
-                method="jax",
-                reality=True,
-            )
-        )(alm_rot)
+        pixel = cro.rotations.rotate_to_grid(
+            beam_alm, euler_drive, sampling=sampling, nside=nside
+        )
 
         pixel_masked = pixel * horizon[None]
         norm_above = jnp.einsum("ft...,t->f", pixel_masked, quad_weights)
@@ -202,7 +164,7 @@ def compute_fgnd(
             L=beam_L, sampling=sampling, nside=nside
         )
 
-    fgnd_one = _build_fgnd_fn(beam_L, sampling, nside)
+    fgnd_one = _build_fgnd_fn(sampling, nside)
 
     n_ori = len(elevations)
     results = []
@@ -369,7 +331,7 @@ class _Setup(NamedTuple):
 
     alm: object
     orient: object
-    dl_topo: object
+    sim: object
     horizon: object
     quad_weights: object
     sky_alm: object
@@ -410,10 +372,7 @@ def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, 
     if sky_alm is None:
         sky_alm = ref_sim.precompute_sky_alm()
 
-    # Truncate dl_topo and sky_alm to the simulation resolution.
     sim_L = ref_sim.lmax + 1
-    d = beam_L - sim_L
-    end = d + 2 * sim_L - 1
 
     if sampling == "healpix":
         npix = 12 * nside**2
@@ -425,10 +384,8 @@ def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, 
 
     return _Setup(
         alm=alm,
-        orient=_build_orientation_fn(
-            beam_L, sim_L, sampling, nside, ref_sim.eul_topo, beam_norm
-        ),
-        dl_topo=ref_sim.dl_topo[:sim_L, d:end, d:end],
+        orient=_build_orientation_fn(beam_L, sim_L, sampling, nside, beam_norm),
+        sim=ref_sim,
         horizon=ref_beam.horizon,
         quad_weights=quad_weights,
         sky_alm=cro.utils.reduce_lmax(sky_alm, ref_sim.lmax),
@@ -448,7 +405,7 @@ def _run_orientation(setup, elevation_deg, azimuth_deg, phases, misalignment=Non
     beam_eq_alm, fgnd = setup.orient(
         setup.alm,
         euler,
-        setup.dl_topo,
+        setup.sim,
         setup.horizon,
         setup.quad_weights,
     )
