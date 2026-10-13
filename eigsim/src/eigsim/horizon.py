@@ -33,6 +33,48 @@ import s2fft.sampling.s2_samples as s2
 #: the integral samples the curve at essentially its own resolution.
 DEFAULT_SUB = 180
 
+#: UTM 12N grid convergence at the D5 site [deg]: true bearings (CCW from
+#: East) are grid bearings plus this, so compass ``A_true = A_grid -
+#: 1.5208``.  pyproj and the spherical formula agree (eigsep_analysis
+#: issue #8); the team's memo 008 uses the rounded 1.52.
+GRID_CONVERGENCE_DEG = 1.5208
+
+
+def grid_bearings_to_az(bearings_deg, convergence_deg=GRID_CONVERGENCE_DEG):
+    """Compass azimuth [rad] in ``[0, 2 pi)`` for UTM grid bearings.
+
+    Parameters
+    ----------
+    bearings_deg : array
+        Bearings [deg] counter-clockwise from grid East, as the team's
+        ``horizon_profiles`` products store them (``atan2(dN, dE)``).
+    convergence_deg : float
+        Grid convergence [deg]; the true bearing is the grid bearing
+        plus this.
+
+    Returns
+    -------
+    az : array
+        ``atan2(E, N)`` in the true frame, North->East, in ``[0, 2 pi)``.
+
+    """
+    bearings = np.asarray(bearings_deg, dtype=np.float64)
+    az_deg = 90.0 - (bearings + convergence_deg)
+    return np.radians(np.mod(az_deg, 360.0))
+
+
+def curve_from_grid_bearings(
+    bearings_deg, elev_rad, convergence_deg=GRID_CONVERGENCE_DEG
+):
+    """Turn a grid-bearing horizon profile into an ``open_sky_weight`` curve.
+
+    Returns ``(az_grid, alpha_h)``, both sorted by ``az`` ascending on
+    ``[0, 2 pi)``, as :func:`open_sky_weight` requires.
+    """
+    az = grid_bearings_to_az(bearings_deg, convergence_deg)
+    order = np.argsort(az)
+    return az[order], np.asarray(elev_rad, dtype=np.float64)[order]
+
 
 def mwss_grid(lmax):
     """Return ``(thetas, phis)`` [rad] for the MWSS grid at ``lmax``."""
