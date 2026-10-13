@@ -140,3 +140,19 @@ def open_sky_weight(alpha_h, az_grid, lmax, sub=DEFAULT_SUB):
 
     thetas, phis = mwss_grid(lmax)
     return cro.horizon_weights(thetas, phis, theta_h, horizon_subsamples=sub)
+
+
+def d5_open_sky_weight(lmax, era="91m", path=None, sub=DEFAULT_SUB):
+    """Open-sky weight ``W`` from the team's D5 horizon for one height era.
+
+    :func:`open_sky_weight` on :func:`eigsim.data.load_horizon_curve`'s
+    curve (the team's ``horizon_profiles_v0003``, eigsep_analysis
+    MOD-95).  Pass ``W`` to a simulation as ``beam_kw={"horizon": W}``.
+
+    Returns ``(W, info)``; *info* is the loader's (era, the team's stamp,
+    the source sha256, the convergence used).
+    """
+    from .data import load_horizon_curve
+
+    az, alpha_h, info = load_horizon_curve(era, path=path)
+    return open_sky_weight(alpha_h, az, lmax, sub=sub), info

@@ -4,16 +4,26 @@ Loads beam, horizon, and sky model from the default config, runs the
 simulation over the full orientation grid, adds radiometer noise, and
 saves the result to ``output/canonical_sim.npz``.
 
+The horizon is the D5 one by default: the fractional open-sky weight
+``W`` (``eigsim.d5_open_sky_weight``) from the team's
+``horizon_profiles_v0003`` at the final-height era (91 m), built with
+``scripts/make_horizon_d5_v0003.py`` (eigsep_analysis MOD-95).
+``--horizon legacy`` reproduces earlier runs with the boolean mask of
+``horizon_mwss.npz`` (site 1P, 114 m, grid azimuth).  The horizon used
+is recorded in the output.
+
 Orientations are processed in batches to keep memory usage bounded.
 Intermediate batches are saved to ``output/batch_*.npz`` and merged
 at the end.  If the script is interrupted, completed batches on disk
-are reused on the next run.
+are reused on the next run, so do not switch ``--horizon`` between an
+interrupted run and its restart.
 
 Usage
 -----
-uv run python scripts/run_canonical_sim.py
+uv run python scripts/run_canonical_sim.py [--horizon {d5,legacy}] [--era ERA]
 """
 
+import argparse
 import os
 import time
 from pathlib import Path
@@ -27,6 +37,11 @@ from astropy.time import Time
 from pygdsm import GlobalSkyModel16
 
 import eigsim
+
+parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+parser.add_argument("--horizon", choices=("d5", "legacy"), default="d5")
+parser.add_argument("--era", default="91m", help="D5 height era (30m, 87.5m, 91m)")
+args = parser.parse_args()
 
 cfg = eigsim.load_config()
 
@@ -43,10 +58,24 @@ OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 # ---------------------------------------------------------------------------
 print("Loading beam and horizon data...")
 beam_freqs_hz, beam_data, lmax = eigsim.load_beam()
-horizon, _ = eigsim.load_horizon()
-# File stores distance-to-terrain (finite = blocked, NaN = open sky);
-# croissant.Beam needs a boolean mask with True = above horizon.
-horizon = np.isnan(horizon)
+if args.horizon == "d5":
+    # Fractional open-sky weight in [0, 1] on the beam's MWSS grid; the
+    # simulation multiplies the beam by it (eigsim.simulate).
+    horizon, horizon_info = eigsim.d5_open_sky_weight(lmax, era=args.era)
+    horizon = np.asarray(horizon)
+    horizon_meta = {
+        "horizon": "d5_open_sky_weight",
+        "horizon_era": horizon_info["era"],
+        "horizon_stamp": horizon_info["stamp"],
+        "horizon_source_sha256": horizon_info["source_sha256"],
+    }
+else:
+    horizon, _ = eigsim.load_horizon()
+    # File stores distance-to-terrain (finite = blocked, NaN = open sky);
+    # croissant.Beam needs a boolean mask with True = above horizon.
+    horizon = np.isnan(horizon)
+    horizon_meta = {"horizon": "legacy horizon_mwss.npz boolean mask (1P, 114 m)"}
+print(f"  Horizon: {horizon_meta}")
 
 # Config frequencies are the source of truth — select matching channels.
 freqs_mhz = np.array(cfg["frequencies"])
@@ -191,6 +220,7 @@ np.savez_compressed(
     beam_file=cfg["beam"]["file"],
     beam_sampling=cfg["beam"]["sampling"],
     beam_lmax=lmax,
+    **horizon_meta,
 )
 size_mb = outfile.stat().st_size / 1e6
 print(f"Done. Output size: {size_mb:.0f} MB")
