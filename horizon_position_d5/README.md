@@ -69,3 +69,30 @@ widths are diagnostics per declared independent kelvin noise; the box is a
 uniform synthetic prior, not an inferred D5 position distribution. Reference
 widths carry a separate derivative-resolution flag. Inspect all failure,
 rank, conditioning and bound-contact information before interpreting a fit.
+
+## Detached launch and resume
+
+Use `python -m horizon_position_d5.launch` for later phases. Supply `--phase
+response|pilot|ensemble`, private `--inputs`, `--output`, a full `--commit`,
+`--cpus 0,1`, `--reserved-other-cpus` (the peak allocation of all other cbye
+jobs, not their idle usage), and `--gate gate.json`. The gate records
+`producer_commit`, `allowed_phases`, `scope` and `timing_basis`; create it from
+measured pilot costs before choosing the ensemble. Add `--pilot DIR` for the
+ensemble. Run the same command with `--dry-run` first.
+
+The launcher checks clean source, input hashes, checkpoint integrity, existing
+run identity and live output owners. Dry runs write nothing. Actual launches
+use an output-scoped lock and systemd unit, nice 2, per-unit CPU quota, affinity,
+single-thread BLAS, a bounded runtime, attempt logs and `/usr/bin/time -v`.
+The CPU reservation sum cannot exceed one third of the host's logical CPUs;
+other sessions still need ongoing monitoring. It never changes their limits.
+A failed attempt retains its log, exit code and invocation record. Resume uses
+the same source/environment/output; changing science or package versions
+requires a new run. The stage independently validates parameter identities
+before reusing each integrity-valid block.
+
+The test helper `python -m horizon_position_d5.test_suite --inputs DIR
+--import-mode=importlib eigsim/tests rotis/tests pointing_sim/tests
+horizon_position_d5/tests -q` uses the study's hashed IERS tables. Synthetic
+controls otherwise use a scoped offline policy, leaving unrelated frame tests'
+Earth-orientation policy unchanged.
