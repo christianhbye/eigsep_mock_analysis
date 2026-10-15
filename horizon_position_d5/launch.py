@@ -186,18 +186,93 @@ def output_owners(output, proc_root=Path("/proc")):
             continue
 
 
+def reference_launch(args, gate, root, output, workers, cpus):
+    """Verify the planned scientific identity before launching either new mode."""
+    if args.plan is None or args.pilot is None or args.ensemble is None:
+        raise ValueError("reference phases require --plan, --pilot and --ensemble")
+    plan = private_path(args.plan)
+    pilot, ensemble = private_path(args.pilot), private_path(args.ensemble)
+    for upstream in (pilot, ensemble):
+        if (
+            output == upstream
+            or output.is_relative_to(upstream)
+            or upstream.is_relative_to(output)
+        ):
+            raise ValueError("output overlaps upstream results")
+    plan_bytes = plan.read_bytes()
+    if (
+        gate.get("plan_sha256") != hashlib.sha256(plan_bytes).hexdigest()
+        or gate.get("workers") != workers
+        or gate.get("allocated_cpus") != len(cpus)
+        or type(gate.get("max_seconds")) is not int
+        or not 0 < args.max_seconds <= gate["max_seconds"]
+    ):
+        raise ValueError("gate must pin plan bytes, worker/CPU allocation and runtime")
+    high, maximum = gate.get("memory_high_bytes"), gate.get("memory_max_bytes")
+    if type(high) is not int or type(maximum) is not int or not 0 < high <= maximum:
+        raise ValueError("gate requires positive measured memory limits")
+    inventory = json.loads(
+        command(
+            str(root / ".venv/bin/python"),
+            "-B",
+            "-m",
+            "horizon_position_d5.reference_convergence",
+            "--plan",
+            str(plan),
+            "--pilot",
+            str(pilot),
+            "--ensemble",
+            str(ensemble),
+            "--dry-run",
+        )
+    )
+    if (
+        inventory["inventory_hash"] != gate.get("inventory_hash")
+        or inventory["source"]["source_dirty"]
+    ):
+        raise ValueError("gate inventory differs from verified current upstream/source")
+    frozen_plan = output / "convergence-plan.json"
+    if frozen_plan.exists() and frozen_plan.read_bytes() != plan_bytes:
+        raise ValueError("existing plan differs; use another output")
+    return {
+        "plan_bytes": plan_bytes,
+        "frozen_plan": frozen_plan,
+        "pilot": pilot,
+        "ensemble": ensemble,
+        "config": {
+            "workers": workers,
+            "plan_hash": inventory["plan_hash"],
+            "inventory_hash": inventory["inventory_hash"],
+        },
+        "memory_properties": [
+            f"--property=MemoryHigh={high}",
+            f"--property=MemoryMax={maximum}",
+        ],
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--phase", choices=("response", "pilot", "ensemble"), required=True
+        "--phase",
+        choices=(
+            "response",
+            "pilot",
+            "ensemble",
+            "reference-probe",
+            "reference-convergence",
+        ),
+        required=True,
     )
     for name in ("inputs", "output", "gate"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--pilot", type=Path)
+    parser.add_argument("--ensemble", type=Path)
+    parser.add_argument("--plan", type=Path)
     parser.add_argument(
         "--workers",
         type=int,
-        help="ensemble processes; defaults to min(2, allocated CPUs)",
+        help="trace processes; defaults to min(2, allocated CPUs)",
     )
     parser.add_argument("--commit", required=True)
     parser.add_argument("--cpus", required=True, help="logical CPU IDs, e.g. 0,1")
@@ -240,21 +315,14 @@ def main(argv=None):
         or not 8 <= args.stack_mib <= 256
     ):
         parser.error("CPU reservations, runtime or stack exceed the declared limits")
-    if args.workers is not None and args.phase != "ensemble":
-        parser.error("--workers applies only to the ensemble")
+    reference_phase = args.phase in ("reference-probe", "reference-convergence")
+    if args.workers is not None and args.phase != "ensemble" and not reference_phase:
+        parser.error("--workers applies only to ensemble/reference phases")
     workers = None
-    if args.phase == "ensemble":
+    if args.phase == "ensemble" or reference_phase:
         workers = min(len(cpus), 2) if args.workers is None else args.workers
         if not 1 <= workers <= len(cpus):
             parser.error("ensemble workers must fit the allocated CPU affinity")
-    launch_lock = None
-    if not args.dry_run:
-        output.mkdir(parents=True, exist_ok=True)
-        launch_lock = (output / "LAUNCH.lock").open("a")
-        try:
-            fcntl.flock(launch_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            parser.error("another launcher owns the output launch lock")
     gate_bytes = args.gate.read_bytes()
     gate = json.loads(gate_bytes)
     if (
@@ -268,7 +336,17 @@ def main(argv=None):
     frozen_gate = output / f"gate-{args.phase}.json"
     if frozen_gate.exists() and frozen_gate.read_bytes() != gate_bytes:
         parser.error("existing gate differs; use a new output directory")
-    module = "ensemble" if args.phase == "ensemble" else "pilot"
+    reference = None
+    if reference_phase:
+        try:
+            reference = reference_launch(args, gate, root, output, workers, cpus)
+        except (ValueError, OSError, KeyError) as exc:
+            parser.error(str(exc))
+    module = (
+        "reference_convergence"
+        if reference_phase
+        else ("ensemble" if args.phase == "ensemble" else "pilot")
+    )
     python = root / ".venv/bin/python"
     invocation = [
         str(python),
@@ -281,7 +359,7 @@ def main(argv=None):
         str(output),
     ]
     if args.split_orientation:
-        if args.phase == "ensemble":
+        if args.phase == "ensemble" or reference_phase:
             parser.error("--split-orientation applies to response/pilot only")
         invocation.append("--split-orientation")
     if args.phase == "response":
@@ -297,6 +375,32 @@ def main(argv=None):
                 str(workers),
             ]
         )
+    if reference_phase:
+        invocation.extend(
+            [
+                "--execute",
+                "--plan",
+                str(reference["frozen_plan"]),
+                "--pilot",
+                str(reference["pilot"]),
+                "--ensemble",
+                str(reference["ensemble"]),
+                "--gate",
+                str(frozen_gate),
+                "--workers",
+                str(workers),
+            ]
+        )
+        if args.phase == "reference-probe":
+            invocation.append("--probe")
+    launch_lock = None
+    if not args.dry_run:
+        output.mkdir(parents=True, exist_ok=True)
+        launch_lock = (output / "LAUNCH.lock").open("a")
+        try:
+            fcntl.flock(launch_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            parser.error("another launcher owns the output launch lock")
     cache_dir = output / "jax-cache" if args.persistent_jax_cache else None
     if cache_dir is not None and cache_dir.is_symlink():
         parser.error("JAX cache must not be a symlink")
@@ -341,7 +445,9 @@ def main(argv=None):
             root,
             inputs,
             head,
-            {"workers": workers}
+            reference["config"]
+            if reference_phase
+            else {"workers": workers}
             if args.phase == "ensemble"
             else {
                 "fuse_orientation": not args.split_orientation,
@@ -349,6 +455,10 @@ def main(argv=None):
             },
         ),
     }
+    if reference_phase:
+        record["memory_high_bytes"] = gate["memory_high_bytes"]
+        record["memory_max_bytes"] = gate["memory_max_bytes"]
+        record["reference_config"] = reference["config"]
     print(json.dumps(record, indent=2), flush=True)
     if not record["checkpoint_audit"]["run_identity_compatible"]:
         parser.error("existing run source, config, lock, versions or inputs are stale")
@@ -356,6 +466,8 @@ def main(argv=None):
         return
     output.mkdir(parents=True, exist_ok=True)
     frozen_gate.write_bytes(gate_bytes)
+    if reference_phase:
+        reference["frozen_plan"].write_bytes(reference["plan_bytes"])
     if cache_dir is not None:
         cache_dir.mkdir(mode=0o700, exist_ok=True)
     prefix = output / f"{args.phase}-{attempt}"
@@ -415,6 +527,7 @@ def main(argv=None):
             f"--property=CPUQuota={100 * len(cpus)}%",
             "--property=KillMode=control-group",
             f"--property=RuntimeMaxSec={args.max_seconds}",
+            *(reference["memory_properties"] if reference_phase else []),
             "/bin/bash",
             str(job),
         ],

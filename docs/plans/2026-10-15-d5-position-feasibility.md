@@ -158,3 +158,24 @@ The next increment adds checkpoint execution, full raw exports and the
 reference-convergence launcher phase, then the companion reporting reader.
 The Limbo cost probe follows those implementation checks. No current CLI path
 executes the proposed matrix or interprets its inventory as a scientific pass.
+
+
+## Execution implementation checkpoint — 2026-10-15
+
+The second increment adds `convergence_runner.py`, explicit CLI execution,
+nominal-center probe mode and the launcher's `reference-probe` and
+`reference-convergence` phases. It retains raw horizons/temperatures, verifies
+checkpoint identities and trace-to-temperature dependencies, reconstructs the
+coordinate-rich stencil, and exports the numerical decisions from the first
+increment. Probe completion and full result completion have separate markers.
+
+Small manufactured end-to-end tests exercise interruption/resume, corruption,
+source/input ownership, concurrent-writer rejection and numerical failure with
+operational success. Tiny real-tracer serial/spawn and all-sky/all-ground mask
+controls check the actual numerical kernels. These checks do not replace the
+native Limbo probe or establish D5 convergence.
+
+The remaining pre-study work is the companion reporting reader, native Limbo
+verification, measured cost/resource review and frozen launch gate. Code PR #24
+is still the reporting prerequisite at this checkpoint. No D5 feasibility
+computation or shared contribution was launched by this implementation.

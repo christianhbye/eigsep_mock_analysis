@@ -128,9 +128,9 @@ output ownership; competing copies and science runners remain protected.
 
 The next numerical-feasibility stage is specified in
 [`../docs/specs/2026-10-15-d5-position-feasibility.md`](../docs/specs/2026-10-15-d5-position-feasibility.md).
-The initial implementation provides a strict plan, a read-only task inventory,
-and pure NumPy convergence diagnostics. Execution/export and launcher wiring
-follow in the next implementation increment; this command cannot start a run.
+The implementation provides a strict plan, a read-only task inventory,
+pure NumPy convergence diagnostics, and checkpointed execution. The command
+below is read-only; execution requires explicit `--execute` and a frozen gate.
 
 ```bash
 uv run python -m horizon_position_d5.reference_convergence \
@@ -161,3 +161,56 @@ the tested scales, not a physical uncertainty or continuum error certificate.
 Run the lightweight controls with
 `uv run python -m pytest horizon_position_d5/tests/test_convergence.py
 horizon_position_d5/tests/test_convergence_plan.py -q`.
+
+
+### Checkpoint execution and probe
+
+Use the existing `horizon_position_d5.launch` entry point on Limbo with phase
+`reference-probe` or `reference-convergence`. Both take `--plan`, `--pilot`,
+`--ensemble`, `--inputs`, `--output`, `--workers` and the existing producer,
+resource and gate arguments. Run the launcher with `--dry-run` first.
+
+The gate additionally pins `plan_sha256` (file bytes), `inventory_hash` (from
+this clean producer's planner), `workers`, `allocated_cpus`, `max_seconds`,
+`memory_high_bytes` and `memory_max_bytes`. Its existing `producer_commit`,
+`allowed_phases`, `scope` and `timing_basis` remain required. Allocate memory
+from the observed/probed footprint and current host headroom. For the initial
+probe, document the existing-run evidence used for its provisional cap. The
+launcher freezes plan/gate copies and requests systemd memory limits alongside
+nice 0, CPU affinity/quota and a runtime cap. The runner verifies the frozen
+plan/inventory again before writing and requires single-thread BLAS settings.
+
+Probe mode traces only the nominal center at every planned bearing spacing,
+then evaluates every mask setting for those horizons. It uses the same run
+identity, trace keys and evaluation keys as full execution. Each probe retains
+its own timestamped report; `PROBE_REPORT.json` points to the latest report.
+It records per-task timings, reuse, worker/parent peak RSS, full planned counts
+and the probe scope. A probe writes no complete `RESULTS.json`. Its timing
+includes cold compilation where incurred; reused blocks are explicitly marked.
+These measurements do not automatically approve a full run or demonstrate
+parallel speedup. Include all probe/attempt time in the phase budget, and allow
+at least 25 percent headroom when projecting the remaining work.
+
+Full execution reuses only identity- and content-verified checkpoints. Trace
+workers run in bounded batches; the parent is the sole checkpoint writer.
+Temperature evaluation holds one compiled bearing/mask operator at a time and
+processes heights sequentially. Evaluation keys include the actual trace file
+hash. Output locks reject concurrent writers. Changed run identities, missing
+run ownership records and attempts to overwrite a complete run are rejected.
+Failed attempts retain their records and complete checkpoints.
+
+The result manifest hashes every raw trace and temperature block, plus:
+
+- `coordinates`: positions, heights, time/pointing/frequency coordinates and all
+  refinement levels, axis labels and displacement signs;
+- `stencil_temperatures`: center `(bearing, mask, position, height, sample,
+  frequency)` and displaced `(bearing, mask, step, axis, sign, position, height,
+  sample, frequency)` temperatures, presence arrays and edge exclusions;
+- `convergence`: signed slopes, all numerical comparisons and per-cell statuses.
+  Nested diagnostic keys use `__` separators in the NPZ export.
+
+A completed result requires every planned block and every stencil destination.
+A numerical convergence failure is a retained result and can have a successful
+process exit. Missing/nonfinite computation cannot create a complete result.
+Operational completion still requires the exact invocation's exit/journal
+and transfer/hash checks, independently of numerical pass/fail statuses.
