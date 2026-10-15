@@ -141,6 +141,7 @@ def test_checkpoint_audit_checks_file_and_producer_identity(launcher):
         "lock_sha256": launch.sha256(root / "uv.lock"),
         "input_hashes": {},
         "versions": {},
+        "config": {"fuse_orientation": True, "jit_response_adjoint": True},
     }
     record = {"identity": identity, "identity_hash": launch.fingerprint(identity)}
     (output / "RUN_RECORD.json").write_text(json.dumps(record))
@@ -165,3 +166,25 @@ def test_checkpoint_audit_checks_file_and_producer_identity(launcher):
     assert not launch.audit_checkpoints(output, root, inputs, "c" * 40)[
         "run_identity_compatible"
     ]
+
+
+def test_dry_run_rejects_changed_compilation_mode(launcher):
+    args, output, root, _, head, _, _ = launcher
+    output.mkdir()
+    identity = {
+        "source_commit": head,
+        "source_tree": "b" * 40,
+        "lock_sha256": launch.sha256(root / "uv.lock"),
+        "input_hashes": {},
+        "versions": {},
+        "config": {"fuse_orientation": True, "jit_response_adjoint": True},
+    }
+    (output / "RUN_RECORD.json").write_text(
+        json.dumps(
+            {"identity": identity, "identity_hash": launch.fingerprint(identity)}
+        )
+    )
+    launch.main(args + ["--dry-run"])
+    with pytest.raises(SystemExit):
+        launch.main(args + ["--dry-run", "--split-orientation"])
+    assert not list(output.glob("*.sh"))

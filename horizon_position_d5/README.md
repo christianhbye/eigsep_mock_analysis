@@ -34,7 +34,11 @@ its source paths are provenance, not fallbacks when an input is missing.
 
 Run `python -m horizon_position_d5.pilot --inputs DIR --output DIR
 --response-only` first, with a detached wrapper supplying nice 2, CPU/thread
-limits, runtime bound, log and exit sentinels. This checks the sampled horizon
+limits, runtime bound, log and exit sentinels. On the private Limbo no-AVX
+environment, use `--split-orientation` after the recorded fused-compilation
+crashes. It preserves the model and transform resolution while removing the
+outer orientation/adjoint JIT wrappers. Keep that flag identical on resume.
+This checks the sampled horizon
 before building one frequency response block at a time. Each affine response
 is tested against public `simulate_path` on independent masks; failed blocks
 are not saved. Sequential adjoints bound the intermediate transform memory.

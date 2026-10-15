@@ -57,7 +57,9 @@ def pointings(inp):
 class Study:
     """One source/input/config identity and atomic trace/response checkpoints."""
 
-    def __init__(self, inputs, output, *, angular_control=True):
+    def __init__(
+        self, inputs, output, *, angular_control=True, split_orientation=False
+    ):
         self.output = Path(output)
         self.output.mkdir(parents=True, exist_ok=True)
         self.started = time.monotonic()
@@ -70,6 +72,8 @@ class Study:
         self.config = {
             "n_observed_times": 8,
             "angular_control": bool(angular_control),
+            "fuse_orientation": not split_orientation,
+            "jit_response_adjoint": not split_orientation,
             "synthetic_tilts": 4,
             "frequencies_mhz": self.inp["frequencies_mhz"].tolist(),
             "lmax": self.inp["lmax"],
@@ -207,9 +211,13 @@ class Study:
                     self.pointing["azimuths_deg"],
                     misalignment=inp["misalignment"],
                     site=SITE,
+                    fuse_orientation=self.config["fuse_orientation"],
                 )
                 offset, kernel = affine_response(
-                    fast, inp["beam"].shape[1:], sequential=True
+                    fast,
+                    inp["beam"].shape[1:],
+                    sequential=True,
+                    jit_adjoint=self.config["jit_response_adjoint"],
                 )
                 print(f"RESPONSE COMPUTED {frequency} MHz", flush=True)
                 rng = np.random.default_rng(1807)
@@ -286,8 +294,18 @@ def main(argv=None):
         action="store_true",
         help="checkpoint response controls for the timing gate, then stop",
     )
+    parser.add_argument(
+        "--split-orientation",
+        action="store_true",
+        help="separate transform JITs; unchanged model/resolution, smaller graphs",
+    )
     args = parser.parse_args(argv)
-    study = Study(args.inputs, args.output, angular_control=not args.skip_angular)
+    study = Study(
+        args.inputs,
+        args.output,
+        angular_control=not args.skip_angular,
+        split_orientation=args.split_orientation,
+    )
     study.inputs_path = args.inputs
     inp, p = study.inp, study.inp["nominal_enu_m"]
     bearings = study.bearings()

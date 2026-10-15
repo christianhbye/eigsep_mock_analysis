@@ -55,7 +55,7 @@ def fingerprint(value):
     ).hexdigest()
 
 
-def audit_checkpoints(output, root, inputs, head):
+def audit_checkpoints(output, root, inputs, head, expected_config=None):
     """Hash files and metadata without loading arrays or importing JAX."""
     manifest = json.loads((inputs / "INPUT_MANIFEST.json").read_text())
     hashes = {}
@@ -81,6 +81,10 @@ def audit_checkpoints(output, root, inputs, head):
             and identity["source_tree"] == command("git", "rev-parse", "HEAD^{tree}")
             and identity["lock_sha256"] == sha256(root / "uv.lock")
             and identity["input_hashes"] == hashes
+            and all(
+                identity.get("config", {}).get(name) == value
+                for name, value in (expected_config or {}).items()
+            )
             and all(
                 importlib.metadata.version(name) == version
                 for name, version in identity["versions"].items()
@@ -134,6 +138,7 @@ def main(argv=None):
     parser.add_argument("--max-seconds", type=int, default=21600)
     parser.add_argument("--stack-mib", type=int, default=64)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--split-orientation", action="store_true")
     args = parser.parse_args(argv)
     if platform.node().split(".")[0] != "limbo":
         parser.error("this launcher is for the private Limbo scratch only")
@@ -196,6 +201,10 @@ def main(argv=None):
         "--output",
         str(output),
     ]
+    if args.split_orientation:
+        if args.phase == "ensemble":
+            parser.error("--split-orientation applies to response/pilot only")
+        invocation.append("--split-orientation")
     if args.phase == "response":
         invocation.append("--response-only")
     if args.phase == "ensemble":
@@ -247,11 +256,22 @@ def main(argv=None):
         "max_seconds": args.max_seconds,
         "command": invocation,
         "launcher_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "checkpoint_audit": audit_checkpoints(output, root, inputs, head),
+        "checkpoint_audit": audit_checkpoints(
+            output,
+            root,
+            inputs,
+            head,
+            None
+            if args.phase == "ensemble"
+            else {
+                "fuse_orientation": not args.split_orientation,
+                "jit_response_adjoint": not args.split_orientation,
+            },
+        ),
     }
     print(json.dumps(record, indent=2), flush=True)
     if not record["checkpoint_audit"]["run_identity_compatible"]:
-        parser.error("existing run source, lock, package versions or inputs are stale")
+        parser.error("existing run source, config, lock, versions or inputs are stale")
     if args.dry_run:
         return
     output.mkdir(parents=True, exist_ok=True)

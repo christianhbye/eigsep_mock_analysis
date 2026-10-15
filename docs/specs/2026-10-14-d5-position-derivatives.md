@@ -336,9 +336,9 @@ continuous full-bearing trace of all three heights, with 1.01 GiB peak RSS.
 At that measured shared-host rate, a 9^3 training grid alone projects to
 15.3 hours with two workers. The proposed overnight gate therefore compares
 nested 3^3 and 5^3 grids (125 distinct training positions), instead of running
-the proposed 9^3 grid. The response-only phase at `84e40be` supplies the
-remaining timing measurement; freeze the final gate before starting the
-position sweep. No interpolation accuracy has been observed when making this
+the proposed 9^3 grid. The response-only phase must supply the remaining timing measurement;
+its first attempts at `84e40be` failed before a block completed (see below).
+Freeze the final gate before starting the position sweep. No interpolation accuracy has been observed when making this
 scope decision. A 9^3 result must not be claimed. A higher beam/sky band-limit
 comparison and expansion to all 51 frequencies remain outside a pilot unless
 the measured gate explicitly adds them.
@@ -395,8 +395,9 @@ The following reporting and execution findings are addressed before completion:
 
 The first full-resolution response attempt (84e40be) segfaulted during JAX
 `jit__orient` compilation with an 8 MiB stack, while RAM remained available.
-A retry with a 64 MiB stack keeps source and scientific parameters identical;
-its outcome remains pending. The failed attempt is preserved, not relabelled
+A retry with a 64 MiB stack also terminated with signal 11 at the same
+compilation stage, after 1396.8 s wall time and 4.35 GiB peak RSS. This rules
+out that stack-size change as a remedy; the native crash cause is unresolved. The failed attempt is preserved, not relabelled
 as a numerical result. The interrupted full test run had 99 passes, 8 skips
 and 8 stale-IERS prediction failures; `test_suite.py` uses the study's verified
 IERS inputs for a controlled rerun. No acceptance threshold was relaxed.
@@ -406,3 +407,28 @@ control contributed to the stale-table failures in unrelated 2026 frame tests.
 It is now a scoped fixture restored after each toy test. The detached rerun
 still uses pinned current tables for deterministic science validation. This
 fix removes a test-isolation regression rather than relaxing table validity.
+
+
+## Compilation fallback, 2026-10-15 (before the recovery run)
+
+The next pinned attempt uses `--split-orientation`. It removes the outer JIT
+wrapper around the orientation pipeline and the outer JIT of its reverse-mode
+response calculation, retaining the existing transform kernels and all
+mathematical operations. Native L=128 beam resolution, sky resolution, all four
+frequencies, pointings, normalization and accuracy thresholds remain unchanged.
+Public eigsim APIs retain fused compilation by default. Both compilation flags
+are part of the run identity, and the launcher rejects a mismatched resume.
+
+An independent review verified the orientation body's AST is unchanged. A
+small two-frequency, two-orientation control compared all response-kernel
+entries, offsets, public temperatures and affine predictions between fused
+and split compilation; it passed with atol=1e-8 and rtol=1e-10. This checks the
+fallback implementation, not successful native-resolution execution. The
+failed native runs remain in their original output directory. Recovery uses a
+new producer pin and output, and requires all original response checks.
+
+The superseded pinned-table Limbo test rerun was deliberately interrupted once
+its source needed updating: 44 passed, 8 skipped, no failures before interrupt.
+The private PR's GitHub test job at `53aa138` completed with 238 passed and
+9 skipped; its external-data skips do not replace the native D5 run. The new
+compilation change requires its own test results.

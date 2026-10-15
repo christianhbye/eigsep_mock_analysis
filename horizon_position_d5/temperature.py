@@ -24,6 +24,7 @@ def make_temperature_functions(
     sky_alm=None,
     ground_temperature_k=300.0,
     site=None,
+    fuse_orientation=True,
 ):
     """Return cached-setup and public full functions T(W), both in kelvin."""
     simulation = importlib.import_module("eigsim.simulate")
@@ -48,6 +49,7 @@ def make_temperature_functions(
         {"horizon": jnp.ones(beam.shape[1:], dtype=jnp.float64)},
         sky_alm,
         sim_kw,
+        fuse_orientation=fuse_orientation,
     )
     orientations, group = np.unique(
         np.column_stack([el, az]), axis=0, return_inverse=True
@@ -75,13 +77,14 @@ def make_temperature_functions(
             beam_kw={"horizon": weight},
             sky_alm=setup.sky_alm,
             misalignment=misalignment,
+            fuse_orientation=fuse_orientation,
             **sim_kw,
         )
 
     return cached, direct
 
 
-def affine_response(model, mask_shape, *, sequential=False):
+def affine_response(model, mask_shape, *, sequential=False, jit_adjoint=True):
     """Return T(0) and dT/dW, which is constant for this fixed model."""
     zero = jnp.zeros(mask_shape, dtype=jnp.float64)
     offset = model(zero)
@@ -90,7 +93,7 @@ def affine_response(model, mask_shape, *, sequential=False):
         return np.asarray(offset), np.asarray(kernel)
     # One output cotangent at a time avoids a full batch of transform tapes.
     _, pullback = jax.vjp(model, zero)
-    adjoint = jax.jit(pullback)
+    adjoint = jax.jit(pullback) if jit_adjoint else pullback
     shape = tuple(offset.shape)
     kernels = []
     for index in range(offset.size):

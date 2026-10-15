@@ -25,7 +25,7 @@ def offline_iers_for_synthetic_controls():
         yield
 
 
-def functions(sky_temperature=None, uniform_beam=False):
+def functions(sky_temperature=None, uniform_beam=False, fuse_orientation=True, nfreq=1):
     th, ph = mwss_grid(4)
     theta, phi = np.meshgrid(th, ph, indexing="ij")
     beam = (1 + 0.2 * np.cos(theta) + 0.1 * np.sin(theta) * np.cos(phi))[None]
@@ -34,15 +34,19 @@ def functions(sky_temperature=None, uniform_beam=False):
     sky_map = 1200 + 500 * np.cos(theta) + 200 * np.sin(theta) * np.sin(phi)
     if sky_temperature is not None:
         sky_map = np.full_like(theta, sky_temperature)
-    sky = cro.Sky(sky_map[None], np.array([100.0]), sampling="mwss", coord="equatorial")
+    frequencies = 100.0 + 10.0 * np.arange(nfreq)
+    sky_maps = sky_map[None] * np.linspace(1.0, 0.7, nfreq)[:, None, None]
+    beam = beam * np.linspace(1.0, 1.1, nfreq)[:, None, None]
+    sky = cro.Sky(sky_maps, frequencies, sampling="mwss", coord="equatorial")
     fast, direct = make_temperature_functions(
         beam,
-        np.array([100.0]),
+        frequencies,
         sky,
         np.array([2460238.7, 2460238.71]),
         np.array([0.0, 20.0]),
         np.array([0.0, 30.0]),
         ground_temperature_k=300.0,
+        fuse_orientation=fuse_orientation,
     )
     return fast, direct, theta.shape
 
@@ -133,3 +137,26 @@ def test_uniform_hot_sky_has_known_negative_horizon_response():
     assert expected < -1.0
     assert np.all(measured < -1.0)
     np.testing.assert_allclose(measured, expected, atol=1e-8, rtol=1e-10)
+
+
+def test_split_compilation_preserves_public_values_and_mask_derivatives():
+    # Two frequencies and two nonidentical orientations exercise batch order,
+    # rotations, sky contrast and horizon gradients independently of D5 inputs.
+    fused, fused_direct, shape = functions(nfreq=2)
+    split, split_direct, _ = functions(fuse_orientation=False, nfreq=2)
+    offset, kernel = affine_response(fused, shape, sequential=True)
+    other_offset, other_kernel = affine_response(
+        split, shape, sequential=True, jit_adjoint=False
+    )
+    np.testing.assert_allclose(other_offset, offset, atol=1e-8, rtol=1e-10)
+    np.testing.assert_allclose(other_kernel, kernel, atol=1e-8, rtol=1e-10)
+    weight = np.random.default_rng(517).uniform(0.1, 0.9, shape)
+    expected = np.asarray(fused_direct(weight))
+    np.testing.assert_allclose(split_direct(weight), expected, atol=1e-8, rtol=1e-10)
+    np.testing.assert_allclose(
+        apply_response(other_offset, other_kernel, weight),
+        expected,
+        atol=1e-8,
+        rtol=1e-10,
+    )
+    assert np.linalg.norm(kernel) > 1
