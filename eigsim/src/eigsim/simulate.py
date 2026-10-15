@@ -16,24 +16,24 @@ from .config import load_config
 from .rotations import beam_to_alm, drive_rotation_matrix, rotate_beam_data
 
 
-def _build_orientation_fn(beam_L, sim_L, sampling, nside, beam_norm):
-    """Return a JIT-compiled function for the time-independent part of one
-    beam orientation.
+def _build_orientation_fn(beam_L, sim_L, sampling, nside, beam_norm, fuse=True):
+    """Return the time-independent orientation function, optionally fused by JIT.
 
     Compile-time constants (resolutions, the beam normalization) are
     captured in the closure.  The reference ``Simulator`` that supplies
     the topocentric-to-simulation rotation is an argument instead: closed
     over, its ``dl_topo`` would become a compile-time constant.  None of the returned
     function's arguments depend on the number of time samples, so it
-    compiles **once** per call and handles every drive orientation
+    compiles **once** per call (when fuse=True) and handles every drive orientation
     without re-tracing -- regardless of how many groups
-    :func:`simulate_path` makes or how large each group is.  The
-    time-dependent sky convolution happens afterwards, in
+    :func:`simulate_path` makes or how large each group is.
+    With fuse=False, the same function is returned without its outer JIT;
+    the individual croissant/s2fft transforms retain their own JIT boundaries.
+    The time-dependent sky convolution happens afterwards, in
     :func:`_run_orientation`, using croissant's own JIT-compiled
     ``convolve``, which is cheap to recompile per group size.
     """
 
-    @jax.jit
     def _orient(beam_alm, euler_drive, sim, horizon, quad_weights):
         # 1-2. Drive Wigner-D rotation at full beam resolution, with the
         #      angles traced, then the inverse SHT to pixel space (needed
@@ -68,7 +68,7 @@ def _build_orientation_fn(beam_L, sim_L, sampling, nside, beam_norm):
 
         return beam_eq_alm, fgnd
 
-    return _orient
+    return jax.jit(_orient) if fuse else _orient
 
 
 def _build_fgnd_fn(sampling, nside):
@@ -341,7 +341,19 @@ class _Setup(NamedTuple):
     t_rcvr: float
 
 
-def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, sim_kw):
+def _setup(
+    beam_data,
+    freqs,
+    sky,
+    times_jd,
+    config,
+    sampling,
+    beam_kw,
+    sky_alm,
+    sim_kw,
+    *,
+    fuse_orientation=True,
+):
     """Precompute what every orientation of one simulation shares."""
     cfg = load_config(config)
     beam_kw = beam_kw or {}
@@ -384,7 +396,9 @@ def _setup(beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, 
 
     return _Setup(
         alm=alm,
-        orient=_build_orientation_fn(beam_L, sim_L, sampling, nside, beam_norm),
+        orient=_build_orientation_fn(
+            beam_L, sim_L, sampling, nside, beam_norm, fuse=fuse_orientation
+        ),
         sim=ref_sim,
         horizon=ref_beam.horizon,
         quad_weights=quad_weights,
@@ -433,6 +447,7 @@ def simulate(
     sky_alm=None,
     verbose=False,
     misalignment=None,
+    fuse_orientation=True,
     **sim_kw,
 ):
     """Run simulations for multiple beam orientations.
@@ -480,6 +495,11 @@ def simulate(
         drive for every orientation; see
         :func:`~eigsim.rotations.misalignment_matrix`. ``None``
         reproduces the bare drive exactly.
+    fuse_orientation : bool
+        If True (default), JIT the complete orientation graph. False keeps
+        the same operations and individual transform JITs, but avoids one
+        large fused compilation. This can reduce compiler resource demand
+        at high band limit on older CPUs; it does not change resolution.
     **sim_kw
         Override Simulator kwargs (lon, lat, alt, world, Tgnd, lmax).
 
@@ -491,7 +511,16 @@ def simulate(
 
     """
     setup = _setup(
-        beam_data, freqs, sky, times_jd, config, sampling, beam_kw, sky_alm, sim_kw
+        beam_data,
+        freqs,
+        sky,
+        times_jd,
+        config,
+        sampling,
+        beam_kw,
+        sky_alm,
+        sim_kw,
+        fuse_orientation=fuse_orientation,
     )
 
     n_ori = len(elevations)
@@ -522,6 +551,7 @@ def simulate_path(
     sky_alm=None,
     verbose=False,
     misalignment=None,
+    fuse_orientation=True,
     **sim_kw,
 ):
     """Simulate one antenna orientation per time sample (D5 path mode).
@@ -578,6 +608,11 @@ def simulate_path(
         drive for every orientation; see
         :func:`~eigsim.rotations.misalignment_matrix`. ``None``
         reproduces the bare drive exactly.
+    fuse_orientation : bool
+        If True (default), JIT the complete orientation graph. False keeps
+        the same operations and individual transform JITs, but avoids one
+        large fused compilation. This can reduce compiler resource demand
+        at high band limit on older CPUs; it does not change resolution.
     **sim_kw
         Override Simulator kwargs (lon, lat, alt, world, Tgnd, lmax).
 
@@ -608,7 +643,16 @@ def simulate_path(
         raise ValueError("times_jd, elevations_deg and azimuths_deg must be finite")
 
     setup = _setup(
-        beam_data, freqs_mhz, sky, times_jd, config, sampling, beam_kw, sky_alm, sim_kw
+        beam_data,
+        freqs_mhz,
+        sky,
+        times_jd,
+        config,
+        sampling,
+        beam_kw,
+        sky_alm,
+        sim_kw,
+        fuse_orientation=fuse_orientation,
     )
 
     orientations, group = np.unique(
