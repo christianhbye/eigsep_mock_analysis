@@ -1,6 +1,6 @@
 # D5 position-to-temperature derivatives
 
-Status: revised after independent math and fit review, 2026-10-14; final math disposition pending.
+Status: revised after independent math and fit reviews, 2026-10-14; ready for implementation.
 Owner: separate Codex study, approved by CHB; Claude keeps the D5 trackers.
 Branches: mock_analysis `feat/d5-position-derivatives` from `80e027d`;
 analysis_code `nb/d5-position-derivatives` from `5400e59`, notebook 026.
@@ -112,14 +112,20 @@ For numerical stability, an equivalent local form is
  t=-(D0/(a-k))/(sqrt(r0^2-D0/(a-k))+r0), when the square root is real.
 Degenerate zero-width intervals must not generate divisions by zero. Use float64
 arithmetic on the original DEM values. Preserve the nearest-radius tie rule and
-record competing maxima/switches where relevant.
+record competing maxima/switches where relevant. Deduplicate shared cell
+endpoints before interpreting ties; a diagnostic near-tie tolerance must
+never replace the actual argmax or merge distinct skyline points silently.
 
 This is a study reference, not a replacement for the shared terrain generator.
 A separate sampled mode must reproduce the team's 0.25 m horizons before the
 continuous calculation is interpreted. Verify the reference against dense
 independent sampling on synthetic scenes and selected real rays, including
 crease maxima, interior maxima, near ties, cardinal rays and tile boundaries.
-Fine sampling is an upper-error check, not the same maximizing algorithm.
+Dense sampling gives a lower bound on the continuous maximum, not a certified
+upper bound on reference error. Report the sampled-reference gap as a
+convergence diagnostic; call an error bound certified only with a separate
+proof or interval bound. The synthetic analytic cases and independent
+within-cell optimization test completeness of the candidate calculation.
 
 For p shifts, central differences are
  D_i(h)=[T(p+h e_i)-T(p-h e_i)]/(2h), in K/m.
@@ -139,7 +145,9 @@ E7 uses slope=-periodic_central_difference(alpha,beta); its physical smoothing
 scale is r_star*delta_beta, which varies with bearing. E7-prime uses
 slope=cos(alpha)^2*grad_DEM.c at the selected product sample. Neither is assumed
 to be the continuous crease derivative. Vertical/along identities also require
-checking their domain and boundary exceptions; no geometry assertion is a test.
+checking their domain and boundary exceptions; E4 generally fails for a
+fixed discrete march or a maximum constrained by the fixed inner cutoff.
+A stable crease alone does not invalidate E4/E5. No geometry assertion is a test.
 
 For each candidate, push d_alpha/dp through `open_sky_weight` and
 `simulate_path` using JAX JVP. Test alpha->W->T separately with known smooth
@@ -305,8 +313,18 @@ Fit review complete (fresh reviewer, 2026-10-14):
   memo-008-sky 22e1c3f; no derivative branch found in the focused survey.
   Tomorrow's contribution packet must correct the old skyline packet's claim
   of exact derivatives from skyline distances/heights in light of issue 14.
-Math review preliminary findings adopted:
+Math review complete (fresh reviewer, 2026-10-14), all findings adopted:
 - M1: exact team outer boundary and fixed inner cutoff; addressed above.
 - M2: finite-subsample W clip kinks; one-sided boundary control added.
 - M3: preserve the synthetic crease counterexample to E7-prime as a regression.
-No D5 numerical conclusions yet. Final math report/disposition follows.
+- M4: dense sampling is a lower bound, not a certified reference error bound;
+  wording corrected. Endpoint duplicates are distinct from competing maxima.
+- M5: E4's fixed-inner-cutoff/discrete-march exception stated explicitly.
+- M6: require x64 and explicit IERS configuration; already in the input/runtime gate.
+- Retain an independent crease fixture h(x,y)=3+0.3y-|x-10|, p=(0.5,0.1,0),
+  beta=0.45 rad, r in [0.25,50] m. Its actual across derivative has opposite
+  sign to one adjacent-cell E7-prime value. The reference tests will compute
+  expected derivatives from the ridge geometry, not copy a result table.
+Review scratch: /tmp/d5-derivative-math-review/check_math.py,
+math_results.json and check_jax.py. The implementation retains the falsifying
+controls as tests. No D5 numerical conclusions yet.
