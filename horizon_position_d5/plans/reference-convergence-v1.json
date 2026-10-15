@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "pilot_results_sha256": "b5e0354e492cab63db289b31c56dcb4046316ab7e530e0f645990734d2e11f41",
+  "ensemble_results_sha256": "6cf2a48fe847e3fc195085581185253dc8b57b3d69c5bcae876e7565579a6dd1",
+  "bearing_spacing_deg": [0.1, 0.05, 0.025],
+  "mask_subsamples": [180, 360, 720],
+  "steps_m": [0.01, 0.003, 0.001],
+  "half_width_m": 3.2,
+  "criteria": {
+    "forward_atol_k": 0.00025,
+    "slope_atol_k_per_m": 0.001,
+    "slope_rtol": 0.01,
+    "angular_slope_fraction": 0.25
+  }
+}
