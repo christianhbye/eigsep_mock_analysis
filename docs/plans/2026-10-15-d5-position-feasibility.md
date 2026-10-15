@@ -139,3 +139,22 @@ add execution/export and launcher integration before the Limbo probe. This
 planning PR can be reviewed independently of the cleanup issue and the memo.
 Numerical thresholds and the six-hour allocation remain proposed until frozen
 in the reviewed run manifest; they do not inherit the previous run's approval.
+
+## Implementation checkpoint — 2026-10-15
+
+The first increment implements PR A's plan validation, deterministic inventory
+and pure convergence diagnostics. `convergence_plan.py` holds the plan and
+upstream selection; `reference_convergence.py` exposes the read-only CLI.
+The versioned plan pins the original pilot/ensemble RESULTS hashes. A dry run
+on those verified exports derives two development positions, 114 trace tasks
+and 342 mask evaluations. These are planned counts, not completed computations.
+
+Manufactured tests exercise smooth and constant values, a cusp, angular
+cancellation, step instability, axis/sign permutations, missing/nonfinite/edge
+cells, corrupted upstream artifacts, coordinate mismatches and deterministic
+selection. Existing cache/reference/launch behavior is regression-tested.
+
+The next increment adds checkpoint execution, full raw exports and the
+reference-convergence launcher phase, then the companion reporting reader.
+The Limbo cost probe follows those implementation checks. No current CLI path
+executes the proposed matrix or interprets its inventory as a scientific pass.

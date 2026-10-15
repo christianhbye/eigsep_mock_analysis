@@ -123,3 +123,41 @@ committed launcher to run against an older, still-pinned scientific checkout
 without invalidating its checkpoints. Record that launcher's commit and the
 execution record's file hash. Only its own ancestor wrappers are exempted from
 output ownership; competing copies and science runners remain protected.
+
+## Reference-convergence planning
+
+The next numerical-feasibility stage is specified in
+[`../docs/specs/2026-10-15-d5-position-feasibility.md`](../docs/specs/2026-10-15-d5-position-feasibility.md).
+The initial implementation provides a strict plan, a read-only task inventory,
+and pure NumPy convergence diagnostics. Execution/export and launcher wiring
+follow in the next implementation increment; this command cannot start a run.
+
+```bash
+uv run python -m horizon_position_d5.reference_convergence \
+  --plan horizon_position_d5/plans/reference-convergence-v1.json \
+  --pilot /path/to/verified/pilot \
+  --ensemble /path/to/verified/ensemble --dry-run
+```
+
+JSON is printed to stdout. The supplied plan pins the completed study's result
+manifest hashes and numerical criteria. The planner verifies every exported
+block, the pilot/ensemble relationship and coordinate agreement. It derives
+the old worst observed 87.5 m derivative position from coordinate labels,
+deduplicates it against nominal, and inventories signed E/N/U stencils across
+bearing and mask resolutions. Trace tasks are shared by mask evaluations.
+Every task is `not_run`; inventory creation supplies neither timing evidence
+nor a resource gate. Imported artifacts retain their original producer identity.
+
+`convergence.evaluate_stencil` takes explicit refinement levels, axis/sign
+labels, named cell coordinates, presence masks and edge flags. It returns
+left/right/central slopes, signed refinement differences and per-cell forward,
+one-sided and common-slope statuses. Missing cells cannot pass, and distinct
+stable one-sided slopes are preserved. Comparisons use the finest consecutive
+triplet; pass prefixes to retain earlier verdicts when extending a study.
+`difference_summary` retains signed means, RMS, p95, maxima, finite/nonfinite
+counts and the worst cell's coordinates. These are numerical diagnostics on
+the tested scales, not a physical uncertainty or continuum error certificate.
+
+Run the lightweight controls with
+`uv run python -m pytest horizon_position_d5/tests/test_convergence.py
+horizon_position_d5/tests/test_convergence_plan.py -q`.
