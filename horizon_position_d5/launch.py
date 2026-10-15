@@ -124,6 +124,43 @@ def audit_checkpoints(output, root, inputs, head, expected_config=None):
     }
 
 
+def output_owners(output, proc_root=Path("/proc")):
+    """Find competing writers, excluding this launcher's own uv wrappers."""
+    invocation = {os.getpid()}
+    parent = os.getppid()
+    seen = set()
+    while parent > 1 and parent not in seen:
+        seen.add(parent)
+        proc = proc_root / str(parent)
+        try:
+            argv = (proc / "cmdline").read_bytes().split(b"\0")
+            # uv retains the exact child argv while waiting for this launcher.
+            # Only ancestors running this module are part of our invocation;
+            # another launcher or a science runner still owns its output.
+            if b"horizon_position_d5.launch" in argv:
+                invocation.add(parent)
+            parent = int(
+                next(
+                    line.split()[1]
+                    for line in (proc / "status").read_text().splitlines()
+                    if line.startswith("PPid:")
+                )
+            )
+        except (OSError, ValueError, StopIteration):
+            break
+    for proc in proc_root.iterdir():
+        if not proc.name.isdigit() or int(proc.name) in invocation:
+            continue
+        try:
+            if proc.stat().st_uid != os.getuid():
+                continue
+            argv = (proc / "cmdline").read_bytes().split(b"\0")
+            if os.fsencode(output) in argv:
+                yield int(proc.name)
+        except (FileNotFoundError, PermissionError, ProcessLookupError):
+            continue
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -225,17 +262,8 @@ def main(argv=None):
         parser.error(f"unit already live: {unit} ({state})")
     # Also catch earlier/manual runners that did not use this unit name.
     # Match an entire argv element, not a substring of an SSH shell command.
-    for proc in Path("/proc").iterdir():
-        if not proc.name.isdigit() or int(proc.name) == os.getpid():
-            continue
-        try:
-            if proc.stat().st_uid != os.getuid():
-                continue
-            argv = (proc / "cmdline").read_bytes().split(b"\0")
-            if os.fsencode(output) in argv:
-                parser.error(f"output already owned by live PID {proc.name}")
-        except (FileNotFoundError, PermissionError, ProcessLookupError):
-            continue
+    for pid in output_owners(output):
+        parser.error(f"output already owned by live PID {pid}")
     done = output / (args.phase.upper() + "_JOB_DONE")
     if done.exists():
         parser.error("stage already completed; inspect its products before rerunning")

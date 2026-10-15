@@ -188,3 +188,45 @@ def test_dry_run_rejects_changed_compilation_mode(launcher):
     with pytest.raises(SystemExit):
         launch.main(args + ["--dry-run", "--split-orientation"])
     assert not list(output.glob("*.sh"))
+
+
+def test_output_ownership_allows_own_uv_parent_but_rejects_competitors(
+    tmp_path, monkeypatch
+):
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    output = tmp_path / "run"
+
+    def process(pid, parent, module):
+        proc = proc_root / str(pid)
+        proc.mkdir()
+        (proc / "status").write_text(f"PPid:\t{parent}\n")
+        (proc / "cmdline").write_bytes(
+            b"\0".join(
+                [
+                    b"uv",
+                    b"run",
+                    b"python",
+                    b"-m",
+                    module,
+                    b"--output",
+                    str(output).encode(),
+                ]
+            )
+        )
+
+    monkeypatch.setattr(launch.os, "getpid", lambda: 30)
+    monkeypatch.setattr(launch.os, "getppid", lambda: 20)
+    process(30, 20, b"horizon_position_d5.launch")
+    process(20, 1, b"horizon_position_d5.launch")
+    assert list(launch.output_owners(output, proc_root)) == []
+    process(40, 1, b"horizon_position_d5.launch")
+    process(50, 1, b"horizon_position_d5.pilot")
+    assert set(launch.output_owners(output, proc_root)) == {40, 50}
+    # An ancestor with an actual science command is still an owner.
+    (proc_root / "20" / "cmdline").write_bytes(
+        b"\0".join(
+            [b"python", b"-m", b"horizon_position_d5.pilot", str(output).encode()]
+        )
+    )
+    assert set(launch.output_owners(output, proc_root)) == {20, 40, 50}
