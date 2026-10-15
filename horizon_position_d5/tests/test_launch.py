@@ -379,3 +379,119 @@ def test_reject_ensemble_resume_with_changed_worker_identity(launcher):
     with pytest.raises(SystemExit):
         launch.main(args + ["--workers", "4", "--dry-run"])
     assert not list(output.glob("*.sh"))
+
+
+def reference_args(launcher, monkeypatch, phase="reference-probe"):
+    args, output, root, inputs, head, calls, state = launcher
+    args = list(args)
+    args[1] = phase
+    plan = inputs.parent / "plan.json"
+    plan.write_text('{"schema_version": 1}')
+    pilot, ensemble = inputs.parent / "pilot", inputs.parent / "ensemble"
+    pilot.mkdir()
+    ensemble.mkdir()
+    original = launch.command
+
+    def command(*values):
+        if "horizon_position_d5.reference_convergence" in values:
+            return json.dumps(
+                {
+                    "inventory_hash": "i" * 64,
+                    "plan_hash": "p" * 64,
+                    "source": {"source_dirty": False},
+                }
+            )
+        return original(*values)
+
+    monkeypatch.setattr(launch, "command", command)
+    gate_path = inputs.parent / "gate.json"
+    gate = {
+        "producer_commit": head,
+        "allowed_phases": [phase],
+        "scope": "synthetic reference",
+        "timing_basis": "measured tiny control",
+        "plan_sha256": launch.sha256(plan),
+        "inventory_hash": "i" * 64,
+        "workers": 2,
+        "allocated_cpus": 2,
+        "max_seconds": 21600,
+        "memory_high_bytes": 100000000,
+        "memory_max_bytes": 200000000,
+    }
+    gate_path.write_text(json.dumps(gate))
+    args += ["--plan", str(plan), "--pilot", str(pilot), "--ensemble", str(ensemble)]
+    return args, output, gate_path, plan
+
+
+def test_reference_dry_run_and_detached_memory_plan(launcher, monkeypatch, capsys):
+    args, output, gate_path, plan = reference_args(launcher, monkeypatch)
+    launch.main(args + ["--dry-run"])
+    record = json.loads(capsys.readouterr().out)
+    assert "--execute" in record["command"] and "--probe" in record["command"]
+    assert not output.exists()
+    calls = []
+    monkeypatch.setattr(
+        launch.subprocess, "run", lambda args, **kwargs: calls.append(args)
+    )
+    launch.main(args)
+    assert (output / "convergence-plan.json").read_bytes() == plan.read_bytes()
+    assert (output / "gate-reference-probe.json").read_bytes() == gate_path.read_bytes()
+    systemd = next(c for c in calls if c[0] == "systemd-run")
+    assert "--property=MemoryHigh=100000000" in systemd
+    assert "--property=MemoryMax=200000000" in systemd
+    assert "--property=Nice=0" in systemd
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"plan_sha256": "0" * 64},
+        {"inventory_hash": "0" * 64},
+        {"workers": 3},
+        {"allocated_cpus": 3},
+        {"max_seconds": 100},
+        {"memory_high_bytes": -1},
+        {"memory_max_bytes": 1},
+    ],
+)
+def test_reference_bad_gate_rejected_before_writes(launcher, monkeypatch, change):
+    args, output, gate_path, _ = reference_args(launcher, monkeypatch)
+    gate = json.loads(gate_path.read_text())
+    gate.update(change)
+    gate_path.write_text(json.dumps(gate))
+    with pytest.raises(SystemExit):
+        launch.main(args)
+    assert not output.exists()
+
+
+def test_reference_full_run_has_distinct_completion_marker(
+    launcher, monkeypatch, capsys
+):
+    args, output, _, _ = reference_args(launcher, monkeypatch, "reference-convergence")
+    output.mkdir()
+    (output / "REFERENCE-PROBE_JOB_DONE").touch()
+    launch.main(args + ["--dry-run"])
+    record = json.loads(capsys.readouterr().out)
+    assert "--probe" not in record["command"]
+    assert not (output / "RUN_RECORD.json").exists()
+
+
+def test_reference_resume_rejects_changed_plan_identity(launcher, monkeypatch):
+    args, output, _, _ = reference_args(launcher, monkeypatch)
+    _, _, root, _, head, *_ = launcher
+    output.mkdir()
+    identity = {
+        "source_commit": head,
+        "source_tree": "b" * 40,
+        "lock_sha256": launch.sha256(root / "uv.lock"),
+        "input_hashes": {},
+        "versions": {},
+        "config": {"workers": 2, "plan_hash": "old", "inventory_hash": "i" * 64},
+    }
+    (output / "RUN_RECORD.json").write_text(
+        json.dumps(
+            {"identity": identity, "identity_hash": launch.fingerprint(identity)}
+        )
+    )
+    with pytest.raises(SystemExit):
+        launch.main(args + ["--dry-run"])
