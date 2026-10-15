@@ -6,8 +6,9 @@ Example: python -m horizon_position_d5.launch --phase pilot --inputs DIR
 
 Dry runs inspect the clean source, gate, existing unit and checkpoint inventory;
 they create no files. The operator reserves the peak CPU budget of other cbye
-jobs, not their momentarily idle usage. The quota here limits this unit; it does
-not change or control teammates' jobs. Use the same command without --dry-run
+jobs, not their momentarily idle usage. CPU affinity bounds this unit; a quota
+is requested as an additional control (not assumed effective on cgroup v1).
+This does not change or control teammates' jobs. Use the same command without --dry-run
 to launch. Finished checkpoints are validated by the selected stage on resume.
 """
 

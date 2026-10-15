@@ -82,10 +82,12 @@ ensemble. Run the same command with `--dry-run` first.
 
 The launcher checks clean source, input hashes, checkpoint integrity, existing
 run identity and live output owners. Dry runs write nothing. Actual launches
-use an output-scoped lock and systemd unit, nice 2, per-unit CPU quota, affinity,
+use an output-scoped lock and systemd unit, nice 2, requested per-unit CPU quota, affinity,
 single-thread BLAS, a bounded runtime, attempt logs and `/usr/bin/time -v`.
 The CPU reservation sum cannot exceed one third of the host's logical CPUs;
-other sessions still need ongoing monitoring. It never changes their limits.
+affinity supplies the bound because user-service quota enforcement is not
+assumed on Limbo's cgroup v1 setup. Other sessions still need ongoing monitoring.
+The launcher never changes their limits.
 A failed attempt retains its log, exit code and invocation record. Resume uses
 the same source/environment/output; changing science or package versions
 requires a new run. The stage independently validates parameter identities
