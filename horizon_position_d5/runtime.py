@@ -23,7 +23,7 @@ def runtime_record():
             ["git", "-C", str(root), *args], text=True
         ).strip()
 
-    dirty = git("status", "--porcelain", "--untracked-files=no")
+    dirty = git("status", "--porcelain")
     if dirty:
         raise RuntimeError("commit the source before running the science study")
     return {

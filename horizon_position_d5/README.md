@@ -51,3 +51,21 @@ The first eight coordinates sample the selected 87.5 m night near a parked
 pointing; the last four are synthetic tilts. The 30 m and 91 m curves at these
 times are height controls. There is no D5 physical position posterior here.
 Run unit checks with `uv run python -m pytest horizon_position_d5/tests`.
+
+## Held-out ensemble
+
+`python -m horizon_position_d5.ensemble --inputs DIR --pilot COMPLETED_PILOT
+--output DIR --workers 2 --grid-points 3 5` reads the pilot as a hashed
+upstream input, so its producer commit can differ from the ensemble driver.
+Freeze the measured `gate.json` before launching; the first timing measurement
+rules out a 9^3 grid within the overnight budget. Every training/validation
+trace is independently checkpointed. A killed run can resume only at the same
+source/input identity. Source changes require a new output directory.
+
+Eighteen held-out positions test forward temperatures; four positions also
+receive newly traced 10 mm and 3 mm derivative controls. Six optimizer starts
+for each conditional injection expose competing solutions. Local Gaussian
+widths are diagnostics per declared independent kelvin noise; the box is a
+uniform synthetic prior, not an inferred D5 position distribution. Reference
+widths carry a separate derivative-resolution flag. Inspect all failure,
+rank, conditioning and bound-contact information before interpreting a fit.

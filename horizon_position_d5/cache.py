@@ -85,3 +85,47 @@ class BlockCache:
                 "sha256": file_sha256(data_path),
             },
         )
+
+
+def load_results(directory, *, expected_phase=None):
+    """Load a completed earlier phase, checking its identity and file inventory."""
+    directory = Path(directory).resolve()
+    manifest = json.loads((directory / "RESULTS.json").read_text())
+    record = json.loads((directory / "RUN_RECORD.json").read_text())
+    identity = manifest["identity"]
+    digest = fingerprint(identity)
+    if (
+        manifest.get("schema_version") != 1
+        or manifest.get("complete") is not True
+        or manifest.get("label") != "diagnostic"
+        or manifest["identity_hash"] != digest
+        or record["identity_hash"] != digest
+        or record["identity"] != identity
+        or record["phase"] != manifest["phase"]
+        or (expected_phase is not None and manifest["phase"] != expected_phase)
+    ):
+        raise ValueError("incomplete or inconsistent upstream result")
+    blocks = {}
+    for name, item in manifest["files"].items():
+        paths = []
+        for kind in ("data", "metadata"):
+            relative = Path(item[kind])
+            path = (directory / relative).resolve()
+            if relative.is_absolute() or not path.is_relative_to(directory):
+                raise ValueError("upstream result path leaves its directory")
+            if file_sha256(path) != item[f"{kind}_sha256"]:
+                raise ValueError(f"upstream {kind} hash mismatch: {name}")
+            paths.append(path)
+        data, metadata = paths
+        meta = json.loads(metadata.read_text())
+        if (
+            meta.get("complete") is not True
+            or meta["identity"] != identity
+            or meta["identity_hash"] != digest
+            or meta["parameters_hash"] != fingerprint(meta["parameters"])
+            or meta["sha256"] != item["data_sha256"]
+        ):
+            raise ValueError(f"mixed upstream block: {name}")
+        with np.load(data, allow_pickle=False) as block:
+            blocks[name] = {key: block[key] for key in block.files}
+    return manifest, blocks

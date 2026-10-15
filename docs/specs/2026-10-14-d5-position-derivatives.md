@@ -328,3 +328,44 @@ Math review complete (fresh reviewer, 2026-10-14), all findings adopted:
 Review scratch: /tmp/d5-derivative-math-review/check_math.py,
 math_results.json and check_jax.py. The implementation retains the falsifying
 controls as tests. No D5 numerical conclusions yet.
+
+## Implementation review and timing amendment (before the ensemble)
+
+The first private Limbo reference run at `8827688` took 151.1 s for one
+continuous full-bearing trace of all three heights, with 1.01 GiB peak RSS.
+At that measured shared-host rate, a 9^3 training grid alone projects to
+15.3 hours with two workers. The proposed overnight gate therefore compares
+nested 3^3 and 5^3 grids (125 distinct training positions), instead of running
+the proposed 9^3 grid. The response-only phase at `84e40be` supplies the
+remaining timing measurement; freeze the final gate before starting the
+position sweep. No interpolation accuracy has been observed when making this
+scope decision. A 9^3 result must not be claimed. A higher beam/sky band-limit
+comparison and expansion to all 51 frequencies remain outside a pilot unless
+the measured gate explicitly adds them.
+
+The ensemble freezes 18 validation positions before training: four from each
+of seeds 192840 and 716933, six face-near and four corner-near points. Expensive
+position derivative checks use indices [0,4,8,14], covering both seeds plus a
+face and corner, at 10 mm and 3 mm, retaining both one-sided responses. The
+other held-out positions test forward values only. Two noiseless inference
+injections use indices [0,4], and only observed 87.5 m night coordinates.
+
+Fit review of implementation, all findings adopted:
+- Bind report readers to coordinate values, expected block names and finite
+  report contents, as well as hashes. Validate the complete ensemble schema;
+  an empty inventory is never a completed scientific result.
+- Include untracked source files in the runtime clean-tree check.
+- Require reference derivative resolution before interpreting reference local
+  Gaussian widths. After the applicable nuisance projection, each column's
+  step and half one-sided RMS changes must be <=1e-6 K/m + 1e-3 relative;
+  their operator norms must be <0.1 of the smallest singular value. This is
+  an engineering convergence diagnostic, not a certified error bound.
+- Six deterministic optimizer starts include the known synthetic injection,
+  zero and four signed 2 m corners. Keep all costs, failures and positions.
+  Report recovered-minus-injected displacement and competing minima; a local
+  success and rank 3 do not identify an interpolation-induced bias. An exact
+  sine-model ambiguity is retained as a falsifying unit test.
+
+A tiny analytic-horizon integration test runs the complete ensemble and
+inference product path, including serialization. It checks axis order,
+interpolated forward values and the directly evaluated reference residuals.

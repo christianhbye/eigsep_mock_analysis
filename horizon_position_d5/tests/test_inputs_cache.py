@@ -54,3 +54,48 @@ def test_night_selection_checks_coordinate_alignment():
     fit = {**fit, "t": binned["t"] + 1}
     with pytest.raises(ValueError, match="t"):
         select_night_rows(binned, fit, 3)
+
+
+def test_upstream_result_rejects_mixed_source_and_missing_completion(tmp_path):
+    from horizon_position_d5.cache import atomic_json, load_results
+
+    identity = {"source_commit": "a", "input_hashes": {"dem": "b"}}
+    cache = BlockCache(tmp_path / "blocks", identity)
+    cache.write("values", {}, {"value": np.array([17.0])})
+    record = {
+        "identity": identity,
+        "identity_hash": fingerprint(identity),
+        "phase": "example",
+    }
+    manifest = {
+        **record,
+        "schema_version": 1,
+        "label": "diagnostic",
+        "complete": True,
+        "files": {
+            "values": {
+                "data": "blocks/values.npz",
+                "metadata": "blocks/values.json",
+                "data_sha256": file_sha256(tmp_path / "blocks/values.npz"),
+                "metadata_sha256": file_sha256(tmp_path / "blocks/values.json"),
+            }
+        },
+    }
+    atomic_json(tmp_path / "RUN_RECORD.json", record)
+    atomic_json(tmp_path / "RESULTS.json", manifest)
+    _, blocks = load_results(tmp_path, expected_phase="example")
+    assert blocks["values"]["value"][0] == 17
+    with pytest.raises(ValueError):
+        load_results(tmp_path, expected_phase="wrong")
+    other = BlockCache(tmp_path / "blocks", {"source_commit": "changed"})
+    other.write("values", {}, {"value": np.array([17.0])})
+    manifest["files"]["values"]["metadata_sha256"] = file_sha256(
+        tmp_path / "blocks/values.json"
+    )
+    atomic_json(tmp_path / "RESULTS.json", manifest)
+    with pytest.raises(ValueError, match="mixed"):
+        load_results(tmp_path)
+    manifest["complete"] = False
+    atomic_json(tmp_path / "RESULTS.json", manifest)
+    with pytest.raises(ValueError, match="incomplete"):
+        load_results(tmp_path)
