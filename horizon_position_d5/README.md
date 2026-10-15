@@ -18,7 +18,7 @@ private eigsep_analysis_code repository and records the executed results.
 
 From the monorepo root, run focused tests with
 `uv run python -m pytest horizon_position_d5/tests`.
-Run heavy phases on Limbo in the registered private checkout, with nice2,
+Run heavy phases on Limbo in the registered private checkout, with nice 0,
 thread/CPU limits, and the aggregate cbye CPU rule. Inputs, caches and logs must
 be private; team directories are read-only. The pilot command is
 `python -m horizon_position_d5.reference_pilot --inputs INPUT_DIR --output RUN_DIR`.
@@ -33,7 +33,7 @@ its source paths are provenance, not fallbacks when an input is missing.
 ## Temperature pilot
 
 Run `python -m horizon_position_d5.pilot --inputs DIR --output DIR
---response-only` first, with a detached wrapper supplying nice 2, CPU/thread
+--response-only` first, with a detached wrapper supplying nice 0, CPU/thread
 limits, runtime bound, log and exit sentinels. On the private Limbo no-AVX
 environment, use `--split-orientation` after the recorded fused-compilation
 crashes. It preserves the model and transform resolution while removing the
@@ -86,7 +86,7 @@ ensemble. Run the same command with `--dry-run` first.
 
 The launcher checks clean source, input hashes, checkpoint integrity, existing
 run identity and live output owners. Dry runs write nothing. Actual launches
-use an output-scoped lock and systemd unit, nice 2, requested per-unit CPU quota, affinity,
+use an output-scoped lock and systemd unit, nice 0, requested per-unit CPU quota, affinity,
 single-thread BLAS, a bounded runtime, attempt logs and `/usr/bin/time -v`.
 The CPU reservation sum cannot exceed one third of the host's logical CPUs;
 affinity supplies the bound because user-service quota enforcement is not
