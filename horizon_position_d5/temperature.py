@@ -81,12 +81,23 @@ def make_temperature_functions(
     return cached, direct
 
 
-def affine_response(model, mask_shape):
+def affine_response(model, mask_shape, *, sequential=False):
     """Return T(0) and dT/dW, which is constant for this fixed model."""
     zero = jnp.zeros(mask_shape, dtype=jnp.float64)
     offset = model(zero)
-    kernel = jax.jacrev(model)(zero)
-    return np.asarray(offset), np.asarray(kernel)
+    if not sequential:
+        kernel = jax.jacrev(model)(zero)
+        return np.asarray(offset), np.asarray(kernel)
+    # One output cotangent at a time avoids a full batch of transform tapes.
+    _, pullback = jax.vjp(model, zero)
+    adjoint = jax.jit(pullback)
+    shape = tuple(offset.shape)
+    kernels = []
+    for index in range(offset.size):
+        basis = np.zeros(offset.size)
+        basis[index] = 1.0
+        kernels.append(np.asarray(adjoint(jnp.asarray(basis.reshape(shape)))[0]))
+    return np.asarray(offset), np.stack(kernels).reshape((*shape, *mask_shape))
 
 
 def apply_response(offset_k, kernel_k, weight):

@@ -86,3 +86,15 @@ def test_alpha_chain_jvp_and_one_sided_clip_control():
     central = (left + right) / 2
     assert abs(left - right) > 1.0
     assert float(jax.grad(cell)(boundary)) == pytest.approx(float(central), abs=1e-7)
+
+
+def test_sequential_affine_adjoint_has_correct_output_order():
+    coefficients = jnp.arange(24.0).reshape(2, 3, 2, 2) / 19.0
+    baseline = jnp.arange(6.0).reshape(2, 3)
+
+    def analytic(weight):
+        return baseline + jnp.einsum("tfij,ij->tf", coefficients, weight)
+
+    offset, kernel = affine_response(analytic, (2, 2), sequential=True)
+    assert np.array_equal(offset, baseline)
+    assert np.array_equal(kernel, coefficients)

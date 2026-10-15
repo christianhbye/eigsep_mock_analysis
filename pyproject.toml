@@ -37,4 +37,5 @@ extend-exclude = ["notebooks"]
 select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
-testpaths = ["eigsim/tests", "rotis/tests", "pointing_sim/tests"]
+testpaths = ["eigsim/tests", "rotis/tests", "pointing_sim/tests", "horizon_position_d5/tests"]
+pythonpath = ["."]
