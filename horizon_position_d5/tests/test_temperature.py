@@ -19,10 +19,12 @@ from horizon_position_d5.temperature import (
 iers.conf.auto_download = False
 
 
-def functions(sky_temperature=None):
+def functions(sky_temperature=None, uniform_beam=False):
     th, ph = mwss_grid(4)
     theta, phi = np.meshgrid(th, ph, indexing="ij")
     beam = (1 + 0.2 * np.cos(theta) + 0.1 * np.sin(theta) * np.cos(phi))[None]
+    if uniform_beam:
+        beam = np.ones_like(beam)
     sky_map = 1200 + 500 * np.cos(theta) + 200 * np.sin(theta) * np.sin(phi)
     if sky_temperature is not None:
         sky_map = np.full_like(theta, sky_temperature)
@@ -98,3 +100,30 @@ def test_sequential_affine_adjoint_has_correct_output_order():
     offset, kernel = affine_response(analytic, (2, 2), sequential=True)
     assert np.array_equal(offset, baseline)
     assert np.array_equal(kernel, coefficients)
+
+
+def test_uniform_hot_sky_has_known_negative_horizon_response():
+    # Uniform beam and uniform 1200 K sky above 300 K ground: only the
+    # solid-angle weight changes. Compute its derivative from the cell
+    # width and independent NumPy MWSS quadrature, without AD or FD.
+    from s2fft.utils.quadrature import quad_weights
+
+    fast, _, shape = functions(1200.0, uniform_beam=True)
+    offset, kernel = affine_response(fast, shape)
+    theta, phi = mwss_grid(4)
+    edges = np.r_[0.0, (theta[1:] + theta[:-1]) / 2, np.pi]
+    alpha = 0.13
+    row = np.searchsorted(edges, np.pi / 2 - alpha) - 1
+    width = edges[row + 1] - edges[row]
+    weights = np.asarray(quad_weights(L=5, sampling="mwss"))
+    expected = -(1200.0 - 300.0) * weights[row] * len(phi) / (4 * np.pi * width)
+    az = np.linspace(0, 2 * np.pi, 20, endpoint=False)
+
+    def model(a):
+        mask = open_sky_weight(jnp.full(len(az), a), az, 4, sub=8)
+        return apply_response(offset, kernel, mask)
+
+    measured = np.asarray(jax.jacfwd(model)(alpha))
+    assert expected < -1.0
+    assert np.all(measured < -1.0)
+    np.testing.assert_allclose(measured, expected, atol=1e-8, rtol=1e-10)

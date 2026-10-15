@@ -369,3 +369,34 @@ Fit review of implementation, all findings adopted:
 A tiny analytic-horizon integration test runs the complete ensemble and
 inference product path, including serialization. It checks axis order,
 interpolated forward values and the directly evaluated reference residuals.
+
+## Conformance revisions, 2026-10-15
+
+The independent conformance review found no equation defect in the terrain
+reference, candidate propagation, interpolation or nuisance projection. Its
+independent optimizer matched 40 tiny DEM/ray scenes within 4.44e-15 in tan(alpha);
+curvature-sign, transverse-frame and interpolation-derivative mutants were caught.
+The following reporting and execution findings are addressed before completion:
+
+- The reader now pins both reference JSON hashes and producer/input identities,
+  and recomputes the numerical pass conditions. Notebook provenance includes them.
+- Notebook 026 compares finite-displacement predictions in K at every declared
+  pilot step, retaining sampled/continuous baseline and change-only errors.
+- It compares recovered position errors with candidate and resolved-reference
+  local widths across all declared noise scales, retaining validity/bound flags.
+- A claim-to-evidence table ties quantitative summaries to the saved arrays.
+- A uniform 1200 K sky, 300 K ground and uniform beam control checks the nonzero,
+  negative horizon derivative against independent NumPy MWSS quadrature and the
+  analytic cell width. It passed with atol=1e-8 K/rad and rtol=1e-10.
+- `launch.py` records source/gate pins, output ownership, CPU reservations and
+  quota, nice 2, detached invocation IDs, attempt logs, CPU time and peak RSS.
+  `--dry-run` does not write. The operator reserves other jobs' peak CPU budgets;
+  the launcher's unit quota does not govern other sessions.
+
+The first full-resolution response attempt (84e40be) segfaulted during JAX
+`jit__orient` compilation with an 8 MiB stack, while RAM remained available.
+A retry with a 64 MiB stack keeps source and scientific parameters identical;
+its outcome remains pending. The failed attempt is preserved, not relabelled
+as a numerical result. The interrupted full test run had 99 passes, 8 skips
+and 8 stale-IERS prediction failures; `test_suite.py` uses the study's verified
+IERS inputs for a controlled rerun. No acceptance threshold was relaxed.
