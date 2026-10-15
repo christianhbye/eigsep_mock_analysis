@@ -12,8 +12,11 @@ to launch. Finished checkpoints are validated by the selected stage on resume.
 """
 
 import argparse
+import fcntl
 import hashlib
+import importlib.metadata
 import json
+import math
 import os
 import platform
 import shlex
@@ -33,6 +36,87 @@ def private_path(value):
     if not path.is_relative_to(PRIVATE_ROOT):
         raise ValueError(f"path must be under private scratch {PRIVATE_ROOT}: {path}")
     return path
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def fingerprint(value):
+    return hashlib.sha256(
+        json.dumps(
+            value, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode()
+    ).hexdigest()
+
+
+def audit_checkpoints(output, root, inputs, head):
+    """Hash files and metadata without loading arrays or importing JAX."""
+    manifest = json.loads((inputs / "INPUT_MANIFEST.json").read_text())
+    hashes = {}
+    for name, item in manifest.items():
+        if Path(name).name != name:
+            raise ValueError("input manifest names must be plain filenames")
+        path = inputs / name
+        if (
+            not path.is_file()
+            or path.stat().st_size != item["bytes"]
+            or sha256(path) != item["sha256"]
+        ):
+            raise ValueError(f"input missing or altered: {name}")
+        hashes[name] = item["sha256"]
+    compatible, identity = True, None
+    record = output / "RUN_RECORD.json"
+    if record.exists():
+        saved = json.loads(record.read_text())
+        identity = saved["identity"]
+        compatible = (
+            saved["identity_hash"] == fingerprint(identity)
+            and identity["source_commit"] == head
+            and identity["source_tree"] == command("git", "rev-parse", "HEAD^{tree}")
+            and identity["lock_sha256"] == sha256(root / "uv.lock")
+            and identity["input_hashes"] == hashes
+            and all(
+                importlib.metadata.version(name) == version
+                for name, version in identity["versions"].items()
+            )
+        )
+    entries = []
+    for folder in ("blocks", "traces"):
+        directory = output / folder
+        names = {
+            path.stem
+            for pattern in ("*.json", "*.npz")
+            for path in directory.glob(pattern)
+        }
+        for name in sorted(names):
+            data = directory / (name + ".npz")
+            meta_path = directory / (name + ".json")
+            status = "integrity-valid; parameters checked by stage before reuse"
+            try:
+                meta = json.loads(meta_path.read_text())
+                if not compatible or identity is None or meta["identity"] != identity:
+                    status = "stale or unowned identity"
+                elif (
+                    meta.get("complete") is not True
+                    or meta["identity_hash"] != fingerprint(identity)
+                    or meta["parameters_hash"] != fingerprint(meta["parameters"])
+                ):
+                    status = "incomplete or inconsistent metadata"
+                elif sha256(data) != meta["sha256"]:
+                    status = "data hash mismatch"
+            except (OSError, ValueError, KeyError, TypeError):
+                status = "missing or malformed data/metadata"
+            entries.append({"block": folder + "/" + name, "status": status})
+    return {
+        "run_identity_compatible": compatible,
+        "verified_input_hashes": hashes,
+        "blocks": entries,
+    }
 
 
 def main(argv=None):
@@ -71,12 +155,21 @@ def main(argv=None):
         len(cpus) != len(set(cpus))
         or not 1 <= len(cpus) <= 4
         or not set(cpus) <= available
+        or not math.isfinite(args.reserved_other_cpus)
         or args.reserved_other_cpus < 0
         or len(cpus) + args.reserved_other_cpus > budget
         or args.max_seconds <= 0
         or not 8 <= args.stack_mib <= 256
     ):
         parser.error("CPU reservations, runtime or stack exceed the declared limits")
+    launch_lock = None
+    if not args.dry_run:
+        output.mkdir(parents=True, exist_ok=True)
+        launch_lock = (output / "LAUNCH.lock").open("a")
+        try:
+            fcntl.flock(launch_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            parser.error("another launcher owns the output launch lock")
     gate_bytes = args.gate.read_bytes()
     gate = json.loads(gate_bytes)
     if (
@@ -153,11 +246,11 @@ def main(argv=None):
         "max_seconds": args.max_seconds,
         "command": invocation,
         "launcher_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "checkpoint_json_files": sorted(
-            str(p.relative_to(output)) for p in output.glob("blocks/*.json")
-        ),
+        "checkpoint_audit": audit_checkpoints(output, root, inputs, head),
     }
     print(json.dumps(record, indent=2), flush=True)
+    if not record["checkpoint_audit"]["run_identity_compatible"]:
+        parser.error("existing run source, lock, package versions or inputs are stale")
     if args.dry_run:
         return
     output.mkdir(parents=True, exist_ok=True)
@@ -174,11 +267,14 @@ def main(argv=None):
                 "#!/bin/bash",
                 "set -euo pipefail",
                 "exec >> " + quote(str(prefix) + ".log") + " 2>&1",
-                "trap 'rc=$?; if [ $rc -eq 0 ]; then touch "
+                "finish() { rc=$?; echo $rc > "
+                + quote(str(prefix) + ".exit-code")
+                + "; if [ $rc -eq 0 ]; then touch "
                 + quote(str(done))
                 + "; else echo $rc > "
                 + quote(str(failed))
-                + "; fi' EXIT",
+                + "; fi; }",
+                "trap finish EXIT",
                 f"ulimit -s {args.stack_mib * 1024}",
                 "ulimit -c 0",
                 "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1",
@@ -221,6 +317,7 @@ def main(argv=None):
         json.dumps(record, indent=2) + "\n"
     )
     print("Launched " + unit + "; InvocationID=" + record["invocation_id"])
+    launch_lock.close()
 
 
 if __name__ == "__main__":
