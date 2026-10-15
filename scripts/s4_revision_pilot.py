@@ -419,9 +419,7 @@ def main():
                         r[model]["spectral_stat"] <= thresholds[model] for r in ev
                     ],
                 }
-                tests["joint_class_upper_bound"] = [
-                    all(x) for x in zip(*tests.values())
-                ]
+                tests["joint_partial_preview"] = [all(x) for x in zip(*tests.values())]
                 rates = {}
                 for test, flags in tests.items():
                     n, k = len(flags), int(sum(flags))

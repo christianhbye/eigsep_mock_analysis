@@ -11,8 +11,9 @@ The pilot was first executed from historical code commit
 `docs/specs/s4_revision_pilot.py`, SHA256
 `ae7305de80c5611d931d8947181178de254a708faee231f6aaa2e5e062d0fcd6`.
 It is moved here because synthetic-data producers belong in mock_analysis.
-Formatting may change; the relocation manifest checks the complete Python AST
-against that executed source, normalizing only independent top-level import order. Historical frozen run sources remain immutable.
+Formatting and the misleading output-field label change; the relocation
+manifest checks the complete Python AST after normalizing only independent
+top-level import order and that label. Historical frozen run sources remain immutable.
 
 Use Python3.12 with NumPy/SciPy and a compatible no-AVX JAX runtime on Limbo.
 Pass explicit paths; do not mutate another run's environment or checkout:
@@ -45,7 +46,11 @@ exact-invocation terminal success, exit0 and a complete summary.
 
 Calibration/evaluation signs are separate conditional draws of one fixed
 residual field, not new observational noise realizations. Wilson intervals
-quantify Monte Carlo variation only. The joint class statistic is an upper
-bound: it lacks equal-freedom competition, driver/physical gates, high-band
-selection and H0 variants. The small pilot cannot certify a5% tail. Full formal
+quantify Monte Carlo variation only. The joint statistic is a partial-rule preview: it uses only the stricter sign
+arm of criterion1 while omitting equal-freedom competition, driver/physical
+gates, high-band selection and H0 variants. These gate sets are not nested, so
+the preview rate has no guaranteed upper/lower ordering relative to formal power.
+Historical executed JSON names this field `joint_class_upper_bound`; that name
+is misleading and supplies no mathematical bound. Future output uses
+`joint_partial_preview` for the identical Boolean calculation. The small pilot cannot certify a5% tail. Full formal
 T6 must use the complete approved verdict function before any scientific claim.
