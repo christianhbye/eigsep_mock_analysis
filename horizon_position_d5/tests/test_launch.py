@@ -126,6 +126,7 @@ def test_failed_resume_resets_only_own_unit_and_quotes_sentinel(launcher, monkey
     launch.main(args)
     assert run_calls[0][:3] == ["systemctl", "--user", "reset-failed"]
     assert run_calls[0][3] == run_calls[1][2].split("=", 1)[1]
+    assert "--property=Nice=0" in run_calls[1]
     assert (output / "RESPONSE_JOB_FAILED").read_text().strip() == "7"
     assert not (output / "RESPONSE_JOB_DONE").exists()
     assert list(output.glob("*.exit-code"))[0].read_text().strip() == "7"
@@ -133,6 +134,7 @@ def test_failed_resume_resets_only_own_unit_and_quotes_sentinel(launcher, monkey
     assert "export JAX_ENABLE_COMPILATION_CACHE=false" in job
     assert "unset JAX_COMPILATION_CACHE_DIR" in job
     record = json.loads(next(output.glob("*.execution.json")).read_text())
+    assert record["nice"] == 0
     assert record["persistent_jax_cache_enabled"] is False
     assert record["persistent_jax_cache_dir"] is None
 

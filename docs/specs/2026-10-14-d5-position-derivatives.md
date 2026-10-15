@@ -262,7 +262,8 @@ Logs, caches and checkpoints stay in `/mnt/data02/cbye/research/`; no writes und
 `/mnt/data02/eigsep`. Tracked code moves by private GitHub branches. Bulk input
 copies are hashed; never fetch or change Git configuration in the team tree.
 
-Launch with **nice 2**, detached systemd user unit, a runtime budget and a private
+Launch future jobs with **nice 0** (CHB, 2026-10-15), a detached systemd user
+unit, a runtime budget and a private
 non-AVX JAX 0.9.2/jaxlib 0.9.2 environment, matching the mock lock, based
 on the private astronova-noavx Python (conda jaxlib build cpu_py312hc81e8bd_0).
 Keep it separate from the analysis-code JAX 0.10.2 environment. Require a
@@ -389,7 +390,7 @@ The following reporting and execution findings are addressed before completion:
   negative horizon derivative against independent NumPy MWSS quadrature and the
   analytic cell width. It passed with atol=1e-8 K/rad and rtol=1e-10.
 - `launch.py` records source/gate pins, output ownership, CPU reservations and
-  quota, nice 2, detached invocation IDs, attempt logs, CPU time and peak RSS.
+  quota, requested niceness, detached invocation IDs, attempt logs, CPU time and peak RSS.
   `--dry-run` does not write. The operator reserves other jobs' peak CPU budgets;
   the launcher's unit quota does not govern other sessions.
 
@@ -458,3 +459,15 @@ the new producer, explicit worker count and timing amendment before the ensemble
 retain the original pilot gate and costs. Keep the same 3³/5³ grids, held-out
 positions, frequencies, model, precision, inference variants and numerical
 thresholds. No source or environment change is made to a live scientific job.
+
+
+## Scheduling amendment, 2026-10-15 (before the held-out ensemble)
+
+CHB changed the default for future Limbo work from nice 2 to **nice 0**.
+The launcher records nice 0 and requests it for each new detached unit.
+The existing pilot and passive observer retain nice 2, their pinned producer
+and environment, and their original execution records. The aggregate one-third
+CPU allowance, fresh resource inventory, affinity/thread limits and private
+paths remain required. No mathematical operation, input, grid, tolerance or
+acceptance condition changes. The next producer pin records this operational
+change; prior completed controls retain their original pins.

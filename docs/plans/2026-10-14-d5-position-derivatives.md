@@ -15,7 +15,7 @@
    simulate_path. Record reference/candidate baselines separately so the
    product-march approximation is not conflated with derivative error.
 4. Run small synthetic tests locally. Commit/push the clean source before
-   the first private Limbo pilot. Verify JAX import/JVP, nice2 and affinity.
+   the first private Limbo pilot. Verify JAX import/JVP, recorded niceness and affinity.
    A detached job writes a timing gate and first result before being reported
    as running. Source/lock/input fingerprints key every cached block.
 5. Use the measured gate to run displacement, resolution and held-out grid
@@ -34,3 +34,11 @@
 
 No new tracker IDs allocated. Code notebook026 and both worktrees were registered
 before creation in workspace commit4a5fb0c at CHB's explicit request.
+
+
+### Scheduling update, 2026-10-15
+
+New Limbo launches use nice 0 at CHB's direction. Existing runs keep their
+recorded niceness. Retain the one-third aggregate CPU cap and fresh resource
+checks; update the pending native-worker and ensemble launch records before
+launching. The scientific scope and numerical gates do not change.
