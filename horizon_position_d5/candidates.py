@@ -14,10 +14,11 @@ def position_tangents(
     """Return hypothesized d alpha/d(E,N,U), shape (..., n_bearing, 3).
 
     E7 uses a periodic angular secant. E7-prime uses the selected bilinear
-    cell's gradient, which is one-sided at a crease. The shared radial/vertical
-    identities exclude fixed-inner-cutoff and finite-tile boundary maxima;
-    they also need not describe the discrete march envelope. The caller keeps
-    those flags rather than excluding failing bearings from its metrics.
+    cell's gradient, which is one-sided at a crease. The vertical identity
+    holds at a unique maximum even at fixed near/far boundaries. The radial
+    identity fails for a fixed inner cutoff or a discrete march; a stable
+    world-fixed outer boundary does not itself invalidate it. The caller
+    retains boundary flags rather than excluding those bearings from metrics.
     """
     a, r = np.asarray(alpha_rad), np.asarray(distance_m)
     g = np.asarray(gradient_en)
