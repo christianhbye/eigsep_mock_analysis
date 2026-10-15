@@ -1,6 +1,6 @@
 # D5 position-to-temperature derivatives
 
-Status: draft for independent math and fit review, 2026-10-14.
+Status: revised after independent math and fit review, 2026-10-14; final math disposition pending.
 Owner: separate Codex study, approved by CHB; Claude keeps the D5 trackers.
 Branches: mock_analysis `feat/d5-position-derivatives` from `80e027d`;
 analysis_code `nb/d5-position-derivatives` from `5400e59`, notebook 026.
@@ -49,10 +49,19 @@ silently following a path that another task can update.
 - D5 time/pointing pairs from the existing `binned_v0001` plus `fit_v0009`
   manifest, using the coordinate mapping already checked in S1's
   `scripts/023_eigsim_columns.py`. Record its source SHA and the actual rows.
-  These night bins cover 87.5 and 91 m. The 30 m calculation at those same
-  coordinates is explicitly a synthetic control, not observed 30 m sampling.
-- GSM2016 via pygdsm 1.7.0 (no CMB, same convention as S1), held fixed during
-  position perturbations; beam and sky resolution/version recorded.
+  Use `fit_v0009/fit.npz["fitted"]` only as a selection mask and verify its
+  time/era/pointing arrays equal the binned arrays. Its 165 selected rows are
+  all 87.5 m; recorded 91 m rows are not in this night selection. The 30 m and
+  91 m horizons at these coordinates are synthetic height controls. The
+  recorded 91 m unusual/inverted angles are separate implementation stress
+  controls, without an assumed physical interpretation.
+- GSM2016 via pygdsm 1.7.0 (high resolution, no CMB, ud_grade to nside 64,
+  sky transform niter=3), held fixed during position perturbations. Reuse
+  S1's hashed `gsm_maps.npz` and record its source-map hash and generator
+  metadata. Pin both IERS tables and disable automatic downloads; record the
+  reference epoch, actual selected times and any table prediction policy.
+  Apply the same explicit Marjum site as S1: (39.247699, -113.402660, 1800 m).
+  Reuse sky alms only when the first-time reference epoch is identical.
 - Use receiver-free `eigsim.simulate_path`; fixed uniform ground temperature
   from the config. These are free-antenna temperatures, before balun/coax.
 
@@ -69,7 +78,9 @@ ASSUMPTION A2: the box |delta E|,|delta N|,|delta U|<=3.2 m is MOD-102's
 conservative bracket, not a sigma or a measured posterior (Q-ARP-02).
 ASSUMPTION A3: bilinear interpolation and geometric Earth curvature R=6371 km,
 without refraction, define the numerical terrain model under test.
-ASSUMPTION A4: the initial temperature test fixes pointing, beam, ground and sky.
+ASSUMPTION A4: the initial temperature test fixes pointing, beam, ground, sky
+and the topocentric/site frame. It isolates the terrain-mediated position
+response; it does not vary latitude/longitude or a terrain-dependent beam.
 Any parameter-recovery demonstration must state which nuisance parameters are
 fixed or fitted; it cannot establish the uncertainty of the full staged fit.
 
@@ -78,7 +89,10 @@ fixed or fitted; it cannot establish the uncertainty of the full staged fit.
 For a fixed bearing, alpha(p)=atan(max_r q(r,p)), where
 q=(h(E+r ux,N+r uy)-U)/r-r/(2R), r>0. Preserve the team's interpolable DEM domain
 (the upper raster boundary excludes the last pixel) and its 0.25 m inner cutoff.
-Report edge-limited bearings separately. The continuous endpoint limit at the
+Report edge-limited bearings separately. The upper coordinate bound is
+(nx-2-e0)*res (and the corresponding N bound), exactly as team `edge_range`;
+this differs from the full mathematical bilinear domain by one pixel.
+Hold the 0.25 m inner cutoff fixed when refining the sampled march step. The continuous endpoint limit at the
 far tile boundary is part of this reference; the product's finite march omits
 that endpoint. Neither model asserts that terrain outside the tile is absent.
 
@@ -132,7 +146,11 @@ For each candidate, push d_alpha/dp through `open_sky_weight` and
 perturbations and converged central differences. Include a uniform sky with
 Tsky=Tground (horizon-independent T), a known nonzero sky-ground contrast, and
 a perturbation with sign/frame sensitivity. A zero chain response must not pass
-as a successful position gradient.
+as a successful position gradient. Add a horizon exactly on a theta-cell
+edge and compare both one-sided differences with the central difference.
+The clipped cell weights are only piecewise differentiable for finite phi
+subsampling: JAX can return a half-slope that agrees with a central difference
+at a kink. C1 interpolation of alpha does not make the whole T chain C1.
 
 For fixed sky, beam, pointing and ground, the implemented temperature is affine
 in W: T(W)=T(0)+K.W. This follows from the masked beam transform and convolution
@@ -180,13 +198,19 @@ cannot remove physical or model kinks; list failures and the scale they affect.
 
 ## Pilot, gates and inference diagnostic
 
-Pilot: 91 m, four native beam frequencies spanning the supported data band,
-eight D5 time/pointing pairs selected deterministically to span time and drive
-orientations, three displacement axes. Include synthetic analytic controls.
+Pilot: observed-coordinate sample at 87.5 m, four native beam frequencies
+spanning the supported data band, three displacement axes, and synthetic
+analytic controls. Select chronological 87.5 m fitted rows with
+np.rint(np.linspace(0,N-1,8)): rows [0,23,47,70,94,117,141,164] in the current
+input, July 17 04:22-11:23 UTC. This samples time near one parked orientation,
+not a raster. Apply S1 offsets and Rz(psi). Repeat those coordinates at 91 m
+and 30 m as synthetic height controls. Include an explicitly synthetic
+drive-angle grid at representative selected times to test non-zenith responses.
+Do not describe the chosen night rows as broad D5 orientation coverage.
 Measure one full-sized trace and temperature block, RSS, and actual CPU time.
 A one-time timing gate records the remaining schedule and any scope drops before
 the ensemble begins. Extend to three eras, all 51 supported native frequencies,
-and more independent D5 pairs within the measured cost. Keep every scope drop
+and more independent selected D5 night pairs within the measured cost. Keep every scope drop
 in the run report and PR; do not describe a pilot as full-D5 validation.
 
 Pre-registered numerical gates (engineering targets, not physical accuracies):
@@ -205,9 +229,16 @@ Pre-registered numerical gates (engineering targets, not physical accuracies):
   Store the full residual arrays, worst-case coordinates and failure masks.
 
 Inference demonstration uses direct-reference synthetic temperatures at held-out
-positions. Fit with a candidate model over a local identifiable subspace;
+positions. E7/E7-prime forward candidates are T(p0)+J(p-p0), a local linear
+model whose domain is the tested position bracket; the interpolator supplies
+a separate nonlinear forward model. This is a surrogate-likelihood test, not
+a test using an approximate optimizer gradient with an exact forward model.
+Fit with a candidate model over a local identifiable subspace;
 compare to direct-reference likelihood evaluations. Test a fixed-nuisance case
-and at least gain/offset freedom, reporting Jacobian rank/conditioning. If a
+and a single global multiplicative gain plus a single global additive K
+offset across the selected times/frequencies, reporting Jacobian
+rank/conditioning. Per-frequency freedom is an additional labeled variant
+only if the global experiment is identifiable and the time budget permits. If a
 D5 covariance/position prior is not established, use declared synthetic noise
 levels and a bounded uniform position prior for a numerical experiment, clearly
 separated from D5 uncertainty. Report results across noise scales (the numerical
@@ -224,7 +255,11 @@ Logs, caches and checkpoints stay in `/mnt/data02/cbye/research/`; no writes und
 copies are hashed; never fetch or change Git configuration in the team tree.
 
 Launch with **nice 2**, detached systemd user unit, a runtime budget and a private
-non-AVX JAX environment. Verify the actual nice level and import origins. Use
+non-AVX JAX 0.9.2/jaxlib 0.9.2 environment, matching the mock lock, based
+on the private astronova-noavx Python (conda jaxlib build cpu_py312hc81e8bd_0).
+Keep it separate from the analysis-code JAX 0.10.2 environment. Require a
+JIT/JVP smoke test and record x64, package/import paths and the conda build.
+Verify the actual nice level and import origins. Use
 CPU affinity/thread limits to bound this study, initially two logical CPUs, and
 check every other cbye job so aggregate use stays <=one third of all 16 logical
 CPUs. Reduce concurrency if host pressure grows. User-service CPUQuota is not
@@ -237,7 +272,10 @@ sentinels. Check the live systemd unit as well as sentinels on resume. Never syn
 the run environment while its unit is active. Bound logs and serialized output.
 
 Code notebook 026 loads these results through `paths.product_dir` and a small
-validated result reader. Its first code cell calls `provenance.show()`. Save an
+validated result reader that rejects missing/incomplete or stale blocks,
+inconsistent source/lock/input fingerprints and mixed run configurations.
+Distinguish the simulation runtime from the analysis-code runtime.
+Its first code cell calls `provenance.show()`. Save an
 intermediate figure for every section, units/frames on axes, tables with maxima
 and counts, a claim-to-evidence table, and `PROVENANCE.json` with upstream hashes.
 Do not embed expensive simulation in notebook execution. The canonical rerun
@@ -255,4 +293,20 @@ waits for CHB's merges, as does any claim of graduation to the team.
 
 ## Review log
 
-Pending independent math and fit reviews. No numerical conclusions yet.
+Fit review complete (fresh reviewer, 2026-10-14):
+- F1, must-fix: actual night mask and parked pointing scope. Fixed; input manifest
+  now includes fit_selection.npz SHA c3b1935935061aeecf57dd697bc83d5c6cc1b181c66a80bbd86943694eb3a3d0.
+- F2, must-fix: JAX/jaxlib version mismatch on the common Limbo base. Fixed by
+  the separate matching 0.9.2 base; JIT/JVP preflight remains required.
+- F3-F6: complete IERS/GSM/time fingerprint, define linear surrogate and global
+  nuisance freedom, enforce notebook input validation, label synthetic controls.
+  All adopted above. Source and data hashes are part of the implementation.
+- Limbo survey: main df83d94, memo-008 bcce4a5, memo-008-excess 0174cf2,
+  memo-008-sky 22e1c3f; no derivative branch found in the focused survey.
+  Tomorrow's contribution packet must correct the old skyline packet's claim
+  of exact derivatives from skyline distances/heights in light of issue 14.
+Math review preliminary findings adopted:
+- M1: exact team outer boundary and fixed inner cutoff; addressed above.
+- M2: finite-subsample W clip kinks; one-sided boundary control added.
+- M3: preserve the synthetic crease counterexample to E7-prime as a regression.
+No D5 numerical conclusions yet. Final math report/disposition follows.
