@@ -176,6 +176,11 @@ def main(argv=None):
     parser.add_argument("--stack-mib", type=int, default=64)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--split-orientation", action="store_true")
+    parser.add_argument(
+        "--persistent-jax-cache",
+        action="store_true",
+        help="retain compiled executables privately under OUTPUT/jax-cache",
+    )
     args = parser.parse_args(argv)
     if platform.node().split(".")[0] != "limbo":
         parser.error("this launcher is for the private Limbo scratch only")
@@ -255,6 +260,13 @@ def main(argv=None):
                 str(min(len(cpus), 2)),
             ]
         )
+    cache_dir = output / "jax-cache" if args.persistent_jax_cache else None
+    if cache_dir is not None and cache_dir.is_symlink():
+        parser.error("JAX cache must not be a symlink")
+    if cache_dir is not None and cache_dir.exists():
+        info = cache_dir.stat()
+        if not cache_dir.is_dir() or info.st_uid != os.getuid() or info.st_mode & 0o022:
+            parser.error("JAX cache must be a private owned directory, not a link")
     run_hash = hashlib.sha256(str(output).encode()).hexdigest()[:10]
     unit = f"d5-derivative-run-{run_hash}.service"
     state = command("systemctl", "--user", "show", unit, "-p", "ActiveState", "--value")
@@ -281,6 +293,8 @@ def main(argv=None):
         "reserved_other_cbye_cpus": args.reserved_other_cpus,
         "aggregate_cbye_cap_cpus": budget,
         "stack_mib": args.stack_mib,
+        "persistent_jax_cache_enabled": args.persistent_jax_cache,
+        "persistent_jax_cache_dir": str(cache_dir) if cache_dir is not None else None,
         "max_seconds": args.max_seconds,
         "command": invocation,
         "launcher_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -304,6 +318,8 @@ def main(argv=None):
         return
     output.mkdir(parents=True, exist_ok=True)
     frozen_gate.write_bytes(gate_bytes)
+    if cache_dir is not None:
+        cache_dir.mkdir(mode=0o700, exist_ok=True)
     prefix = output / f"{args.phase}-{attempt}"
     job = Path(str(prefix) + ".sh")
     failed = output / (args.phase.upper() + "_JOB_FAILED")
@@ -328,6 +344,13 @@ def main(argv=None):
                 "ulimit -c 0",
                 "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1",
                 "export JAX_ENABLE_X64=1 PYTHONUNBUFFERED=1",
+                "export JAX_ENABLE_COMPILATION_CACHE="
+                + ("true" if cache_dir is not None else "false"),
+                (
+                    "export JAX_COMPILATION_CACHE_DIR=" + quote(str(cache_dir))
+                    if cache_dir is not None
+                    else "unset JAX_COMPILATION_CACHE_DIR"
+                ),
                 "cd " + quote(str(root)),
                 'test "$(git rev-parse HEAD)" = ' + quote(head),
                 'test -z "$(git status --porcelain --untracked-files=all)"',

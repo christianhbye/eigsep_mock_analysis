@@ -129,6 +129,12 @@ def test_failed_resume_resets_only_own_unit_and_quotes_sentinel(launcher, monkey
     assert (output / "RESPONSE_JOB_FAILED").read_text().strip() == "7"
     assert not (output / "RESPONSE_JOB_DONE").exists()
     assert list(output.glob("*.exit-code"))[0].read_text().strip() == "7"
+    job = next(output.glob("*.sh")).read_text()
+    assert "export JAX_ENABLE_COMPILATION_CACHE=false" in job
+    assert "unset JAX_COMPILATION_CACHE_DIR" in job
+    record = json.loads(next(output.glob("*.execution.json")).read_text())
+    assert record["persistent_jax_cache_enabled"] is False
+    assert record["persistent_jax_cache_dir"] is None
 
 
 def test_checkpoint_audit_checks_file_and_producer_identity(launcher):
@@ -230,3 +236,43 @@ def test_output_ownership_allows_own_uv_parent_but_rejects_competitors(
         )
     )
     assert set(launch.output_owners(output, proc_root)) == {20, 40, 50}
+
+
+def test_persistent_cache_is_private_recorded_and_dry_run_creates_nothing(
+    launcher, monkeypatch
+):
+    args, output, *_ = launcher
+    launch.main(args + ["--persistent-jax-cache", "--dry-run"])
+    assert not output.exists()
+    monkeypatch.setattr(
+        launch.subprocess,
+        "run",
+        lambda command, **kwargs: subprocess.CompletedProcess(command, 0),
+    )
+    launch.main(args + ["--persistent-jax-cache"])
+    cache = output / "jax-cache"
+    assert cache.is_dir() and cache.stat().st_mode & 0o777 == 0o700
+    record = json.loads(next(output.glob("*.execution.json")).read_text())
+    assert record["persistent_jax_cache_enabled"] is True
+    assert record["persistent_jax_cache_dir"] == str(cache)
+    job = next(output.glob("*.sh")).read_text()
+    assert "export JAX_ENABLE_COMPILATION_CACHE=true" in job
+    assert "export JAX_COMPILATION_CACHE_DIR=" + launch.shlex.quote(str(cache)) in job
+
+
+@pytest.mark.parametrize("kind", ["link", "broken-link", "group-writable"])
+def test_reject_untrusted_persistent_cache(launcher, monkeypatch, kind):
+    args, output, root, *_ = launcher
+    output.mkdir()
+    cache = output / "jax-cache"
+    if kind in ("link", "broken-link"):
+        cache.symlink_to(
+            root if kind == "link" else root / "absent", target_is_directory=True
+        )
+    else:
+        cache.mkdir(mode=0o777)
+        cache.chmod(0o777)
+    monkeypatch.setattr(launch.os, "getuid", lambda: cache.stat().st_uid)
+    with pytest.raises(SystemExit):
+        launch.main(args + ["--persistent-jax-cache", "--dry-run"])
+    assert not list(output.glob("*.sh"))

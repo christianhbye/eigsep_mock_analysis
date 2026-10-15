@@ -102,3 +102,17 @@ The test helper `python -m horizon_position_d5.test_suite --inputs DIR
 horizon_position_d5/tests -q` uses the study's hashed IERS tables. Synthetic
 controls otherwise use a scoped offline policy, leaving unrelated frame tests'
 Earth-orientation policy unchanged.
+
+For a future attempt, `--persistent-jax-cache` records and enables a private
+`OUTPUT/jax-cache` directory (created with mode 0700). The launcher refuses a
+symlink, a directory owned by another user, or a group/other-writable cache.
+This can reuse expensive compiled executables after the study clears its
+in-memory caches, and on sequential resumes; numerical checkpoint identity and
+all response checks remain unchanged. It cannot change an already running job
+or recover a compilation that failed before being cached. Cache use is part of
+the attempt record, so timing comparisons must state whether it was enabled.
+The launcher explicitly sets the cache enable switch in either mode, overriding
+an inherited environment value. The default leaves persistent caching off. See the official
+[JAX cache guide](https://docs.jax.dev/en/latest/persistent_compilation_cache.html)
+and [`clear_caches` contract](https://docs.jax.dev/en/latest/_autosummary/jax.clear_caches.html);
+the installed JAX 0.9.2 implementation was also checked.
