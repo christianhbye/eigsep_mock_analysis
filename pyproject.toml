@@ -39,3 +39,5 @@ select = ["E", "F", "I", "W"]
 [tool.pytest.ini_options]
 testpaths = ["eigsim/tests", "rotis/tests", "pointing_sim/tests", "horizon_position_d5/tests"]
 pythonpath = ["."]
+# eigsim/tests and rotis/tests are both Python packages named tests.
+addopts = "--import-mode=importlib"
