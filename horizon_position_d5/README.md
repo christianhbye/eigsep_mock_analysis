@@ -88,7 +88,7 @@ The launcher checks clean source, input hashes, checkpoint integrity, existing
 run identity and live output owners. Dry runs write nothing. Actual launches
 use an output-scoped lock and systemd unit, nice 0, requested per-unit CPU quota, affinity,
 single-thread BLAS, a bounded runtime, attempt logs and `/usr/bin/time -v`.
-The CPU reservation sum cannot exceed one third of the host's logical CPUs;
+The CPU reservation sum cannot exceed 50% of the host's logical CPUs;
 affinity supplies the bound because user-service quota enforcement is not
 assumed on Limbo's cgroup v1 setup. Other sessions still need ongoing monitoring.
 The launcher never changes their limits.

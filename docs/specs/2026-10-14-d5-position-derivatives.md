@@ -270,8 +270,8 @@ Keep it separate from the analysis-code JAX 0.10.2 environment. Require a
 JIT/JVP smoke test and record x64, package/import paths and the conda build.
 Verify the actual nice level and import origins. Use
 CPU affinity/thread limits to bound this study, initially two logical CPUs, and
-check every other cbye job so aggregate use stays <=one third of all 16 logical
-CPUs. Reduce concurrency if host pressure grows. User-service CPUQuota is not
+check every other cbye job so aggregate use stays <=50% of all 16 logical
+CPUs (CHB, updated 2026-10-15). Reduce concurrency if host pressure grows. User-service CPUQuota is not
 assumed effective on Limbo's cgroup-v1 configuration. Never modify another job.
 
 Checkpoint each trace/response block atomically under a hash of inputs, parameters,
@@ -471,3 +471,16 @@ CPU allowance, fresh resource inventory, affinity/thread limits and private
 paths remain required. No mathematical operation, input, grid, tolerance or
 acceptance condition changes. The next producer pin records this operational
 change; prior completed controls retain their original pins.
+
+
+## Aggregate CPU allowance amendment, 2026-10-15
+
+CHB subsequently raised the aggregate allowance from one third to **50%** of
+Limbo's total CPU capacity, retaining nice 0 for future launches. This is eight
+CPU equivalents on the current 16-logical-CPU host, shared across all cbye
+jobs and sessions. The launcher enforces the updated sum of this job's CPU
+allocation and the declared peak reservation for other cbye work. The study
+retains its tested four-worker/four-CPU allocation; the policy is a ceiling,
+not a requirement to consume it. Fresh process/unit and RAM/I/O checks remain
+required. Earlier gates and execution records retain their actual allowances.
+No numerical scope or acceptance criterion changes.

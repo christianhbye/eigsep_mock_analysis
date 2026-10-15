@@ -39,6 +39,6 @@ before creation in workspace commit4a5fb0c at CHB's explicit request.
 ### Scheduling update, 2026-10-15
 
 New Limbo launches use nice 0 at CHB's direction. Existing runs keep their
-recorded niceness. Retain the one-third aggregate CPU cap and fresh resource
+recorded niceness. Apply the latest 50% aggregate CPU cap (CHB, 2026-10-15) and fresh resource
 checks; update the pending native-worker and ensemble launch records before
 launching. The scientific scope and numerical gates do not change.

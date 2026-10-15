@@ -72,12 +72,22 @@ def launcher(tmp_path, monkeypatch):
     return args, output, root, inputs, commit, calls, state
 
 
-@pytest.mark.parametrize("budget", ["nan", "inf", "-inf", "-1", "3.34"])
+@pytest.mark.parametrize("budget", ["nan", "inf", "-inf", "-1", "6.01"])
 def test_reject_nonfinite_or_overallocated_cpu_reservations(launcher, budget):
     args, output, *_ = launcher
     args[-1] = budget
     with pytest.raises(SystemExit):
         launch.main(args + ["--dry-run"])
+    assert not output.exists()
+
+
+def test_allow_exact_half_host_aggregate_reservation(launcher, capsys):
+    args, output, *_ = launcher
+    args[-1] = "6"
+    launch.main(args + ["--dry-run"])
+    record = json.loads(capsys.readouterr().out)
+    assert record["aggregate_cbye_cap_cpus"] == 8
+    assert len(record["cpus"]) + record["reserved_other_cbye_cpus"] == 8
     assert not output.exists()
 
 
@@ -327,7 +337,8 @@ def test_ensemble_worker_allocation_preserves_affinity_budget(
     assert record["workers"] == count
     assert record["command"][-2:] == ["--workers", str(count)]
     assert record["cpus"] == [0, 1, 2, 3]
-    assert len(record["cpus"]) + record["reserved_other_cbye_cpus"] < 16 / 3
+    assert record["aggregate_cbye_cap_cpus"] == 8
+    assert len(record["cpus"]) + record["reserved_other_cbye_cpus"] <= 8
     assert not output.exists()
 
 

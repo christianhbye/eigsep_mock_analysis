@@ -228,7 +228,7 @@ def main(argv=None):
         parser.error("producer checkout must be clean")
     cpus = [int(value) for value in args.cpus.split(",")]
     available = os.sched_getaffinity(0)
-    budget = os.cpu_count() / 3
+    budget = os.cpu_count() / 2
     if (
         len(cpus) != len(set(cpus))
         or not 1 <= len(cpus) <= 4
