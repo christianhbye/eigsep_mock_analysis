@@ -20,6 +20,7 @@ import json
 import math
 import os
 import platform
+import re
 import shlex
 import subprocess
 import time
@@ -124,9 +125,32 @@ def audit_checkpoints(output, root, inputs, head, expected_config=None):
     }
 
 
+def is_launcher_invocation(argv, launcher_file):
+    """Recognize the Python entrypoint in documented direct/uv invocations."""
+    args = list(argv)
+    if args and os.path.basename(args[0]) == b"uv":
+        if args[1:2] != [b"run"]:
+            return False
+        args = args[2:]
+        if args[:1] == [b"--no-sync"]:
+            args = args[1:]
+    if not args or not re.fullmatch(
+        rb"python(?:[0-9]+(?:\.[0-9]+)?)?", os.path.basename(args[0])
+    ):
+        return False
+    args = args[1:]
+    while args and args[0] in (b"-u", b"-B"):
+        args = args[1:]
+    return args[:1] == [launcher_file] or args[:2] == [
+        b"-m",
+        b"horizon_position_d5.launch",
+    ]
+
+
 def output_owners(output, proc_root=Path("/proc")):
     """Find competing writers, excluding this launcher's own uv wrappers."""
     invocation = {os.getpid()}
+    launcher_file = os.fsencode(Path(__file__).resolve())
     parent = os.getppid()
     seen = set()
     while parent > 1 and parent not in seen:
@@ -135,9 +159,10 @@ def output_owners(output, proc_root=Path("/proc")):
         try:
             argv = (proc / "cmdline").read_bytes().split(b"\0")
             # uv retains the exact child argv while waiting for this launcher.
-            # Only ancestors running this module are part of our invocation;
-            # another launcher or a science runner still owns its output.
-            if b"horizon_position_d5.launch" in argv:
+            # Only ancestors running this module or this exact script are
+            # part of our invocation. Another launcher or a science runner
+            # still owns its output, including a non-ancestor of the same file.
+            if is_launcher_invocation(argv, launcher_file):
                 invocation.add(parent)
             parent = int(
                 next(

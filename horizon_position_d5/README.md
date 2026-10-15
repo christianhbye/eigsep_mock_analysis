@@ -116,3 +116,10 @@ an inherited environment value. The default leaves persistent caching off. See t
 [JAX cache guide](https://docs.jax.dev/en/latest/persistent_compilation_cache.html)
 and [`clear_caches` contract](https://docs.jax.dev/en/latest/_autosummary/jax.clear_caches.html);
 the installed JAX 0.9.2 implementation was also checked.
+
+The stdlib-only launcher also accepts an absolute script-path invocation through
+`uv run --no-sync python /private/path/launch.py`. This permits a separately
+committed launcher to run against an older, still-pinned scientific checkout
+without invalidating its checkpoints. Record that launcher's commit and the
+execution record's file hash. Only its own ancestor wrappers are exempted from
+output ownership; competing copies and science runners remain protected.

@@ -196,38 +196,37 @@ def test_dry_run_rejects_changed_compilation_mode(launcher):
     assert not list(output.glob("*.sh"))
 
 
+@pytest.mark.parametrize("standalone", [False, True])
+@pytest.mark.parametrize(
+    "wrapper", [[], [b"uv", b"run"], [b"uv", b"run", b"--no-sync"]]
+)
 def test_output_ownership_allows_own_uv_parent_but_rejects_competitors(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, standalone, wrapper
 ):
     proc_root = tmp_path / "proc"
     proc_root.mkdir()
     output = tmp_path / "run"
+    launcher_args = (
+        [launch.os.fsencode(launch.Path(launch.__file__).resolve())]
+        if standalone
+        else [b"-m", b"horizon_position_d5.launch"]
+    )
 
-    def process(pid, parent, module):
+    def process(pid, parent, entry):
         proc = proc_root / str(pid)
         proc.mkdir()
         (proc / "status").write_text(f"PPid:\t{parent}\n")
         (proc / "cmdline").write_bytes(
-            b"\0".join(
-                [
-                    b"uv",
-                    b"run",
-                    b"python",
-                    b"-m",
-                    module,
-                    b"--output",
-                    str(output).encode(),
-                ]
-            )
+            b"\0".join([*wrapper, b"python", *entry, b"--output", str(output).encode()])
         )
 
     monkeypatch.setattr(launch.os, "getpid", lambda: 30)
     monkeypatch.setattr(launch.os, "getppid", lambda: 20)
-    process(30, 20, b"horizon_position_d5.launch")
-    process(20, 1, b"horizon_position_d5.launch")
+    process(30, 20, launcher_args)
+    process(20, 1, launcher_args)
     assert list(launch.output_owners(output, proc_root)) == []
-    process(40, 1, b"horizon_position_d5.launch")
-    process(50, 1, b"horizon_position_d5.pilot")
+    process(40, 1, launcher_args)
+    process(50, 1, [b"-m", b"horizon_position_d5.pilot"])
     assert set(launch.output_owners(output, proc_root)) == {40, 50}
     # An ancestor with an actual science command is still an owner.
     (proc_root / "20" / "cmdline").write_bytes(
@@ -236,6 +235,26 @@ def test_output_ownership_allows_own_uv_parent_but_rejects_competitors(
         )
     )
     assert set(launch.output_owners(output, proc_root)) == {20, 40, 50}
+    # Matching the basename is not enough to exempt an unrelated script.
+    (proc_root / "20" / "cmdline").write_bytes(
+        b"\0".join(
+            [b"python", str(tmp_path / "launch.py").encode(), str(output).encode()]
+        )
+    )
+    assert set(launch.output_owners(output, proc_root)) == {20, 40, 50}
+    # Receiving a launcher path/module as data does not make a science
+    # ancestor a launcher, even with a later Python-looking argument.
+    for data_args in (
+        [b"--launcher", launch.os.fsencode(launch.Path(launch.__file__).resolve())],
+        [b"--module", b"horizon_position_d5.launch"],
+        [b"--args", b"python", *launcher_args],
+    ):
+        (proc_root / "20" / "cmdline").write_bytes(
+            b"\0".join(
+                [*wrapper, b"python", b"driver.py", *data_args, str(output).encode()]
+            )
+        )
+        assert set(launch.output_owners(output, proc_root)) == {20, 40, 50}
 
 
 def test_persistent_cache_is_private_recorded_and_dry_run_creates_nothing(
