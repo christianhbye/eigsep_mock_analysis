@@ -16,7 +16,13 @@ from horizon_position_d5.temperature import (
     make_temperature_functions,
 )
 
-iers.conf.auto_download = False
+
+@pytest.fixture(autouse=True)
+def offline_iers_for_synthetic_controls():
+    # Keep this policy local to these 2023 synthetic times. A collection-time
+    # assignment would disable fresh tables for unrelated 2026 frame tests.
+    with iers.conf.set_temp("auto_download", False):
+        yield
 
 
 def functions(sky_temperature=None, uniform_beam=False):

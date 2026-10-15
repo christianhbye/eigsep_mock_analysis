@@ -400,3 +400,9 @@ its outcome remains pending. The failed attempt is preserved, not relabelled
 as a numerical result. The interrupted full test run had 99 passes, 8 skips
 and 8 stale-IERS prediction failures; `test_suite.py` uses the study's verified
 IERS inputs for a controlled rerun. No acceptance threshold was relaxed.
+
+A collection-time `iers.conf.auto_download=False` in the new toy temperature
+control contributed to the stale-table failures in unrelated 2026 frame tests.
+It is now a scoped fixture restored after each toy test. The detached rerun
+still uses pinned current tables for deterministic science validation. This
+fix removes a test-isolation regression rather than relaxing table validity.
