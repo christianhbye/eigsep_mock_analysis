@@ -6,6 +6,7 @@ Run with --plan FILE --pilot DIR --ensemble DIR --dry-run. JSON goes to stdout.
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 
 from .cache import file_sha256
@@ -25,7 +26,18 @@ def source_identity():
         "cli_sha256": "horizon_position_d5/reference_convergence.py",
         "lock_sha256": "uv.lock",
     }
-    return {name: file_sha256(root / path) for name, path in paths.items()}
+
+    def git(*args):
+        return subprocess.check_output(
+            ["git", "-C", str(root), *args], text=True
+        ).strip()
+
+    return {
+        **{name: file_sha256(root / path) for name, path in paths.items()},
+        "source_commit": git("rev-parse", "HEAD"),
+        "source_tree": git("rev-parse", "HEAD^{tree}"),
+        "source_dirty": bool(git("status", "--porcelain")),
+    }
 
 
 def main(argv=None):
