@@ -11,6 +11,7 @@ from .config import load_config
 from .data import load_beam, load_horizon, load_horizon_curve
 from .horizon import d5_open_sky_weight, mwss_grid, open_sky_weight
 from .noise import radiometer_noise
+from .position import PositionHorizonGrid
 from .rotations import (
     beam_to_alm,
     drive_rotation_matrix,
@@ -27,6 +28,7 @@ from .simulate import (
 )
 
 __all__ = [
+    "PositionHorizonGrid",
     "beam_to_alm",
     "compute_fgnd",
     "correct_ground_loss",
