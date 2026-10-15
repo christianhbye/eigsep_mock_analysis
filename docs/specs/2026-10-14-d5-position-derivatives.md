@@ -432,3 +432,29 @@ its source needed updating: 44 passed, 8 skipped, no failures before interrupt.
 The private PR's GitHub test job at `53aa138` completed with 238 passed and
 9 skipped; its external-data skips do not replace the native D5 run. The new
 compilation change requires its own test results.
+
+
+## Worker-allocation amendment (before the held-out ensemble)
+
+The live pilot remains at `ae41eab`; its checkout and environment are unchanged.
+After the earlier peer compute job ended, its allocation was four logical CPUs
+plus one reserved CPU equivalent for other cbye activity, below 16/3. Its first
+six uncached traces took 207.6–230.5 s each on the busy host, compared with the
+151.1 s timing reference. This changes the expected duration, not the numerical
+scope or acceptance criteria.
+
+The ensemble launcher now accepts an explicit `--workers` count from one to the
+number of allocated CPUs (at most four); the default remains two or fewer. All
+workers inherit the same CPU affinity and nice level. A count cannot change
+when resuming an existing ensemble identity. A real four-process spawn test
+compares every trace array with serial evaluation, preserves input order, and
+checks reversed-order cache reuse. This is a concurrency check, not a measured
+D5 speedup.
+
+Four workers may be selected only after the pilot finishes, the new producer
+passes review and tests, and a fresh inventory of all cbye processes/units,
+CPU and I/O pressure, RAM and peak reservations supports the allocation. Record
+the new producer, explicit worker count and timing amendment before the ensemble;
+retain the original pilot gate and costs. Keep the same 3³/5³ grids, held-out
+positions, frequencies, model, precision, inference variants and numerical
+thresholds. No source or environment change is made to a live scientific job.

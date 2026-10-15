@@ -536,7 +536,7 @@ def main(argv=None):
     parser.add_argument("--inputs", type=Path, required=True)
     parser.add_argument("--pilot", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--workers", type=int, choices=(1, 2), default=2)
+    parser.add_argument("--workers", type=int, choices=(1, 2, 3, 4), default=2)
     parser.add_argument("--grid-points", nargs="+", type=int, default=[3, 5])
     args = parser.parse_args(argv)
     if args.grid_points != sorted(set(args.grid_points)) or min(args.grid_points) < 2:

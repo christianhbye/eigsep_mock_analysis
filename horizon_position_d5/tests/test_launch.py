@@ -295,3 +295,74 @@ def test_reject_untrusted_persistent_cache(launcher, monkeypatch, kind):
     with pytest.raises(SystemExit):
         launch.main(args + ["--persistent-jax-cache", "--dry-run"])
     assert not list(output.glob("*.sh"))
+
+
+def ensemble_args(launcher):
+    args, output, root, *_ = launcher
+    args[1] = "ensemble"
+    args[args.index("--cpus") + 1] = "0,1,2,3"
+    args[args.index("--reserved-other-cpus") + 1] = "1"
+    gate_path = launch.Path(args[args.index("--gate") + 1])
+    gate = json.loads(gate_path.read_text())
+    gate["allowed_phases"].append("ensemble")
+    gate_path.write_text(json.dumps(gate))
+    pilot = root.parent / "pilot"
+    pilot.mkdir()
+    (pilot / "RESULTS.json").write_text("{}")
+    return args + ["--pilot", str(pilot)], output
+
+
+@pytest.mark.parametrize("workers", [None, 1, 4])
+def test_ensemble_worker_allocation_preserves_affinity_budget(
+    launcher, capsys, workers
+):
+    args, output = ensemble_args(launcher)
+    if workers is not None:
+        args += ["--workers", str(workers)]
+    launch.main(args + ["--dry-run"])
+    record = json.loads(capsys.readouterr().out)
+    count = 2 if workers is None else workers
+    assert record["workers"] == count
+    assert record["command"][-2:] == ["--workers", str(count)]
+    assert record["cpus"] == [0, 1, 2, 3]
+    assert len(record["cpus"]) + record["reserved_other_cbye_cpus"] < 16 / 3
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("workers", [0, -1, 3, 5])
+def test_reject_workers_exceeding_cpu_allocation_before_writes(launcher, workers):
+    args, output = ensemble_args(launcher)
+    args[args.index("--cpus") + 1] = "0,1"
+    with pytest.raises(SystemExit):
+        launch.main(args + ["--workers", str(workers)])
+    assert not output.exists()
+
+
+def test_reject_worker_option_for_nonensemble_stage(launcher):
+    args, output, *_ = launcher
+    with pytest.raises(SystemExit):
+        launch.main(args + ["--workers", "1"])
+    assert not output.exists()
+
+
+def test_reject_ensemble_resume_with_changed_worker_identity(launcher):
+    args, output = ensemble_args(launcher)
+    _, _, root, _, head, *_ = launcher
+    output.mkdir()
+    identity = {
+        "source_commit": head,
+        "source_tree": "b" * 40,
+        "lock_sha256": launch.sha256(root / "uv.lock"),
+        "input_hashes": {},
+        "versions": {},
+        "config": {"workers": 2},
+    }
+    (output / "RUN_RECORD.json").write_text(
+        json.dumps(
+            {"identity": identity, "identity_hash": launch.fingerprint(identity)}
+        )
+    )
+    launch.main(args + ["--dry-run"])
+    with pytest.raises(SystemExit):
+        launch.main(args + ["--workers", "4", "--dry-run"])
+    assert not list(output.glob("*.sh"))

@@ -194,6 +194,11 @@ def main(argv=None):
     for name in ("inputs", "output", "gate"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--pilot", type=Path)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        help="ensemble processes; defaults to min(2, allocated CPUs)",
+    )
     parser.add_argument("--commit", required=True)
     parser.add_argument("--cpus", required=True, help="logical CPU IDs, e.g. 0,1")
     parser.add_argument("--reserved-other-cpus", required=True, type=float)
@@ -235,6 +240,13 @@ def main(argv=None):
         or not 8 <= args.stack_mib <= 256
     ):
         parser.error("CPU reservations, runtime or stack exceed the declared limits")
+    if args.workers is not None and args.phase != "ensemble":
+        parser.error("--workers applies only to the ensemble")
+    workers = None
+    if args.phase == "ensemble":
+        workers = min(len(cpus), 2) if args.workers is None else args.workers
+        if not 1 <= workers <= len(cpus):
+            parser.error("ensemble workers must fit the allocated CPU affinity")
     launch_lock = None
     if not args.dry_run:
         output.mkdir(parents=True, exist_ok=True)
@@ -282,7 +294,7 @@ def main(argv=None):
                 "--pilot",
                 str(private_path(args.pilot)),
                 "--workers",
-                str(min(len(cpus), 2)),
+                str(workers),
             ]
         )
     cache_dir = output / "jax-cache" if args.persistent_jax_cache else None
@@ -314,6 +326,7 @@ def main(argv=None):
         "attempt": attempt,
         "nice": 2,
         "cpus": cpus,
+        "workers": workers,
         "cpu_quota_percent": 100 * len(cpus),
         "reserved_other_cbye_cpus": args.reserved_other_cpus,
         "aggregate_cbye_cap_cpus": budget,
@@ -328,7 +341,7 @@ def main(argv=None):
             root,
             inputs,
             head,
-            None
+            {"workers": workers}
             if args.phase == "ensemble"
             else {
                 "fuse_orientation": not args.split_orientation,

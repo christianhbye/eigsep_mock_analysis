@@ -95,3 +95,59 @@ def test_ensemble_preserves_axis_order_and_exact_affine_horizon_truth(tmp_path):
     assert arrays["inference"]["delta_m"].shape == (24, 3)
     assert np.all(arrays["inference"]["success"])
     assert np.max(abs(arrays["inference"]["reference_residual_k"])) < 1e-8
+
+
+def test_four_spawned_workers_preserve_trace_order_values_and_cache(
+    tmp_path, monkeypatch
+):
+    import multiprocessing
+    from concurrent.futures import ProcessPoolExecutor
+    from dataclasses import asdict
+
+    from horizon_position_d5.ensemble import _initialize_worker, _trace_worker
+    from horizon_position_d5.pilot import HEIGHT_OFFSETS
+    from horizon_position_d5.reference import BilinearDEM, trace_horizon
+
+    for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+        monkeypatch.setenv(name, "1")
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    east, north = np.meshgrid(np.arange(16.0), np.arange(15.0))
+    terrain = 0.03 * east * north + np.sin(east) - 0.2 * north
+    np.savez(inputs / "dem.npz", dem=terrain, res=1.0, e0_px=0, n0_px=0)
+    dem = BilinearDEM.from_npz(inputs / "dem.npz")
+    bearings = np.array([0.0, 31.5, 90.0, 183.0, 270.0, 351.0])
+    points = np.array(
+        [
+            [6.1, 5.2, 8.0],
+            [7.3, 5.1, 8.2],
+            [6.6, 6.2, 7.9],
+            [5.9, 7.1, 8.1],
+            [7.2, 7.0, 8.3],
+            [5.5, 5.8, 8.4],
+        ]
+    )
+    expected = [
+        asdict(trace_horizon(dem, point, bearings, height_offsets_m=HEIGHT_OFFSETS))
+        for point in points
+    ]
+    identity = {"test": "parallel-trace-equivalence", "workers": 4}
+    output = tmp_path / "parallel"
+    with ProcessPoolExecutor(
+        max_workers=4,
+        mp_context=multiprocessing.get_context("spawn"),
+        initializer=_initialize_worker,
+        initargs=(inputs, output, identity, bearings),
+    ) as pool:
+        first = list(pool.map(_trace_worker, points, chunksize=1))
+        second = list(pool.map(_trace_worker, points[::-1], chunksize=1))
+    for results, truths, reused in (
+        (first, expected, False),
+        (second, expected[::-1], True),
+    ):
+        for (arrays, checkpoint), truth in zip(results, truths, strict=True):
+            assert checkpoint["reused"] is reused
+            assert arrays.keys() == truth.keys()
+            for name in truth:
+                np.testing.assert_array_equal(arrays[name], truth[name])
+    assert len(list((output / "traces").glob("*.npz"))) == len(points)
