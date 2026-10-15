@@ -1,0 +1,10 @@
+{
+  "historical_repository": "christianhbye/eigsep_analysis_code",
+  "historical_commit": "ae3927783607535e84fa692bdfc936ee993b8e5a",
+  "historical_path": "docs/specs/s4_revision_pilot.py",
+  "executed_sha256": "ae7305de80c5611d931d8947181178de254a708faee231f6aaa2e5e062d0fcd6",
+  "relocated_path": "scripts/s4_revision_pilot.py",
+  "relocated_sha256": "fcc82e1a84b0993a9e073d2401924bdceaa5eef01dee82bfa0c96938e1c3888d",
+  "equivalence": "Entire module AST identical after normalizing only top-level independent import order; Ruff style only. Numerical functions unchanged.",
+  "authority": "Historical immutable Limbo run uses original bytes; relocation has not been rerun and supplies future source home."
+}
