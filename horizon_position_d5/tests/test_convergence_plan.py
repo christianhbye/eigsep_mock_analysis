@@ -314,3 +314,35 @@ def test_unrepresentable_absolute_displacement_is_rejected(bundles):
                 "mask_sha256": "c" * 64,
             },
         )
+
+
+def test_explicit_dem_extension_changes_all_trace_keys_only(bundles):
+    from dataclasses import replace
+
+    from horizon_position_d5.convergence_plan import expected_input_hashes
+
+    plan, _, _, pilot = bundles
+    baseline = inventory(bundles)
+    expanded = replace(plan, dem_sha256="e" * 64)
+    changed = inventory(bundles, expanded)
+    assert changed["trace_identity"]["dem_sha256"] == "e" * 64
+    assert not (
+        {x["id"] for x in baseline["traces"]} & {x["id"] for x in changed["traces"]}
+    )
+    assert not (
+        {x["id"] for x in baseline["evaluations"]}
+        & {x["id"] for x in changed["evaluations"]}
+    )
+    assert changed["response_identity"] == baseline["response_identity"]
+    assert changed["center_offsets_m"] == baseline["center_offsets_m"]
+    assert changed["counts"] == baseline["counts"]
+    pilot["identity"]["input_hashes"]["beam.npz"] = "b" * 64
+    assert expected_input_hashes(expanded, pilot) == {
+        "dem.npz": "e" * 64,
+        "beam.npz": "b" * 64,
+    }
+    assert pilot["identity"]["input_hashes"]["dem.npz"] == "d" * 64
+    assert "dem_sha256" not in plan.to_dict()
+    assert ConvergencePlan.from_dict(expanded.to_dict()) == expanded
+    with pytest.raises(ValueError, match="dem_sha256"):
+        replace(plan, dem_sha256="unverified")

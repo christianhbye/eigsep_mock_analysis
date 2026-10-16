@@ -34,6 +34,7 @@ class ConvergencePlan:
     pilot_results_sha256: str
     ensemble_results_sha256: str
     schema_version: int = 1
+    dem_sha256: str | None = None
     bearing_spacing_deg: tuple = (0.1, 0.05, 0.025)
     mask_subsamples: tuple = (180, 360, 720)
     steps_m: tuple = (0.01, 0.003, 0.001)
@@ -43,6 +44,8 @@ class ConvergencePlan:
     def __post_init__(self):
         if type(self.schema_version) is not int or self.schema_version != 1:
             raise ValueError("unsupported plan schema_version")
+        if self.dem_sha256 is not None:
+            _digest(self.dem_sha256, "dem_sha256")
         _digest(self.pilot_results_sha256, "pilot_results_sha256")
         _digest(self.ensemble_results_sha256, "ensemble_results_sha256")
         for name, increasing in (
@@ -94,12 +97,15 @@ class ConvergencePlan:
 
     def to_dict(self):
         # JSON-normalize tuples so a serialized round trip has one identity.
-        return {
+        result = {
             **asdict(self),
             "bearing_spacing_deg": list(self.bearing_spacing_deg),
             "mask_subsamples": [int(x) for x in self.mask_subsamples],
             "steps_m": list(self.steps_m),
         }
+        if self.dem_sha256 is None:
+            result.pop("dem_sha256")
+        return result
 
 
 def _index(values, target, name):
@@ -248,6 +254,18 @@ def load_upstreams(plan, pilot_dir, ensemble_dir):
     return pilot, ensemble, blocks[0], blocks[1]
 
 
+def expected_input_hashes(plan, pilot):
+    """Keep frozen response inputs; allow only an explicitly pinned DEM.
+
+    Response coefficients precede the horizon mask and retain pilot provenance.
+    New terrain invalidates every trace/evaluation through its new identity.
+    """
+    hashes = dict(pilot["identity"]["input_hashes"])
+    if plan.dem_sha256 is not None:
+        hashes["dem.npz"] = plan.dem_sha256
+    return hashes
+
+
 def build_inventory(plan, pilot, ensemble, pilot_arrays, ensemble_arrays, *, source):
     """Build content-keyed trace/evaluation tasks without touching any cache.
 
@@ -268,7 +286,7 @@ def build_inventory(plan, pilot, ensemble, pilot_arrays, ensemble_arrays, *, sou
     trace_identity = {
         "reference_sha256": source["reference_sha256"],
         "numpy_version": np.__version__,
-        "dem_sha256": pilot["identity"]["input_hashes"]["dem.npz"],
+        "dem_sha256": plan.dem_sha256 or pilot["identity"]["input_hashes"]["dem.npz"],
         "method": "continuous",
         "coordinate_frame": FRAME,
         "height_offsets_m": height_offsets,
