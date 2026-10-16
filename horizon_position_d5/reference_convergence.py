@@ -12,7 +12,12 @@ import subprocess
 from pathlib import Path
 
 from .cache import file_sha256
-from .convergence_plan import ConvergencePlan, build_inventory, load_upstreams
+from .convergence_plan import (
+    ConvergencePlan,
+    build_inventory,
+    expected_input_hashes,
+    load_upstreams,
+)
 
 
 def source_identity():
@@ -120,7 +125,7 @@ def main(argv=None):
             "execution requires the gate's CPU affinity and single-thread libraries"
         )
     hashes = {k: v["sha256"] for k, v in verify_inputs(inputs).items()}
-    if hashes != pilot["identity"]["input_hashes"]:
+    if hashes != expected_input_hashes(plan, pilot):
         parser.error("inputs differ from the pinned upstream model")
     import jax
 
