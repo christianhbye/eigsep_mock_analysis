@@ -25,3 +25,12 @@ def test_tile_orientation_coordinates_and_nodata(tmp_path):
     Image.fromarray(a).save(path, tiffinfo=tags)
     with pytest.raises(ValueError, match="nodata"):
         read_tile(path, 90, 43)
+
+
+@pytest.mark.parametrize("levels", [(), (0,), (2, 2), (21,), (2.5,)])
+def test_invalid_extensions_do_not_write(tmp_path, levels):
+    from horizon_position_d5.coverage_probe import build
+
+    with pytest.raises(ValueError, match="extensions"):
+        build(tmp_path / "missing.npz", tmp_path / "output", levels)
+    assert not (tmp_path / "output").exists()

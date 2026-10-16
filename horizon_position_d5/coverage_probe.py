@@ -2,13 +2,14 @@
 
 The source DEM frame and interior are unchanged. GeoTIFF tags, finite samples,
 source hashes and overlap are checked before emitting each separately pinned
-mosaic. This diagnostic compares +2 km and +4 km at nominal and +/-3 mm ENU,
+mosaic. This diagnostic compares specified south extensions at nominal +/-3 mm ENU,
 all three heights, full 0.1-degree bearings; it is not the full matrix.
 """
 
 import argparse
 import json
 import os
+import shutil
 import time
 import urllib.request
 from concurrent.futures import ProcessPoolExecutor
@@ -58,7 +59,20 @@ def read_tile(path, east, north):
         return a
 
 
-def build(base, out):
+def build(base, out, levels=(2, 4), reuse_tiles_from=None):
+    levels = tuple(levels)
+    if (
+        not levels
+        or len(set(levels)) != len(levels)
+        or any(type(x) is not int or not 1 <= x <= 20 for x in levels)
+    ):
+        raise ValueError("extensions must be unique integer kilometres in [1,20]")
+    maximum = max(levels)
+    cached = {}
+    if reuse_tiles_from is not None:
+        cached = json.loads((reuse_tiles_from / "COVERAGE_INPUTS.json").read_text())[
+            "input_tiles"
+        ]
     if file_sha256(base) != BASE_HASH:
         raise ValueError("base DEM differs from frozen v0003")
     out.mkdir(parents=True, exist_ok=False)
@@ -75,20 +89,29 @@ def build(base, out):
     records = {}
     # Preserve the old samples literally; append south strips in their physical
     # UTM location. No resampling, vertical correction or new survey offset.
-    extension = np.empty((8000, 8000), dtype=np.float32)
-    for north in range(40, 44):
+    extension = np.empty((maximum * 2000, 8000), dtype=np.float32)
+    for north in range(44 - maximum, 44):
         for east in range(90, 94):
             name = f"{PREFIX}{east}{north}.tif"
             path = tiles / name
-            with (
-                urllib.request.urlopen(URL + name, timeout=90) as response,
-                path.open("wb") as f,
-            ):
-                while chunk := response.read(1 << 20):
-                    f.write(chunk)
+            if name in cached:
+                source = reuse_tiles_from / "tiles" / name
+                if (
+                    cached[name]["url"] != URL + name
+                    or file_sha256(source) != cached[name]["sha256"]
+                ):
+                    raise ValueError("cached tile identity changed")
+                shutil.copyfile(source, path)
+            else:
+                with (
+                    urllib.request.urlopen(URL + name, timeout=90) as response,
+                    path.open("wb") as f,
+                ):
+                    while chunk := response.read(1 << 20):
+                        f.write(chunk)
             a = read_tile(path, east, north)
             extension[
-                (north - 40) * 2000 : (north - 39) * 2000,
+                (north - 44 + maximum) * 2000 : (north - 43 + maximum) * 2000,
                 (east - 90) * 2000 : (east - 89) * 2000,
             ] = a
             records[name] = dict(
@@ -96,10 +119,10 @@ def build(base, out):
             )
             print("tile", name, flush=True)
     products = {}
-    for km in (2, 4):
+    for km in levels:
         result = dict(saved)
         result["dem"] = np.concatenate(
-            [extension[(4 - km) * 2000 :], saved["dem"]], axis=0
+            [extension[(maximum - km) * 2000 :], saved["dem"]], axis=0
         )
         result["n0_px"] = np.asarray(int(saved["n0_px"]) + km * 2000)
         if not np.array_equal(result["dem"][km * 2000 :], saved["dem"]):
@@ -181,7 +204,7 @@ def probe(out, inventory_path):
     tasks = [
         (manifest["products"][str(km)]["path"], str(out), p, offsets, km, label)
         for label, p in positions
-        for km in (2, 4)
+        for km in sorted(map(int, manifest["products"]))
     ]
     if len(os.sched_getaffinity(0)) > 2:
         raise ValueError("coverage probe requires at most two CPUs")
@@ -212,9 +235,11 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--base", type=Path)
     p.add_argument("--inventory", type=Path)
+    p.add_argument("--extensions-km", nargs="+", type=int, default=[2, 4])
+    p.add_argument("--reuse-tiles-from", type=Path)
     a = p.parse_args()
     if a.mode == "build":
-        build(a.base, a.output)
+        build(a.base, a.output, a.extensions_km, a.reuse_tiles_from)
     else:
         probe(a.output, a.inventory)
 

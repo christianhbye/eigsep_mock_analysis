@@ -37,3 +37,11 @@ small coverage/temperature checks and measured costs precede a full-run launch.
 CHB explicitly requested notice before that launch; present scope, results,
 limits and resource budget and await go-ahead. The old nine-hour projection
 is not a budget measurement for the expanded terrain.
+
+
+The first nominal probe retained 12/14 flagged bearings at +2 km and zero at
++4 km (87.5/91 m). Add an +8 km control before selecting a full-run DEM. The
+builder accepts explicit positive integer extensions and can copy earlier
+source tiles only after their recorded URL/hash matches. The +2/+4 km probe
+and its original source remain immutable. The +4/+8 km comparison uses the
+same seven positions and all original criteria, without dropping directions.
