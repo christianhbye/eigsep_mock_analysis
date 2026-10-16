@@ -1,0 +1,11 @@
+{
+  "historical_repository": "christianhbye/eigsep_analysis_code",
+  "historical_commit": "ae3927783607535e84fa692bdfc936ee993b8e5a",
+  "historical_path": "docs/specs/s4_revision_pilot.py",
+  "executed_sha256": "ae7305de80c5611d931d8947181178de254a708faee231f6aaa2e5e062d0fcd6",
+  "relocated_path": "scripts/s4_revision_pilot.py",
+  "relocated_sha256": "d8e0068acd82fef82cad599ebfe4a4283b334d1c0003ab0e608eaa248faa9260",
+  "equivalence": "Entire module AST identical after normalizing only independent top-level import order and the misleading joint_class_upper_bound output label to joint_partial_preview. Numerical functions and Boolean calculation unchanged.",
+  "authority": "Historical immutable Limbo run uses original bytes; relocation has not been rerun and supplies future source home.",
+  "reporting_correction": "The pilot uses a stricter sign-only criterion1 and omits other gates; gate sets are not nested, so no ordered power bound is implied. Historical output is immutable."
+}
