@@ -1,0 +1,12 @@
+{
+ "repo": "christianhbye/eigsep_analysis_code",
+ "branch": "s4/night-trend-hunt",
+ "commit": "38cd14b0b606fce35748ed623564f5149bd35abc",
+ "path": "src/eigsep_analysis",
+ "files": {
+  "__init__.py": "02a1f256825d412ced65fbd877314ba6f65e2c0703fc2789cb810fe4091e7206",
+  "nighttrend.py": "91f512ca128c41723955e54747d38d25078a032c7cbd51fc3568c964970d733e",
+  "skyground.py": "8f75dcef149a082392823b1eded89c62fb2d645993d1247c66135654df4a2e71",
+  "noise_waves.py": "5ad60593d6480253161d57700bcf4262852fc891eaedb8307d6fb5914a33dc14"
+ }
+}
