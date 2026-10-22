@@ -69,6 +69,7 @@ TEAM_HORIZON_ERAS = {
     "30m": "alpha_h_30m",
     "87.5m": "alpha_h_87p5m",
     "91m": "alpha_h_91m",
+    "91m-reraise": "alpha_h_91m_reraise",
 }
 
 
@@ -78,13 +79,16 @@ def load_horizon_curve(era="91m", path=None):
 
     The file is built by ``scripts/make_horizon_d5_v0003.py`` from the
     team's ``curation/horizon_profiles_v0003`` (antenna at geometry
-    release v0004, DEM v0003), converted from grid bearings to true
+    release v0004, DEM v0003), or by ``scripts/make_horizon_d5_v0005.py``
+    from ``horizon_profiles_v0005`` (geometry release v0005, DEM v0004,
+    S11-measured era heights), converted from grid bearings to true
     compass azimuth.
 
     Parameters
     ----------
-    era : {"30m", "87.5m", "91m"}
-        Height era.  ``"91m"`` is the final height.
+    era : {"30m", "87.5m", "91m", "91m-reraise"}
+        Height era.  ``"91m"`` is the final height; ``"91m-reraise"``
+        (v0005 files only) is the configuration after the 07-17 re-raise.
     path : str, Path, or None
         The built ``.npz``; default ``data/horizon_d5_v0003.npz``.
 
@@ -104,6 +108,8 @@ def load_horizon_curve(era="91m", path=None):
     if path is None:
         path = _DATA_DIR / "horizon_d5_v0003.npz"
     d = np.load(path)
+    if TEAM_HORIZON_ERAS[era] not in d.files:
+        raise ValueError(f"{path} has no curve for era {era!r}")
     info = {
         "era": era,
         "stamp": str(d["stamp"]),

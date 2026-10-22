@@ -13,6 +13,7 @@ import jax
 
 jax.config.update("jax_enable_x64", True)
 
+import eigsim.data  # noqa: E402
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 from eigsim.horizon import (  # noqa: E402
@@ -22,8 +23,6 @@ from eigsim.horizon import (  # noqa: E402
     mwss_grid,
     open_sky_weight,
 )
-
-import eigsim.data  # noqa: E402
 
 TEAM_FILE = eigsim.data._DATA_DIR / "horizon_d5_v0003.npz"
 needs_team_file = pytest.mark.skipif(
@@ -180,3 +179,125 @@ def test_d5_open_sky_weight_is_open_sky_weight_on_the_loaded_curve(tmp_path):
     expected = open_sky_weight(0.1 + 0.05 * np.sin(az), az, 32)
     assert np.array_equal(np.asarray(W), np.asarray(expected))
     assert info["era"] == "91m" and info["stamp"] == "s"
+
+
+# --- horizon_profiles_v0005: geometry v0005, DEM v0004, S11 era heights ----
+
+TEAM_FILE_V0005 = eigsim.data._DATA_DIR / "horizon_d5_v0005.npz"
+needs_team_file_v0005 = pytest.mark.skipif(
+    not TEAM_FILE_V0005.exists(),
+    reason="team horizon absent (run eigsim/scripts/make_horizon_d5_v0005.py)",
+)
+
+
+def _load_script_v0005():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "scripts" / "make_horizon_d5_v0005.py"
+    spec = importlib.util.spec_from_file_location("make_horizon_d5_v0005", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _fake_team_file_v0005(tmp_path):
+    import json
+
+    bearings = np.arange(3600) * 0.1
+    src = tmp_path / "horizon_profiles_v0005.npz"
+    np.savez(
+        src,
+        bearings_deg=bearings,
+        elev_rad_30m=np.full(3600, 0.3),
+        **{
+            "elev_rad_87.5m": np.full(3600, 0.2),
+            "elev_rad_91m-reraise": np.where(bearings == 90.0, 0.6, 0.05),
+        },
+        elev_rad_91m=np.full(3600, 0.1),
+    )
+    (tmp_path / "horizon_profiles_v0005.json").write_text(
+        json.dumps(
+            {
+                "stamp": "marjum-2026-07/horizon_profiles@v0005+9a06df5",
+                "frame": "UTM raster grid ...; bearings are atan2(dN,dE) degrees",
+            }
+        )
+    )
+    return src
+
+
+def test_loader_knows_the_reraise_era():
+    assert eigsim.data.TEAM_HORIZON_ERAS["91m-reraise"] == "alpha_h_91m_reraise"
+
+
+def test_build_v0005_converts_all_four_eras(tmp_path):
+    mod = _load_script_v0005()
+    assert mod.OUT_NAME == "horizon_d5_v0005.npz"
+    assert mod.ERAS["elev_rad_91m-reraise"] == "alpha_h_91m_reraise"
+    src = _fake_team_file_v0005(tmp_path)
+    out = tmp_path / "built.npz"
+    mod.build(src, out, expect_sha256=None)
+    az, alpha, info = eigsim.data.load_horizon_curve("91m-reraise", path=out)
+    assert np.all(np.diff(az) > 0)
+    assert np.degrees(az[np.argmax(alpha)]) == pytest.approx(360.0 - 1.5208)
+    assert alpha.max() == 0.6
+    for era, value in (("30m", 0.3), ("87.5m", 0.2), ("91m", 0.1)):
+        assert np.allclose(eigsim.data.load_horizon_curve(era, path=out)[1], value)
+    assert info["stamp"] == "marjum-2026-07/horizon_profiles@v0005+9a06df5"
+    d = np.load(out)
+    assert "v0005" in str(d["description"])
+    assert "make_horizon_d5_v0005.py" in str(d["provenance"])
+
+
+def test_build_v0005_refuses_a_different_source(tmp_path):
+    mod = _load_script_v0005()
+    src = _fake_team_file_v0005(tmp_path)
+    with pytest.raises(ValueError, match="sha256"):
+        mod.build(src, tmp_path / "built.npz", expect_sha256="0" * 64)
+
+
+def test_build_v0005_pins_the_published_file():
+    mod = _load_script_v0005()
+    assert mod.SOURCE_SHA256 == (
+        "b497cebd1324291af7c7abc58266edb57a4db198add35392d89fb3e69049c2e9"
+    )
+
+
+def test_loader_says_which_file_lacks_an_era(tmp_path):
+    # a v0003-format file has no re-raise curve
+    az = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+    path = tmp_path / "h.npz"
+    np.savez(
+        path,
+        az=az,
+        alpha_h_30m=np.full(8, 0.3),
+        alpha_h_87p5m=np.full(8, 0.2),
+        alpha_h_91m=np.full(8, 0.1),
+        stamp=np.array("s"),
+        source_sha256=np.array("0" * 64),
+        convergence_deg=np.array(1.5208),
+    )
+    with pytest.raises(ValueError, match="91m-reraise"):
+        eigsim.data.load_horizon_curve("91m-reraise", path=path)
+
+
+@needs_team_file_v0005
+def test_team_v0005_curves_are_physical_and_order_by_height():
+    thetas, _ = mwss_grid(128)
+    w = np.sin(thetas)[:, None]
+    open_frac = {}
+    for era in ("30m", "87.5m", "91m", "91m-reraise"):
+        az, alpha, info = eigsim.data.load_horizon_curve(era, path=TEAM_FILE_V0005)
+        assert az.shape == alpha.shape == (3600,)
+        assert np.all(np.abs(alpha) <= np.pi / 2)
+        assert info["stamp"] == "marjum-2026-07/horizon_profiles@v0005+9a06df5"
+        W = np.asarray(open_sky_weight(alpha, az, 128))
+        open_frac[era] = float((w * W).sum() / (w * np.ones_like(W)).sum())
+    # S11 heights: 87.5 m era 1.66 m below the 91 m anchor, re-raise 0.57 m above
+    assert (
+        open_frac["30m"]
+        < open_frac["87.5m"]
+        < open_frac["91m"]
+        < open_frac["91m-reraise"]
+    )
