@@ -12,6 +12,12 @@ from .data import load_beam, load_horizon, load_horizon_curve
 from .horizon import d5_open_sky_weight, mwss_grid, open_sky_weight
 from .noise import radiometer_noise
 from .position import PositionHorizonGrid
+from .reflection import (
+    fresnel_normal_incidence,
+    mirror_beam,
+    mirror_open_sky_weight,
+    reflected_sky_path,
+)
 from .rotations import (
     beam_to_alm,
     drive_rotation_matrix,
@@ -29,6 +35,10 @@ from .simulate import (
 
 __all__ = [
     "PositionHorizonGrid",
+    "fresnel_normal_incidence",
+    "mirror_beam",
+    "mirror_open_sky_weight",
+    "reflected_sky_path",
     "beam_to_alm",
     "compute_fgnd",
     "correct_ground_loss",
