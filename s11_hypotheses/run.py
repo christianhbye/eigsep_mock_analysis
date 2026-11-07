@@ -9,6 +9,7 @@ import copy
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -31,7 +32,7 @@ from eigsep_analysis.beammap import beam as beam_io
 from scipy.interpolate import interp1d
 
 from . import checkpoint as ck
-from . import feature, leakage, terrain
+from . import feature, leakage, sharding, terrain
 from .config import DEFAULTS
 
 
@@ -113,7 +114,7 @@ def physical_units(config, probe=False):
     ]
 
 
-def gate(config, command, identity, manifest_sha):
+def gate(config, command, identity, manifest_sha, execution=None, stage=None):
     path = Path(config.get("resource_gate", "MISSING_RESOURCE_GATE"))
     if not path.is_file():
         raise ValueError(
@@ -134,6 +135,11 @@ def gate(config, command, identity, manifest_sha):
         raise ValueError(
             "resource gate approved different physical/configuration scope"
         )
+    if command in ["physical-shard", "gather"]:
+        if execution is None or approved.get("plan_sha256") != execution["plan_sha256"]:
+            raise ValueError("resource gate approved a different execution plan")
+        if stage not in approved.get("stages", []):
+            raise ValueError("resource gate does not authorize this execution stage")
     return approved
 
 
@@ -184,7 +190,15 @@ def _unit_key(identity, manifest_sha, choices, params):
     )
 
 
-def export_physical(config, store, identity, manifest_sha, probe=False):
+def export_physical(
+    config,
+    store,
+    identity,
+    manifest_sha,
+    probe=False,
+    selected_tasks=None,
+    geometry_only=False,
+):
     """Execute complete native/fine subunits; return only verified exports."""
     root = Path(config["run_dir"])
     choices = config["choices"]
@@ -199,16 +213,31 @@ def export_physical(config, store, identity, manifest_sha, probe=False):
         )[:2]
     )
     exports = []
+    task_names = (
+        None
+        if selected_tasks is None
+        else {sharding.task_name(t) for t in selected_tasks}
+    )
     for p in physical_units(config, probe):
+        if task_names is not None and not any(
+            sharding.task_name(dict(p, grid=g)) in task_names
+            for g in ["native", "fine"]
+        ):
+            continue
+        if geometry_only and p["member"] != 0:
+            continue
         cid = p["configuration"]
         ant, rotation, geom_meta = geometry(store, p["epoch"])
         cell_name = f"cells_{cid}_{p['epoch']}"
+        geometry_root = Path(config.get("geometry_root", root))
         cellunit = ck.Unit(
-            root,
+            geometry_root,
             cell_name,
             _unit_key(identity, manifest_sha, choices, dict(p, member="geometry")),
         )
         if not cellunit.completed():
+            if geometry_root != root:
+                raise ValueError("shared geometry must be completed before shards")
             margin = min(
                 ant[0] - dem.extent_e[0],
                 dem.extent_e[1] - dem.res - ant[0],
@@ -222,6 +251,8 @@ def export_physical(config, store, identity, manifest_sha, probe=False):
             cellunit.finish(
                 dict(parameters=p, geometry=geom_meta, n_visible=len(cells["E"]))
             )
+        if geometry_only:
+            continue
         with h5py.File(cellunit.path / "cells.h5", "r") as h:
             cells = {k: h[k][:] for k in h}
         rng = np.random.default_rng([choices["seed"], p["member"]])
@@ -234,6 +265,11 @@ def export_physical(config, store, identity, manifest_sha, probe=False):
         )
         native, fine = terrain.frequency_grids(f, choices["fine_step_hz"], max_delay)
         for grid, freq in [("native", native), ("fine", fine)]:
+            if (
+                task_names is not None
+                and sharding.task_name(dict(p, grid=grid)) not in task_names
+            ):
+                continue
             name = f"facet_{cid}_{p['epoch']}_m{p['member']:03d}_{grid}"
             params = dict(
                 p,
@@ -350,12 +386,29 @@ def _load_groups(store):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "command", choices=["intake", "controls", "probe", "export", "score", "report"]
+        "command",
+        choices=[
+            "intake",
+            "controls",
+            "probe",
+            "export",
+            "score",
+            "report",
+            "geometry",
+            "physical-shard",
+            "gather",
+            "raw-score",
+            "r0",
+        ],
     )
     parser.add_argument("--config", required=True)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--members", type=int)
+    parser.add_argument(
+        "--stage", choices=["primary", "fine", "all"], default="primary"
+    )
+    parser.add_argument("--shard-index", type=int, default=0)
     args = parser.parse_args(argv)
     config = load_config(args.config)
     if (
@@ -367,12 +420,42 @@ def main(argv=None):
     manifest_sha = intake.digest(config["manifest"])
     identity = ck.source_identity(config["mock_root"], config["code_root"])
     units = physical_units(config, args.command == "probe")
+    all_draws = physical_units(config)
+    selected_draws = all_draws
+    if "execution_draw_selection" in config:
+        wanted = {
+            (p["configuration"], p["epoch"], p["member"])
+            for p in config["execution_draw_selection"]
+        }
+        if len(wanted) != len(config["execution_draw_selection"]):
+            raise ValueError("duplicate explicit draw selection")
+        selected_draws = [
+            p
+            for p in all_draws
+            if (p["configuration"], p["epoch"], p["member"]) in wanted
+        ]
+        if len(selected_draws) != len(wanted):
+            raise ValueError("unknown explicit draw selection")
+    execution = sharding.plan(
+        selected_draws,
+        config.get("execution_shards", 4),
+        config.get("execution_grids", ["native", "fine"]),
+    )
+    execution["unselected_draws"] = [p for p in all_draws if p not in selected_draws]
+    execution.pop("plan_sha256")
+    execution["plan_sha256"] = ck.fingerprint(execution)
     inputs = verify_inputs(store, full_hash=False)
     dry = dict(
         source_fingerprint=ck.fingerprint(identity),
         manifest_sha256=manifest_sha,
         configuration_fingerprint=ck.fingerprint(
             dict(choices=config["choices"], units=units)
+        ),
+        execution_plan=execution,
+        selected_execution_tasks=(
+            sharding.selected(execution, args.stage, args.shard_index)
+            if args.command == "physical-shard"
+            else None
         ),
         required_inputs=inputs,
         missing=[r for r in inputs if not r["valid_size"]],
@@ -393,7 +476,7 @@ def main(argv=None):
     if dry["missing"]:
         raise ValueError("stage all declared required primary inputs before execution")
     ck.require_committed(config["mock_root"], config["code_root"], identity)
-    approved = gate(config, args.command, identity, manifest_sha)
+    approved = gate(config, args.command, identity, manifest_sha, execution, args.stage)
     root = Path(config["run_dir"])
     root.mkdir(parents=True, exist_ok=True)
     record = dict(
@@ -402,6 +485,11 @@ def main(argv=None):
         source_fingerprint=ck.fingerprint(identity),
         input_manifest_sha256=manifest_sha,
         configuration=config,
+        execution_selection=dict(
+            stage=args.stage,
+            index=args.shard_index,
+            plan_sha256=execution["plan_sha256"],
+        ),
         invocation=[
             sys.executable,
             "-m",
@@ -421,7 +509,51 @@ def main(argv=None):
         },
     )
     # Different commands may share frozen controls but have separate records.
-    ck.write_json(root / f"RUN_RECORD_{args.command}.json", record)
+    record_name = f"RUN_RECORD_{args.command}"
+    if args.command == "gather":
+        record_name += f"_{args.stage}"
+    ck.write_json(root / (record_name + ".json"), record)
+    ck.write_json(root / "EXECUTION_PLAN.json", execution)
+    if args.command == "geometry":
+        export_physical(
+            config,
+            store,
+            identity,
+            manifest_sha,
+            geometry_only=True,
+            selected_tasks=execution["tasks"],
+        )
+        return 0
+    if args.command == "physical-shard":
+        tasks = sharding.selected(execution, args.stage, args.shard_index)
+        export_physical(config, store, identity, manifest_sha, selected_tasks=tasks)
+        ck.write_json(
+            root / "SHARD_DONE.json",
+            dict(
+                plan_sha256=execution["plan_sha256"],
+                stage=args.stage,
+                index=args.shard_index,
+                source_fingerprint=ck.fingerprint(identity),
+                manifest_sha256=manifest_sha,
+                units=[sharding.task_name(t) for t in tasks],
+            ),
+        )
+        return 0
+    if args.command == "gather":
+        sharding.gather(
+            execution,
+            config["shard_roots"],
+            root,
+            identity,
+            manifest_sha,
+            config["choices"],
+            config["geometry_root"],
+            args.stage,
+        )
+        return 0
+    if args.command == "r0":
+        export_r0(config, store, identity, manifest_sha)
+        return 0
     if args.command == "probe":
         export_physical(config, store, identity, manifest_sha, probe=True)
         # Bounded actual raw-input control baseline, never final D5 target.
@@ -496,6 +628,38 @@ def main(argv=None):
         raise ValueError("design lock source/content mismatch")
     if lock["input_fingerprint"] != manifest_sha:
         raise ValueError("design lock input mismatch")
+    if args.command == "raw-score":
+        raw_unit = ck.Unit(
+            root,
+            "raw_science",
+            _unit_key(
+                identity,
+                manifest_sha,
+                config["choices"],
+                dict(lock=digest, scope="raw-only"),
+            ),
+        )
+        if raw_unit.completed():
+            return 0
+        groups, excluded = _load_groups(store)
+        pipeline.feature_report(
+            groups, lock, feature, ck.write_h5, ck.write_json, raw_unit.path / "feature"
+        )
+        pipeline.chain_report(
+            store, lock, feature, ck.write_h5, ck.write_json, raw_unit.path / "chain"
+        )
+        pipeline.empirical_skirt(
+            groups, lock, leakage, ck.write_h5, ck.write_json, raw_unit.path / "skirt"
+        )
+        raw_unit.finish(
+            dict(
+                label="diagnostic",
+                consumed=store.consumed,
+                excluded_captures=excluded,
+                design_lock_sha256=intake.digest(lock_path),
+            )
+        )
+        return 0
     if args.command == "export":
         export_r0(config, store, identity, manifest_sha)
         export_physical(config, store, identity, manifest_sha)
@@ -528,16 +692,67 @@ def main(argv=None):
         )
         if science.completed():
             return 0
-        groups, excluded = _load_groups(store)
-        pipeline.feature_report(
-            groups, lock, feature, ck.write_h5, ck.write_json, science.path / "feature"
-        )
-        pipeline.chain_report(
-            store, lock, feature, ck.write_h5, ck.write_json, science.path / "chain"
-        )
-        pipeline.empirical_skirt(
-            groups, lock, leakage, ck.write_h5, ck.write_json, science.path / "skirt"
-        )
+        raw_source = config.get("raw_science_root")
+        if raw_source:
+            raw_key = _unit_key(
+                identity,
+                manifest_sha,
+                config["choices"],
+                dict(lock=digest, scope="raw-only"),
+            )
+            raw_unit = ck.Unit(raw_source, "raw_science", raw_key)
+            if not raw_unit.completed():
+                raise ValueError("declared independent raw-science input incomplete")
+            raw_done = json.loads((raw_unit.path / "DONE.json").read_text())
+            excluded = raw_done["metadata"]["excluded_captures"]
+            for component in ["feature", "chain", "skirt"]:
+                shutil.copytree(raw_unit.path / component, science.path / component)
+            ck.write_json(
+                science.path / "RAW_INPUT_RECORD.json",
+                dict(
+                    original_root=raw_source,
+                    key=raw_key,
+                    original_done_sha256=intake.digest(raw_unit.path / "DONE.json"),
+                    unchanged_results=raw_done["results"],
+                ),
+            )
+        else:
+            groups, excluded = _load_groups(store)
+            pipeline.feature_report(
+                groups,
+                lock,
+                feature,
+                ck.write_h5,
+                ck.write_json,
+                science.path / "feature",
+            )
+            pipeline.chain_report(
+                store, lock, feature, ck.write_h5, ck.write_json, science.path / "chain"
+            )
+            pipeline.empirical_skirt(
+                groups,
+                lock,
+                leakage,
+                ck.write_h5,
+                ck.write_json,
+                science.path / "skirt",
+            )
+        r0_root = Path(config.get("r0_source_root", root))
+        for epoch, era in [
+            ("night", "87.5m"),
+            ("1310", "91m"),
+            ("1917", "91m-reraise"),
+        ]:
+            for nside in config["choices"]["r0_nsides"]:
+                trace = store.suffix(f"/trace_{era}_ns{nside}.npz")
+                params = dict(epoch=epoch, nside=nside, trace_sha=intake.digest(trace))
+                r0_unit = ck.Unit(
+                    r0_root,
+                    f"r0_{epoch}_ns{nside}",
+                    _unit_key(identity, manifest_sha, config["choices"], params),
+                )
+                if not r0_unit.completed():
+                    raise ValueError("declared R0 comparison input incomplete")
         pipeline.terrain_power_report(
             store,
             physical,
@@ -545,7 +760,7 @@ def main(argv=None):
             ck.write_h5,
             ck.write_json,
             science.path / "terrain",
-            r0_root=root,
+            r0_root=r0_root,
         )
         science.finish(
             dict(

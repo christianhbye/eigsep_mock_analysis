@@ -1,0 +1,68 @@
+{
+  "status": "completed feasibility-probe verified; no scientific hypothesis verdict",
+  "units": [
+    {
+      "unit": "cells_r600_s4_b1_night",
+      "key_verified": true,
+      "result_hashes_verified": true,
+      "wall_s": 18.814913384616375,
+      "cpu_s": 18.785116036999998,
+      "max_rss_kib": 1324040
+    },
+    {
+      "unit": "facet_r600_s4_b1_night_m000_fine",
+      "key_verified": true,
+      "result_hashes_verified": true,
+      "wall_s": 877.6290690377355,
+      "cpu_s": 877.561355453,
+      "max_rss_kib": 1415784
+    },
+    {
+      "unit": "facet_r600_s4_b1_night_m000_native",
+      "key_verified": true,
+      "result_hashes_verified": true,
+      "wall_s": 46.75060371309519,
+      "cpu_s": 46.746751268,
+      "max_rss_kib": 1324040
+    },
+    {
+      "unit": "probe_raw_control",
+      "key_verified": true,
+      "result_hashes_verified": true,
+      "wall_s": 0.017063558101654053,
+      "cpu_s": 0.01706148999994639,
+      "max_rss_kib": 1415784
+    }
+  ],
+  "checks": {
+    "same_physical_draw_fields": [
+      "antenna_enu_m",
+      "rotation_body_true_enu",
+      "position_offset_m",
+      "sigma_h_m",
+      "original_frequency_hz",
+      "original_measured_mask",
+      "shell_edges_m"
+    ],
+    "native_exact_and_fine_uniform": true,
+    "po_250mhz_max_abs_difference": 1.5451190605047252e-18,
+    "diffuse_250mhz_max_abs_difference": 3.1698503471593436e-19,
+    "diffuse_frequency_expected_power_250mhz_max_abs_difference": 4.1359030627651384e-24,
+    "diffuse_covariance_psd": true,
+    "visible_cells": 78048,
+    "fine_native_max_grid_roundoff_operator_bound": 6.331960664847408e-08,
+    "raw_osl_chain_reproduced": true,
+    "mistic_source_raw_identity": true,
+    "receiver_raw_identity": true,
+    "target_training_excluded": true
+  },
+  "resource": {
+    "started_utc": "2026-11-07T21:27:54.920464+00:00",
+    "finished_utc": "2026-11-07T21:43:53.307463+00:00",
+    "elapsed_s": 958.3867656439543,
+    "cpu_s": 958.269393,
+    "maxrss_kib": 1415784,
+    "returncode": 0,
+    "product_bytes": 4923767
+  }
+}
