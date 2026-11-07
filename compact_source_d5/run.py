@@ -83,7 +83,7 @@ def offline_parent(parent, cache, expected_sha):
 def verify_runtime(identity, pins):
     for name, version in pins["runtime_versions"].items():
         if identity["packages"].get(name) != version:
-            raise ValueError(f"{name}: expected historical map version {version}")
+            raise ValueError(f"{name}: expected audited reproduction version {version}")
     from importlib import metadata
 
     root = Path(metadata.distribution("pygdsm").locate_file("pygdsm"))
