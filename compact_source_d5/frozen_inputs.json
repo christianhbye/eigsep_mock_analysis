@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "inputs": {
+    "saved_maps": {
+      "relative_path": "products/034_night_fit/columns/gsm_maps.npz",
+      "sha256": "876a85db4c246e4e322420d0ea5a93e56f4262cf7a2d7edefbb3606b820e5401",
+      "bytes": 8478499
+    },
+    "reference_data": {
+      "relative_path": "products/034_night_fit/data_v0025.npz",
+      "sha256": "740d7aa207d90689531aed720939c467a43fd939b80810c968498ea26a4815cc",
+      "bytes": 456884
+    },
+    "historical_provenance": {
+      "relative_path": "products/034_night_fit/PROVENANCE.json",
+      "sha256": "de70a805266f56d4c82eb6b54961dc7c5f1672acaf84008a466327cdad42312c",
+      "bytes": 32081
+    },
+    "historical_columns": {
+      "relative_path": "products/034_night_fit/columns/columns.json",
+      "sha256": "848d5d4f24e817d6cbfeacccade9b958739adafed603fade24069482ed0198a3",
+      "bytes": 129140
+    },
+    "catalogue": {
+      "relative_path": "docs/data_notes/c51_catalogue_coefficients_20261107.json",
+      "sha256": "61e80143d3dd9321caca054267455733ee9b7040b38e2fa9e8b7856e942d99f9",
+      "bytes": 16252
+    },
+    "positions": {
+      "relative_path": "docs/data_notes/c51_source_positions_20261107.json",
+      "sha256": "98aac9a9751eb01d49c56cab6d6186f4623c751162f5d69315e8c5656817bac6",
+      "bytes": 3868
+    },
+    "spec": {
+      "relative_path": "docs/specs/2026-11-07-compact-source-review/C51_DIRECT_SOURCE_SPEC.md",
+      "sha256": "31d75e20e3db483882bdf2425b0d111cf5006ed151e6955f30e517f4596f6506",
+      "bytes": 27205
+    },
+    "parent": {
+      "relative_path": "gsm2016_components.h5",
+      "sha256": "746c45f905a888676df4036e78019db076e3eb3f861d66fdbe73b953e41a78c4",
+      "bytes": 302864953
+    }
+  },
+  "parent_hash_authority": "034 provenance; prior independent two-host verification, not rehashed by23:09readinessaudit",
+  "map_convention": {
+    "nside_hi": 1024,
+    "ordering": "RING",
+    "frame": "Galactic",
+    "unit": "K_CMB",
+    "include_cmb": false,
+    "degrade": [
+      64,
+      8
+    ],
+    "power": null
+  },
+  "profile": {
+    "kind": "conditional nominal spherical Gaussian",
+    "fwhm_arcmin": 56.0,
+    "support_deg": 5.0,
+    "actual_GSM_response_bounded": false
+  },
+  "catalogue": "PB2017 arXiv v1; primary retained-source accounting, not2026replacement",
+  "runtime_versions": {
+    "pygdsm": "1.7.0",
+    "healpy": "1.19.0",
+    "numpy": "2.4.4",
+    "astropy": "7.2.0",
+    "h5py": "3.16.0",
+    "scipy": "1.17.1"
+  },
+  "loader_sources": {
+    "gsm16.py": "0ffcd755ad2b5c1f52689ba9a4d1c7d5535278809c7d539f8a6ddba879a3e91e",
+    "base_skymodel.py": "0f8c21dc3666d470e719b4a3001ac4502aa9286a8259426b0be883567b0ffb8b",
+    "component_data.py": "c0fad9bc830ee0d4014c8d24851f3dcea381a687596b86acd3a34513f0d75aef"
+  },
+  "readiness_31_hash_pins": {
+    "products/034_night_fit/columns/gsm_maps.npz": "876a85db4c246e4e322420d0ea5a93e56f4262cf7a2d7edefbb3606b820e5401",
+    "products/034_night_fit/columns/columns.json": "848d5d4f24e817d6cbfeacccade9b958739adafed603fade24069482ed0198a3",
+    "products/034_night_fit/columns/frames.npz": "b362770839ea6e227ac36c62f426f0bcbf9bf38d6375399ed1a3b293f8b69f55",
+    "products/034_night_fit/columns/columns_eigsim.npz": "3b65e47afe0198109c6c1bef03c2db26200b315de4a216c3690b9a74217479c2",
+    "products/034_night_fit/team_columns_v0025.npz": "246d718c11b660a0e3bb6655829bf28ff00316091fc2e4fc661900c202c88f24",
+    "products/034_night_fit/data_v0025.npz": "740d7aa207d90689531aed720939c467a43fd939b80810c968498ea26a4815cc",
+    "products/034_night_fit/PROVENANCE.json": "de70a805266f56d4c82eb6b54961dc7c5f1672acaf84008a466327cdad42312c",
+    "products/023_s1_night_fit/columns/gsm_maps.npz": "5871498a0b17472393b6ecf08f863395f59effac785b16be77ed1a609ae5f4b8",
+    "code/scripts/023_eigsim_columns.py": "f72b8d57444d1fef6ed0e17a02f8f0525c8b9e11817c7b1ca3d7b448b83bb943",
+    "code/scripts/034_columns.py": "d029c19666d9b75947bc4239e562ecf3d5d06323c26e8dbb4818672ba059d198",
+    "docs/data_notes/c51_catalogue_coefficients_20261107.json": "61e80143d3dd9321caca054267455733ee9b7040b38e2fa9e8b7856e942d99f9",
+    "literature/foregrounds_mapmaking/Zheng2017_gsm_diffuse_radio.pdf": "56f8de791eb53f38861c56cd973eabb875125dff52502e7115c16330e9aa4534",
+    "limbo_sync/bulk/marjum-2026-07/derived/ground_sky/raw_binned_v0006/binned.npz": "ebb0b559b141cc7a224b944f5668baa19f00821219d3de253e49aff8ed02f5d4",
+    "limbo_sync/bulk/marjum-2026-07/derived/ground_sky/raw_binned_v0006/manifest.json": "c28638551782ce8597841f8240a06061e4d00767d96166be139217099734853f",
+    "docs/data_notes/c51_source_positions_20261107.json": "98aac9a9751eb01d49c56cab6d6186f4623c751162f5d69315e8c5656817bac6",
+    "docs/specs/2026-11-07-compact-source-review/C51_DIRECT_SOURCE_SPEC.md": "31d75e20e3db483882bdf2425b0d111cf5006ed151e6955f30e517f4596f6506",
+    "docs/specs/2026-11-07-compact-source-review/compact_source_note_and_spec.md": "617af9200496ccf0c624101875947a8ba33d1ba3267c138498a7dd23114f0bde",
+    "docs/specs/2026-11-07-compact-source-review/REVIEW_DISPOSITIONS.md": "98446a13073a0fdcfb168bbb210a6a975e8ff67e90de5243b1b3b4b78c758c31",
+    "literature/foregrounds_mapmaking/Perley2017_flux_scale_arxiv_v1.pdf": "975c2018426f1c53f34d50cacfa04cfb03f4709d8ead313ef385475e53afc72a",
+    "literature/foregrounds_mapmaking/Baars1977_absolute_flux_scale.pdf": "5849abd3bf4f70e5439043e2f0317a7e87f52dd3ae98d273d057e1c1c97637ac",
+    "products/034_night_fit/fits.npz": "eb8902ba8c1f285ed59cabeb6c96d621cde8c0d1267b6e68440c76b425d2e220",
+    "products/056_night_delay_waterfall/arrays.npz": "3d6b305cb17ae5b265a7a6662afaea7a7f5160464c57dce51141c93b6af422df",
+    "products/056_night_delay_waterfall/results.json": "72c927dc05b7494b657c438f8d4ec522ec12035310c158002fd11f6dfa0c0836",
+    "products/056_night_delay_waterfall/PROVENANCE.json": "e13446b690994fa528ec1df55b47cc04da1440f32700e37c2bc537ba6d166d56",
+    "products/_branches/nb-061-native-calibration-order/061_native_calibration_order/native/manifest.json": "8235ab6c314e96881c2bfd35d6124dd9f36c260a8dd2732106ae4dc587641c18",
+    "products/_branches/nb-061-native-calibration-order/061_native_calibration_order/native/units/chunk_0051.json": "ac87f8e2036084b812cdfadf73e3759025545f20d3cd8c87bca18863a9167fc5",
+    "products/_branches/nb-061-native-calibration-order/061_native_calibration_order/native/units/chunk_0051_native.npz": "7eae3b21a084b39c3ceee8c23d523e695763ad800e09f6d6573606cd940421a5",
+    "products/_branches/nb-061-native-calibration-order/061_native_calibration_order/native/units/chunk_0051_bins.npz": "37a5a4baee69674f7c0c4b46a9e5dc9dd1d48d846b4147f676b7947684286b0b",
+    "pygdsm/gsm16.py": "0ffcd755ad2b5c1f52689ba9a4d1c7d5535278809c7d539f8a6ddba879a3e91e",
+    "pygdsm/base_skymodel.py": "0f8c21dc3666d470e719b4a3001ac4502aa9286a8259426b0be883567b0ffb8b",
+    "pygdsm/component_data.py": "c0fad9bc830ee0d4014c8d24851f3dcea381a687596b86acd3a34513f0d75aef"
+  }
+}

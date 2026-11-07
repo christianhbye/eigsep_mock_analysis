@@ -1,0 +1,8 @@
+# Isolated phase-one map runtime; do not sync protected model/code environments.
+numpy==2.4.4
+scipy==1.17.1
+healpy==1.19.0
+pygdsm==1.7.0
+astropy==7.2.0
+h5py==3.16.0
+matplotlib==3.11.2

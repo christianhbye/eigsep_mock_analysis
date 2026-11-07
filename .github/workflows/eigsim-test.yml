@@ -6,11 +6,13 @@ on:
     paths:
       - "eigsim/**"
       - "horizon_position_d5/**"
+      - "compact_source_d5/**"
   pull_request:
     branches: [main]
     paths:
       - "eigsim/**"
       - "horizon_position_d5/**"
+      - "compact_source_d5/**"
 
 jobs:
   test:
@@ -22,7 +24,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync --frozen --dev
-      - run: uv run python -m pytest eigsim/tests horizon_position_d5/tests -v --cov=eigsim --cov-report=xml:eigsim-coverage.xml
+      - run: uv run python -m pytest eigsim/tests horizon_position_d5/tests compact_source_d5/tests -v --cov=eigsim --cov-report=xml:eigsim-coverage.xml
       - uses: codecov/codecov-action@v5
         if: always()
         with:
