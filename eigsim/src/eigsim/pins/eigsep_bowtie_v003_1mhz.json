@@ -1,0 +1,24 @@
+{
+  "artifact": "eigsep_bowtie_v003_1mhz_mwss.npz",
+  "version": "v003-diagnostic",
+  "label": "diagnostic",
+  "status": "RUN_READY; derivative not generated or reviewed",
+  "sha256": null,
+  "bytes": null,
+  "parent_native_sha256": "9b40552469364304305f0a65858663f52d60621148088c9f5cc7752b458672de",
+  "schema": {
+    "lmax": 128,
+    "bm_shape": [201, 130, 258],
+    "frequency_hz": {"start": 50000000, "stop": 250000000, "step": 1000000}
+  },
+  "metadata": {
+    "version": "v003-diagnostic",
+    "label": "diagnostic",
+    "sampling": "mwss",
+    "parent_native_sha256": "9b40552469364304305f0a65858663f52d60621148088c9f5cc7752b458672de",
+    "recipe_version": "raw-sumE2-directivity-mwss-lmax128-v1",
+    "field_symmetry": "none; raw Cartesian sum |E|^2",
+    "normalization": "directivity; native MWSS integral 4pi",
+    "frequency_interpolation": "none; native integer MHz samples"
+  }
+}

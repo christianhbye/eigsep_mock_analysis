@@ -21,7 +21,11 @@ def load_beam(path=None, config=None):
         Config for :func:`~eigsim.config.load_config`, read only when
         *path* is None.  ``None`` uses the default config (beam
         v002).  Pin ``"eigsep_v001"`` or ``"eigsep_v000"`` to reproduce
-        studies made with those beams.
+        studies made with those beams. The opt-in ``"eigsep_v003_1mhz"``
+        additionally requires its explicit artifact pin; its pending pin
+        fails closed until generation/review. For explicitly pinned file
+        paths use :func:`eigsim.hfss_pin.load_pinned_power`; a direct *path*
+        here retains the existing generic, unpinned behavior.
 
     Returns
     -------
@@ -35,7 +39,16 @@ def load_beam(path=None, config=None):
 
     """
     if path is None:
-        path = _DATA_DIR / load_config(config)["beam"]["file"]
+        cfg = load_config(config)
+        beam = cfg["beam"]
+        path = _DATA_DIR / beam["file"]
+        if "pin_manifest" in beam:
+            from .hfss_pin import PIN_DIR, load_pinned_power
+
+            result = load_pinned_power(path, PIN_DIR / beam["pin_manifest"])
+            if not np.array_equal(result[0], np.asarray(cfg["frequencies"]) * 1e6):
+                raise ValueError("pinned power frequencies differ from opt-in config")
+            return result
     d = np.load(path)
     return d["freqs"], d["bm"], int(d["lmax"])
 

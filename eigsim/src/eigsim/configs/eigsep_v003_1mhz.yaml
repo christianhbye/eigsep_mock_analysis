@@ -1,0 +1,26 @@
+# Opt-in diagnostic candidate, native 1 MHz HFSS source; no spline.
+# Fails closed until the separately generated power artifact hash is reviewed
+# and pinned in pins/eigsep_bowtie_v003_1mhz.json. No default adoption.
+world: earth
+location:
+  lon: -113.4033
+  lat: 39.2477
+  alt: 0.0
+frequencies: {start: 50.0, stop: 251.0, step: 1.0}  # MHz
+ground:
+  temperature: 300.0
+receiver:
+  temperature: 50.0
+beam:
+  sampling: mwss
+  file: eigsep_bowtie_v003_1mhz_mwss.npz
+  pin_manifest: eigsep_bowtie_v003_1mhz.json
+horizon:
+  file: horizon_mwss.npz
+sky:
+  model: gsm16
+  resolution: lo
+  include_cmb: true
+orientations:
+  elevations: {start: 0, stop: 360, step: 10}
+  azimuths: {start: 0, stop: 360, step: 10}

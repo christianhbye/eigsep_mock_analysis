@@ -1,0 +1,31 @@
+{
+  "artifact": "bowtie_1MHz_mwss_v0001.npz",
+  "version": "v0001-diagnostic",
+  "sha256": "9b40552469364304305f0a65858663f52d60621148088c9f5cc7752b458672de",
+  "bytes": 299938679,
+  "label": "diagnostic",
+  "adoption": "pending review and explicit analysis/mock consumer changes",
+  "generator_source_commit": "049f0e7b986597b9e7ef699897cd10438cf5064e",
+  "generator": "eigsep_analysis.hfss_s11.adapt_export",
+  "raw_source_sha256": "827c11c0254ad4053d6e645e59c11a199bfdd7018a53a7fef956acba8b442389",
+  "raw_provenance_sha256": "ec8f114d6e61e94eed8f3b4817dab2b7638c4768a49ba1c6366588cdef0c23c9",
+  "source_manifest_sha256": "8cbab074608237f76e279152940b7d6aa2e42bcaed7023b5d59c4eab5c548c31",
+  "schema": {
+    "sampling": "mwss",
+    "L": 180,
+    "E_mV_shape": [201, 3, 181, 360],
+    "frequency_mhz": {"start": 50, "stop": 250, "step": 1},
+    "theta_deg": {"start": 0, "stop": 180, "step": 1},
+    "phi_deg": {"start": 0, "stop": 359, "step": 1},
+    "field_quantity": "complex rE Cartesian, mV",
+    "coordinate_system": "project global/body Cartesian; theta=0..180, phi=0..359 degrees; origin unchanged",
+    "excitation": "port 3:1, 1 W, 0 degrees",
+    "native_s33_reference_ohm": 75,
+    "s33_references_retained_ohm": [50, 75],
+    "physical_port_plane": "unresolved Q-BK-06",
+    "absolute_normalization": "original excitation; not independently validated"
+  },
+  "science_arrays_exact": true,
+  "field_rescaling_or_symmetry_in_adapter": false,
+  "existing_defaults_changed": false
+}
