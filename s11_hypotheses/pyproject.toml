@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eigsep-s11-hypothesis-tools"
+version = "0.0.1"
+requires-python = ">=3.11"
+description = "Private C54 existing-kernel exports and upstream controls"
+
+[tool.setuptools]
+packages = ["s11_hypotheses"]
+package-dir = {"s11_hypotheses" = "."}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
