@@ -101,3 +101,16 @@ Code060 provides the observed fitting/report modules, wrapper
 all printed-size figures, then rewrite/build/render/audit M009. Science
 results and a readable memo remain the task deliverables after this
 run-ready machinery phase.
+
+CI coverage remains a final-delivery item: this standalone adapter has no
+own workflow yet and imports the pinned private analysis-code kernels.
+Ordinary mock workspace workflows do not cover its standalone suite.
+Before PR conformance, root must wire a dedicated workflow that installs
+an authorized matching private analysis-code checkout and this adapter,
+then runs the configured standalone suite with exact pins; cross-repo
+checkout credentials/contract must be resolved explicitly. Do not duplicate
+kernels or add fake core mocks to avoid that dependency. Until wired, the
+required private-Limbo fallback runs the same standalone suite and records
+its tested code/mock commits, commands, dependency identities and counts;
+that evidence is not a GitHub CI pass. This narrow prelaunch runtime fix
+does not change scientific models, scores or that pending coverage item.

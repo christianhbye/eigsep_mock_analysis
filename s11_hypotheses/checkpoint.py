@@ -50,6 +50,7 @@ def source_identity(mock_root, code_root):
     code = contract.code_manifest(
         code_root,
         [
+            "src/eigsep_analysis/run_contract.py",
             "src/eigsep_analysis/s11_hypotheses.py",
             "src/eigsep_analysis/s11_hypothesis_io.py",
             "src/eigsep_analysis/s11_hypothesis_pipeline.py",

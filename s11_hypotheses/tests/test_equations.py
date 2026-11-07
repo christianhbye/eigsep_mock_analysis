@@ -418,3 +418,31 @@ def test_complete_power_report_executes_ac5_and_signed_export(tmp_path):
     with h5py.File(tmp_path / "report/signed_power.h5", "r") as h:
         assert len(h["fine_tau_s"]) > len(h["tau_s"])
         assert np.any(h["tau_s"][:] < 0)
+
+
+def test_fingerprint_algorithm_source_mutation_invalidates_identity(
+    tmp_path, monkeypatch
+):
+    mock = tmp_path / "mock"
+    code = tmp_path / "code"
+    (mock / "s11_hypotheses").mkdir(parents=True)
+    (mock / "pyproject.toml").write_text("# test package\n")
+    (mock / "s11_hypotheses/pyproject.toml").write_text("# adapter\n")
+    (mock / "s11_hypotheses/__init__.py").write_text("")
+
+    def manifest(root, entrypoints):
+        for name in entrypoints:
+            path = root / name
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("# frozen algorithm source\n")
+        return dict(sources={name: intake.digest(root / name) for name in entrypoints})
+
+    monkeypatch.setattr(checkpoint.contract, "code_manifest", manifest)
+    monkeypatch.setattr(checkpoint.metadata, "version", lambda _: "test")
+    first = checkpoint.source_identity(mock, code)
+    algorithm = "src/eigsep_analysis/run_contract.py"
+    assert algorithm in first["code"]["sources"]
+    (code / algorithm).write_text("# hashing algorithm changed\n")
+    second = checkpoint.source_identity(mock, code)
+    assert checkpoint.fingerprint(first) != checkpoint.fingerprint(second)
