@@ -25,6 +25,8 @@ def main():
     source = pin["source_path"]
     result = {
         "runtime": sys.version,
+        "version_info": list(sys.version_info),
+        "executable": sys.executable,
         "guard_sha256": guard["sha256"](args.guard),
         "source_sha256": guard["sha256"](source),
         "expected_signature": pin["physical_signature_sha256"],

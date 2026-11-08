@@ -49,3 +49,13 @@ metadata/controller/log bytes are preserved in workspace scratch
 `native-clone-failure-20261108T102901Z`, manifest
 `acca79b137a74381f83d57e9fcf3db5cba52b2410fdf9d56fd26c842a0ee35df`.
 No new native clone, domain/setup, cleanup, solve or export is authorized.
+
+Compatibility correction: actual standalone IronPython2.7.4 has unified str/
+Unicode, so b65 decoding alone did not resolve its ASCII JSON encoder failure.
+Standard encoding='latin1' and pure ASCII paths failed on the same native str
+fixture. Standard JSON ensure_ascii=False plus exact printable-ASCII escaping
+passed Latin1/quoted/control/scalar fixture bytes; the first broad-Unicode probe
+exposed the unnecessary redecoding of unified Unicode. The amended guard avoids
+that redecoding and retains the CPython3 and SHA256 paths. 45 focused cases pass,
+including exhaustive65536BMP parity. Standalone new-guard/full-source and complete
+configured validation remain pending; source/data/model pins are unchanged.

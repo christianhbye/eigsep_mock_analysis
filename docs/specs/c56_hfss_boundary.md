@@ -129,3 +129,18 @@ native embedded dependencies and unchanged Python3 digests. The standalone
 and installed IronPython without importing Desktop or invoking a license API.
 This amendment requires complete configured tests and a new clone-only gate;
 the failed native attempt does not authorize a retry or any solve.
+
+The installed standalone IronPython 2.7.4 unifies plain and Unicode text as
+`str`; `b` literals have a separate type. A subsequent synthetic Latin1-reader
+test therefore showed that decoding alone was insufficient. The standard
+`encoding='latin1'` and pure ASCII-encoder options also repeat the UTF8 error.
+The compatibility path retains standard JSON ordering, numbers, quoting and
+control escapes with `ensure_ascii=False`, then escapes only characters outside
+printable ASCII. This produces the normal ASCII JSON bytes, including surrogate
+pairs. Separate byte-to-Latin1 decoding is used only when Python2 distinguishes
+byte strings from Unicode; unified Unicode is preserved. SHA256 is unchanged.
+CPython3 continues using its original standard ASCII JSON encoder. Exhaustive
+Latin1/BMP, astral, literal-escape and mutation checks must agree byte for byte
+with that reference before a standalone source-signature check is accepted.
+The old failed clone result did not record its embedded Python version;
+standalone runtime metadata establishes only the explicitly tested interpreter.

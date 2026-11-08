@@ -44,7 +44,10 @@ def sha256(path):
     return digest.hexdigest()
 
 
-_PY2_BYTE_STRING = str if sys.version_info[0] == 2 else ()
+_PY2_JSON = sys.version_info[0] == 2
+# IronPython2 represents both plain and Unicode text as str; decoding such
+# Unicode again as Latin1 can corrupt or reject characters above U+00FF.
+_PY2_BYTE_STRING = str if _PY2_JSON and type("") is not str else ()
 
 
 def _latin1_json_strings(value):
@@ -65,12 +68,38 @@ def _latin1_json_strings(value):
     return value
 
 
+def _ascii_json_bytes(value):
+    """ASCII-escape stdlib JSON output without redecoding unified text.
+
+    The vendor Python2 ASCII encoder incorrectly decodes Unicode as UTF8.
+    Keep stdlib key ordering, numbers, quoting and control escapes, then escape
+    characters outside printable ASCII exactly as its normal ASCII path does.
+    """
+    text = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    chunks = []
+    for char in text:
+        number = ord(char)
+        if number < 127:
+            chunks.append(char)
+        elif number <= 65535:
+            chunks.append("\\u%04x" % number)
+        else:
+            number -= 65536
+            chunks.append(
+                "\\u%04x\\u%04x" % (55296 + (number >> 10), 56320 + (number & 1023))
+            )
+    return "".join(chunks).encode("ascii")
+
+
 def digest(value):
-    return hashlib.sha256(
-        json.dumps(
-            _latin1_json_strings(value), sort_keys=True, separators=(",", ":")
-        ).encode("utf8")
-    ).hexdigest()
+    normalized = _latin1_json_strings(value)
+    if _PY2_JSON:
+        payload = _ascii_json_bytes(normalized)
+    else:
+        payload = json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode(
+            "utf8"
+        )
+    return hashlib.sha256(payload).hexdigest()
 
 
 def read_tree(path):

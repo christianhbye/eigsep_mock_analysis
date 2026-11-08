@@ -17,10 +17,27 @@ def test_python2_non_utf8_bytes_match_lossless_latin1_unicode(monkeypatch):
     expected = {"embedded": ["binary\u00f8\x00\u00ff", {"\u00fe": ["\u0080", 3]}]}
     expected_digest = hp.digest(expected)
     monkeypatch.setattr(hp, "_PY2_BYTE_STRING", bytes)
+    monkeypatch.setattr(hp, "_PY2_JSON", True)
     assert hp.digest(raw) == expected_digest
     mutated = copy.deepcopy(raw)
     mutated[b"embedded"][0] = b"binary\xf9\x00\xff"
     assert hp.digest(mutated) != expected_digest
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        {"latin1": "".join(chr(i) for i in range(256))},
+        {"bmp": "".join(chr(i) for i in range(65536))},
+        {"text": "\U0001f600\ud800\udc00\u2028\ufffe"},
+        {"literal": "\\u00f8", "quoted": '"\n\r\t\b\f\\/', "n": [None, True, 0.5]},
+    ],
+)
+def test_vendor_ascii_escape_is_exact_standard_json(value, monkeypatch):
+    expected = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("ascii")
+    assert hp._ascii_json_bytes(value) == expected
+    monkeypatch.setattr(hp, "_PY2_JSON", True)
+    assert hp.digest(value) == hashlib.sha256(expected).hexdigest()
 
 
 def test_python3_unicode_digest_and_bytes_rejection_unchanged():
