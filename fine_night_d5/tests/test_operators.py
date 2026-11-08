@@ -165,3 +165,14 @@ def test_native_drive_factorization_uses_exact_outer_mount():
     bad = np.repeat(np.eye(3)[None], 2, axis=0)
     with pytest.raises(ValueError, match="pinned outer-mount"):
         drive_angles(bad, mis)
+
+
+def test_explicit_control_native_indices_and_full_default():
+    np.testing.assert_array_equal(beam.native_indices(6), np.arange(6))
+    np.testing.assert_array_equal(beam.native_indices(6, [1, 4]), [1, 4])
+
+
+@pytest.mark.parametrize("indices", [[], [1, 1], [4, 1], [-1], [6], [1.5]])
+def test_control_native_indices_reject_ambiguous_or_outside(indices):
+    with pytest.raises(ValueError):
+        beam.native_indices(6, indices)

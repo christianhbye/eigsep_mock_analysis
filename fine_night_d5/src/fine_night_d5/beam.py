@@ -9,6 +9,25 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 
 
+def native_indices(count, requested=None):
+    """Explicit ordered native-slice control selection; full grid by default."""
+    if not isinstance(count, int) or count <= 0:
+        raise ValueError("positive integer native frequency count required")
+    if requested is None:
+        return np.arange(count)
+    chosen = np.asarray(requested)
+    if (
+        chosen.ndim != 1
+        or not len(chosen)
+        or chosen.dtype.kind not in "iu"
+        or np.any(chosen < 0)
+        or np.any(chosen >= count)
+        or np.any(np.diff(chosen.astype(np.int64)) <= 0)
+    ):
+        raise ValueError("ordered unique in-range integer native indices required")
+    return chosen
+
+
 def body_x_symmetry(field):
     """Apply [E(n)-P_x E(P_x n)]/2 before squaring, x axis only."""
     e = np.asarray(field)

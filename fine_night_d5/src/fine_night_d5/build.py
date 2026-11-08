@@ -40,6 +40,12 @@ def main():
     parser.add_argument("--sha256", required=True)
     parser.add_argument("--symmetry", required=True, choices=("raw", "body-x"))
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument(
+        "--native-indices",
+        nargs="+",
+        type=int,
+        help="explicit native subset for a bounded control; default full grid",
+    )
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=False)
     start = time.monotonic()
@@ -61,6 +67,7 @@ def main():
                 raise ValueError("native complex coordinates/schema differ")
         if f.ndim != 1 or not np.isfinite(f).all() or np.any(np.diff(f) <= 0):
             raise ValueError("invalid native frequency axis")
+        selected = beam.native_indices(len(f), args.native_indices)
         runtime = {
             name: importlib.metadata.version(name)
             for name in ("numpy", "scipy", "jax", "jaxlib", "s2fft")
@@ -72,6 +79,11 @@ def main():
             "lmax": 128,
             "normalization": "native MWSS integral4pi before scalar SHT",
             "frequency_interpolation": "none; native slices",
+            "native_frequency_count": len(f),
+            "selected_native_indices": selected.tolist(),
+            "frequency_scope": "full native grid"
+            if len(selected) == len(f)
+            else "native subset control only; not a full beam artifact",
             "python": sys.version,
             "runtime": runtime,
             "beam_module_sha256": sha256(beam.__file__),
@@ -81,11 +93,13 @@ def main():
         w = np.asarray(s2fft.utils.quadrature_jax.quad_weights(L=L, sampling="mwss"))
         wo = np.asarray(s2fft.utils.quadrature_jax.quad_weights(L=129, sampling="mwss"))
         maps, qc = [], []
-        for i, freq in enumerate(f):
+        for i in selected:
+            freq = f[i]
             power, integral = beam.normalize_native(e[i], w, args.symmetry)
             bm, dropped = beam.scalar_truncate(power, L, 128)
             checks = {
                 "frequency_mhz": float(freq),
+                "native_index": int(i),
                 "raw_integral_mV2": integral,
                 "dropped_harmonic_fraction": dropped,
                 "output_integral_over_4pi": float(
@@ -106,12 +120,13 @@ def main():
         with tmp.open("wb") as stream:
             np.savez_compressed(
                 stream,
-                freqs=f * 1e6,
+                freqs=f[selected] * 1e6,
                 bm=np.stack(maps),
                 lmax=128,
                 field_symmetry=args.symmetry,
                 parent_native_sha256=args.sha256,
                 normalization=record["normalization"],
+                frequency_scope=record["frequency_scope"],
             )
         tmp.replace(args.out / "beam.npz")
         record.update(

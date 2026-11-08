@@ -53,3 +53,13 @@ Run the real builder only in an approved bounded detached unit, for example
 pins and resource/product caps and write killed/timeout disposition. The
 builder's in-process FAILED sentinel does not catch a kernel kill. No source
 push, release, phase2 compact-source correction or night fit is implied.
+
+For the first measured cold control, `--native-indices 5 --symmetry raw`
+selects the old export's70.3125MHz slice. The builder retains original native
+indices in filenames/QC and marks a subset as a control, never a full beam
+artifact. The default remains all native slices. Duplicate, descending,
+noninteger, empty or out-of-range selections fail. A one-slice control cannot
+feed the frequency spline (which requires at least four native slices).
+Compare this raw control directly with the pinned v002 native slice before
+separately gated full old/new body-x generation. Measure the cold startup/
+transform cost; do not infer full-run timing from an optimistic combined cap.
