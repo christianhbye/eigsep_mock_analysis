@@ -8,14 +8,16 @@ from eigsim.hfss_boundary_pilot import private_target, sha256
 
 
 def render(config_path, guard_path, pin_path, output):
-    config_path, guard_path, pin_path, output = map(
-        lambda p: Path(p).resolve(), (config_path, guard_path, pin_path, output)
+    config_path, guard_path, pin_path = map(
+        lambda p: Path(p).resolve(), (config_path, guard_path, pin_path)
     )
+    # Preserve the final path component so exclusive create sees dangling links.
+    output = Path(output).absolute()
     config = json.loads(config_path.read_text())
     private_target(config["source"], config["target"], config["private_prefix"])
-    if output.exists():
+    if output.exists() or output.is_symlink():
         raise ValueError("Rendered script already exists")
-    if not output.is_relative_to(Path(config["private_prefix"]).resolve()):
+    if not output.resolve().is_relative_to(Path(config["private_prefix"]).resolve()):
         raise ValueError("Rendered script must be inside private prefix")
     prefix = "\n".join(
         "%s = %r" % (key, str(path))
@@ -28,9 +30,10 @@ def render(config_path, guard_path, pin_path, output):
     template = Path(__file__).with_name("prepare_aedt.py").read_text()
     # Future import must remain first in the rendered file.
     template = template.replace("from __future__ import print_function\n", "")
-    output.write_text(
-        "from __future__ import print_function\n" + prefix + "\n" + template
-    )
+    with output.open("x", encoding="utf8") as stream:
+        stream.write(
+            "from __future__ import print_function\n" + prefix + "\n" + template
+        )
     return {
         "rendered_script": str(output),
         "script_sha256": sha256(output),

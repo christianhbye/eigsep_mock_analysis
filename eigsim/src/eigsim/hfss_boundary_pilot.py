@@ -179,6 +179,9 @@ def compare(source, candidate):
 def private_target(source, target, prefix, must_be_absent=True):
     paths = [source, target, prefix]
     require(all(os.path.isabs(p) for p in paths), "Absolute paths required")
+    if must_be_absent:
+        require(not os.path.lexists(target), "Target already exists")
+        require(not os.path.lexists(target + "results"), "Target results already exist")
     source, target, prefix = [os.path.realpath(p) for p in paths]
     require(
         prefix not in ("/", "/tmp", "/home", "/data"),

@@ -423,3 +423,57 @@ def test_actual_vendor_refuses_result_race_on_both_paths(case, vendor_main, drif
     assert result.is_symlink()
     assert destination.read_bytes() == b"do not replace"
     assert hp.sha256(case[0]) == case[5]["source_sha256"]
+
+
+def test_actual_render_refuses_dangling_output_link(case):
+    import runpy
+
+    _, _, prefix, _, guard, _, gate = case
+    planner = Path(hp.__file__).parents[2] / "scripts/hfss_boundary/plan.py"
+    render = runpy.run_path(str(planner))["render"]
+    config, pin = prefix / "config.json", prefix / "pin.json"
+    config.write_text(json.dumps(gate))
+    pin.write_text("{}")
+    output, destination = prefix / "render.py", prefix / "absent.py"
+    output.symlink_to(destination)
+    with pytest.raises((ValueError, OSError)):
+        render(config, guard, pin, output)
+    assert output.is_symlink()
+    assert not destination.exists()
+
+
+def test_actual_render_refuses_concurrent_creator(case, monkeypatch):
+    import os
+    import runpy
+
+    _, _, prefix, _, guard, _, gate = case
+    planner = Path(hp.__file__).parents[2] / "scripts/hfss_boundary/plan.py"
+    render = runpy.run_path(str(planner))["render"]
+    config, pin = prefix / "config.json", prefix / "pin.json"
+    config.write_text(json.dumps(gate))
+    pin.write_text("{}")
+    output = prefix / "render.py"
+    original_open = Path.open
+
+    def collide(path, mode="r", *args, **kwargs):
+        if path == output and mode == "x":
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(b"concurrent owner")
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", collide)
+    with pytest.raises(FileExistsError):
+        render(config, guard, pin, output)
+    assert output.read_bytes() == b"concurrent owner"
+
+
+def test_dangling_project_target_rejected_before_path_resolution(case):
+    source, target, prefix, *_ = case
+    destination = prefix / "absent.aedt"
+    target.symlink_to(destination)
+    desktop = Desktop(source)
+    with pytest.raises(ValueError, match="Target already exists"):
+        run_clone(case, desktop)
+    assert not destination.exists()
+    assert not desktop.events

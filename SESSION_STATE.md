@@ -6,8 +6,8 @@ executed or authorized. Parent owns trackers, IDs and launch/resource gates.
 
 Implemented stdlib/IronPython-compatible guard and native block parser,
 frozen source/field ledger, clone-only vendor template and render-only planner,
-read-only source audit, spec and 35 focused rejection/API tests (35 passed,
-2.40s). Actual frozen source ccd57d… matches packaged signature09255b08…;
+read-only source audit, spec and 38 focused rejection/API tests (38 passed,
+3.67s). Actual frozen source ccd57d… matches packaged signature09255b08…;
 source proof is docs/specs/c56_source_audit.json. All changed files pass ruff.
 Vendor operation stops at CLONE_VALIDATED; no cleanup/domain/setup/solve/export.
 
@@ -27,3 +27,9 @@ implementation remains a follow-up after strict clone behavior is reviewed.
 exclusive result writer. Four added integration cases execute the real vendor
 main (only Python2 imp import shimmed on CPython), testing normal success/error
 and injected post-check symlink collisions on both paths. 35 focused tests pass.
+
+07:48 UTC final source correction: render-only planner uses exclusive create
+on the original output path, with resolved containment checks. Actual-render
+refusal tests cover dangling links and an injected concurrent creator. Project
+preflight now also refuses dangling target links before realpath resolution.
+38 focused tests pass; full suite still waits C54 slot. No vendor operation.
