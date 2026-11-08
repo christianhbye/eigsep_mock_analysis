@@ -314,10 +314,14 @@ def test_complete_power_report_executes_ac5_and_signed_export(tmp_path):
     import h5py
     import pandas as pd
     from eigsep_analysis import s11_hypothesis_pipeline as pipeline
+    from eigsep_analysis import s11_hypothesis_selection as selection
 
     f_all = np.linspace(1e6, 250e6, 1000)
     f = f_all[f_all >= 50e6]
-    times = np.arange(14, dtype=float) + 1000
+    # Distinct capture times must be separated beyond the real selector's
+    # inclusive +/-1s join tolerance. One-second fixture spacing was ambiguous
+    # after the corrected finite/unique-observation consumer was introduced.
+    times = 600 * np.arange(14, dtype=float) + 1000
     base = np.exp(-2j * np.pi * f_all * 600e-9)
     with h5py.File(tmp_path / "ant.h5", "w") as h:
         h["freqs"], h["timestamps"] = f_all, times
@@ -333,8 +337,15 @@ def test_complete_power_report_executes_ac5_and_signed_export(tmp_path):
             + ["07-17 13:10", "07-17 19:17"],
         )
     )
+    selected, excluded = selection.epoch_rows(b0)
+    joined = selection.epoch_joins(selected, times)
+    assert excluded == []
+    assert np.array_equal(joined["night"], np.arange(12))
+    assert np.array_equal(joined["1310"], [12])
+    assert np.array_equal(joined["1917"], [13])
+    assert len(set(np.concatenate(list(joined.values())))) == 14
     b0.to_csv(tmp_path / "b0.csv", index=False)
-    pd.DataFrame(dict(dut="ant", t=times, osl_t=times // 3)).to_csv(
+    pd.DataFrame(dict(dut="ant", t=times, osl_t=times[np.arange(14) // 3 * 3])).to_csv(
         tmp_path / "donor.csv", index=False
     )
     echo = {}
@@ -418,6 +429,19 @@ def test_complete_power_report_executes_ac5_and_signed_export(tmp_path):
     with h5py.File(tmp_path / "report/signed_power.h5", "r") as h:
         assert len(h["fine_tau_s"]) > len(h["tau_s"])
         assert np.any(h["tau_s"][:] < 0)
+
+
+def test_power_report_time_join_retains_ambiguity_rejection():
+    """Use the real pinned selector; no loosened tolerance or deduplication."""
+    from eigsep_analysis import s11_hypothesis_selection as selection
+
+    ambiguous = np.arange(14, dtype=float) + 1000
+    with pytest.raises(ValueError, match="ambiguous"):
+        selection.unique_time_join(ambiguous[:12], ambiguous)
+    captures = 600 * np.arange(14, dtype=float) + 1000
+    assert np.array_equal(
+        selection.unique_time_join(captures[:12], captures), np.arange(12)
+    )
 
 
 def test_fingerprint_algorithm_source_mutation_invalidates_identity(
