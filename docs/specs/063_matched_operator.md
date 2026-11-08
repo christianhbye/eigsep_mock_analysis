@@ -24,7 +24,12 @@ The old complex source SHA is
 `8c63a213cbdd77c1a7eed51b592359ee63bf4495228de07fe397510369992924`.
 The new complex source SHA is
 `9b40552469364304305f0a65858663f52d60621148088c9f5cc7752b458672de`.
-Derived symmetric artifact hashes are **pending** until an approved real run.
+Approved private runs at producer5b8e2ee generated full old52/new201 grids:
+old `31a538fe3c31985c3e5db2a8cc5a12d474842d91ddc4bf2381f2d99e56f23dcc`,
+new `38a1cefab56fa7442176ad421c0a4b987a19b15d0df84458396323ac4c202ca7`.
+Both passed the predeclared4pi relative tolerance1e-10, finite/full axes and
+zero negative pixels. Untuned withheld-frequency errors and exact cost/QC
+records remain diagnostic inputs, not proof of improved real-data prediction.
 Raw v002/v003 stay labelled controls; sharing a raw complex parent does not
 make two effective operators identical.
 
@@ -63,3 +68,24 @@ feed the frequency spline (which requires at least four native slices).
 Compare this raw control directly with the pinned v002 native slice before
 separately gated full old/new body-x generation. Measure the cold startup/
 transform cost; do not infer full-run timing from an optimistic combined cap.
+
+The gated `python -m fine_night_d5.model --inputs JSON --out NEW_RUN` path
+now loads exact historical063 calibration/pointing stages, checking their
+payloads and actual producer snapshots. It requires explicit runtime versions
+and source hashes for the private eigsim setup/orientation and croissant
+convolution APIs. Stored drive angles are grouped exactly after proving their
+rotation matrices; roundoff from matrix-to-angle inversion cannot create
+extra orientations. One setup retains a common global simulation frame,
+then each orientation's convolutions are streamed in bounded row chunks,
+checkpointed atomically and checked on the first chunk against unchanged
+`_run_orientation`. Counts/masks, original native identities and model columns
+survive into the product. Model coverage failure blocks the stage.
+
+The sky loader uses the original034/C51 float32 Galactic RING1024→64→8
+TCMB/no-CMB GSM2016 operator and checksum-pinned offline parent. Its saved034
+anchor must close exactly at64 and8 before any sky SHT/model. Original034
+IERS files, horizon87.5m/v0005 and A5 consumed tilt remain explicit pins.
+The CMB value comes from original034 provenance. No source replacement,
+pointing/loss/beam efficiency correction or production-default change occurs.
+Actual three-channel model cost and old/native operator closure still need
+their own bounded run approval; source tests are not that validation.
