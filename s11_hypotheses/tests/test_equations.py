@@ -345,7 +345,20 @@ def test_complete_power_report_executes_ac5_and_signed_export(tmp_path):
     assert np.array_equal(joined["1917"], [13])
     assert len(set(np.concatenate(list(joined.values())))) == 14
     b0.to_csv(tmp_path / "b0.csv", index=False)
-    pd.DataFrame(dict(dut="ant", t=times, osl_t=times[np.arange(14) // 3 * 3])).to_csv(
+    # Retain the original fixture's [2,3,3,3,3] donor partition exactly,
+    # including the last training observation sharing the heldouts' donor.
+    original_groups = (1000 + np.arange(14)) // 3
+    first_capture = {
+        group: times[np.flatnonzero(original_groups == group)[0]]
+        for group in np.unique(original_groups)
+    }
+    donors = np.array([first_capture[group] for group in original_groups])
+    assert np.array_equal(
+        donors[:, None] == donors[None, :],
+        original_groups[:, None] == original_groups[None, :],
+    )
+    assert donors[11] == donors[12] == donors[13]
+    pd.DataFrame(dict(dut="ant", t=times, osl_t=donors)).to_csv(
         tmp_path / "donor.csv", index=False
     )
     echo = {}
