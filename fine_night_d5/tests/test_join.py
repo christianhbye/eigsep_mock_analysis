@@ -1,10 +1,12 @@
 """Independent sparse-mask means and fail-closed chunk identity checks."""
 
 import copy
+import json
 
 import numpy as np
 import pytest
-from fine_night_d5.join import join_arrays
+from fine_night_d5.assets import sha256
+from fine_night_d5.join import PHYSICS_SOURCES, join_arrays, read_piece
 
 
 def piece(channel):
@@ -94,3 +96,84 @@ def test_no_coverage_runtime_or_weight_substitution(bad):
         b["native_A"][2] = np.nan  # even excluded-row model identity persists
     with pytest.raises((ValueError, AssertionError)):
         join_arrays([(a, context), (b, other)], expected)
+
+
+def pinned_record_fixture(tmp_path):
+    """Build a real on-disk producer record with independent payload hashes."""
+
+    def save(name, obj):
+        path = tmp_path / name
+        path.write_text(json.dumps(obj))
+        return {"path": str(path), "sha256": sha256(path)}
+
+    runtime = {
+        "dependency_sources": {
+            name: {"sha256": "1" * 64}
+            for name in ("eigsim.simulate", "eigsim.rotations", "croissant.simulator")
+        },
+        "jax_binaries": {"lib": {"sha256": "2" * 64}},
+    }
+    runtime_pin = save("runtime.json", runtime)
+    source = tmp_path / "sources"
+    source.mkdir()
+    source_hashes = {}
+    for name in PHYSICS_SOURCES:
+        path = source / name
+        path.write_text("# historical producer " + name)
+        source_hashes[name] = sha256(path)
+    np.savez(tmp_path / "columns.npz", **piece(283))
+    config = {
+        "channels": [283],
+        "native_stage": {"sha256": "3" * 64},
+        "pointing_stage": {"sha256": "4" * 64},
+        "beam": {"role": "old_symmetric", "sha256": "5" * 64},
+        "runtime_modules": {
+            k: v["sha256"] for k, v in runtime["dependency_sources"].items()
+        },
+        "runtime_evidence": runtime_pin,
+    }
+    input_pin = save("inputs.json", config)
+    record = {
+        "status": "DONE",
+        "source_commit": "6" * 40,
+        "source_sha256": source_hashes,
+        "columns_sha256": sha256(tmp_path / "columns.npz"),
+        "input_manifest_sha256": input_pin["sha256"],
+        "calibration_stage": "3" * 64,
+        "pointing_stage": "4" * 64,
+        "beam": {"role": "old_symmetric", "input_sha256": "5" * 64},
+        "runtime": {"numpy": "test"},
+        "iers": {},
+        "horizon": {},
+    }
+    return {"done": save("RUN_DONE.json", record), "inputs": input_pin}
+
+
+def test_read_piece_preserves_actual_historical_producer(tmp_path):
+    pin = pinned_record_fixture(tmp_path)
+    (arrays, context), proof, record = read_piece(pin)
+    np.testing.assert_array_equal(arrays["channels"], [283])
+    assert context["actual_model_producer_commit"] == "6" * 40
+    assert proof["actual_producer_commit"] == record["source_commit"]
+
+
+@pytest.mark.parametrize("bad", ["manifest_axis", "snapshot", "runtime"])
+def test_pinned_read_rejects_wrong_scope_or_changed_historical_evidence(tmp_path, bad):
+    pin = pinned_record_fixture(tmp_path)
+    if bad == "manifest_axis":
+        # Even consistently re-hashed JSON cannot substitute a different
+        # frequency request for the immutable actual payload channel IDs.
+        inputs = json.loads((tmp_path / "inputs.json").read_text())
+        inputs["channels"] = [603]
+        (tmp_path / "inputs.json").write_text(json.dumps(inputs))
+        pin["inputs"]["sha256"] = sha256(tmp_path / "inputs.json")
+        record = json.loads((tmp_path / "RUN_DONE.json").read_text())
+        record["input_manifest_sha256"] = pin["inputs"]["sha256"]
+        (tmp_path / "RUN_DONE.json").write_text(json.dumps(record))
+        pin["done"]["sha256"] = sha256(tmp_path / "RUN_DONE.json")
+    elif bad == "snapshot":
+        (tmp_path / "sources/model.py").write_text("# changed historical producer")
+    else:
+        (tmp_path / "runtime.json").write_text("{}")
+    with pytest.raises(ValueError):
+        read_piece(pin)

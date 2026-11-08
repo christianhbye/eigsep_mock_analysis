@@ -187,6 +187,8 @@ def read_piece(pin):
     identity = context(config, record, runtime)
     with np.load(directory / "columns.npz", allow_pickle=False) as z:
         arrays = {k: z[k] for k in z.files}
+    if not np.array_equal(arrays["channels"], np.asarray(config["channels"])):
+        raise ValueError("chunk payload channel IDs differ from its producer inputs")
     proof = {
         "done": pin["done"],
         "inputs": pin["inputs"],
