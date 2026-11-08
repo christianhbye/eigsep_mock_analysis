@@ -222,6 +222,8 @@ class Project:
         self.desktop.events.append("SaveAs_NEW")
         self.path = Path(path)
         shutil.copyfile(self.desktop.source, path)
+        if hasattr(self.desktop, "on_save"):
+            self.desktop.on_save()
         if self.desktop.drift:
             self.path.write_text(self.path.read_text().replace("38000000", "1"))
 
@@ -368,3 +370,56 @@ def test_result_cannot_overwrite_existing_or_follow_dangling_symlink(tmp_path):
     with pytest.raises(OSError):
         hp.write_result(str(dangling), {"phase": "overwrite"})
     assert not destination.exists()
+
+
+@pytest.fixture
+def vendor_main(monkeypatch):
+    """Run the real vendor template main on CPython, shimming only old imp import."""
+    import runpy
+    import sys
+    import types
+
+    module = types.ModuleType("imp")
+    module.load_source = lambda name, path: hp
+    monkeypatch.setitem(sys.modules, "imp", module)
+    template = Path(hp.__file__).parents[2] / "scripts/hfss_boundary/prepare_aedt.py"
+    return runpy.run_path(str(template))["main"]
+
+
+def call_vendor_main(case, desktop, main):
+    _, _, prefix, script, guard, pin, gate = case
+    config_path, pin_path = prefix / "gate.json", prefix / "pin.json"
+    config_path.write_text(json.dumps(gate))
+    pin_path.write_text(json.dumps(pin))
+    return main(desktop, str(config_path), str(guard), str(pin_path), str(script))
+
+
+@pytest.mark.parametrize("drift", [False, True])
+def test_actual_vendor_success_and_exception_write_exclusive_result(
+    case, vendor_main, drift
+):
+    desktop = Desktop(case[0], drift=drift)
+    if drift:
+        with pytest.raises(ValueError, match="drift"):
+            call_vendor_main(case, desktop, vendor_main)
+    else:
+        call_vendor_main(case, desktop, vendor_main)
+    proof = json.loads((case[2] / "CLONE_RESULT.json").read_text())
+    assert proof["phase"] == ("FAILED" if drift else "CLONE_VALIDATED")
+    if drift:
+        assert "signature drift" in proof["traceback"]
+        assert proof["source_unchanged"]
+
+
+@pytest.mark.parametrize("drift", [False, True])
+def test_actual_vendor_refuses_result_race_on_both_paths(case, vendor_main, drift):
+    desktop = Desktop(case[0], drift=drift)
+    result, destination = case[2] / "CLONE_RESULT.json", case[2] / "protected.txt"
+    destination.write_bytes(b"do not replace")
+    # Inject a collision after initial lexists check but before final result write.
+    desktop.on_save = lambda: result.symlink_to(destination)
+    with pytest.raises(OSError):
+        call_vendor_main(case, desktop, vendor_main)
+    assert result.is_symlink()
+    assert destination.read_bytes() == b"do not replace"
+    assert hp.sha256(case[0]) == case[5]["source_sha256"]

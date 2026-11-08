@@ -1,7 +1,8 @@
 """Vendor template: rendered prefixes define CONFIG_PATH, GUARD_PATH and PIN_PATH.
 
 Run ONLY in a fresh isolated ansysedt -ng -RunScriptAndExit process after the
-orchestrator's explicit clone-prepare gate. No Analyze/Save/cleanup call exists.
+orchestrator's explicit clone-prepare gate. Only private SaveAs is allowed;
+no original Save, Analyze or cleanup call exists.
 """
 
 from __future__ import print_function
@@ -43,11 +44,9 @@ def main(desktop, config_path, guard_path, pin_path, script_path):
             ),
             "source_unchanged": guard.sha256(config["source"]) == pin["source_sha256"],
         }
-        with io.open(result_path, "w", encoding="utf8") as stream:
-            stream.write("%s" % json.dumps(result, indent=2, sort_keys=True))
+        guard.write_result(result_path, result)
         raise
-    with io.open(result_path, "w", encoding="utf8") as stream:
-        stream.write("%s" % json.dumps(result, indent=2, sort_keys=True))
+    guard.write_result(result_path, result)
     return result
 
 

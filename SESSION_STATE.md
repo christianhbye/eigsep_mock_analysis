@@ -6,8 +6,8 @@ executed or authorized. Parent owns trackers, IDs and launch/resource gates.
 
 Implemented stdlib/IronPython-compatible guard and native block parser,
 frozen source/field ledger, clone-only vendor template and render-only planner,
-read-only source audit, spec and 31 focused rejection/API tests (31 passed,
-2.27s). Actual frozen source ccd57d… matches packaged signature09255b08…;
+read-only source audit, spec and 35 focused rejection/API tests (35 passed,
+2.40s). Actual frozen source ccd57d… matches packaged signature09255b08…;
 source proof is docs/specs/c56_source_audit.json. All changed files pass ruff.
 Vendor operation stops at CLONE_VALIDATED; no cleanup/domain/setup/solve/export.
 
@@ -22,3 +22,8 @@ and fresh host RAM/process check. Parent reserved next slot, 2CPU/nice0/6GiB/
 would require exact scripts/input/source pins, fresh acme2 resources, isolated
 new private prefix and no active HFSS session. Fresh domain/setup/solve/export
 implementation remains a follow-up after strict clone behavior is reviewed.
+
+07:47 UTC correction: both actual vendor success/error paths now call the
+exclusive result writer. Four added integration cases execute the real vendor
+main (only Python2 imp import shimmed on CPython), testing normal success/error
+and injected post-check symlink collisions on both paths. 35 focused tests pass.
