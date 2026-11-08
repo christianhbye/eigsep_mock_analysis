@@ -1,6 +1,7 @@
 """No vendor imports or AEDT execution: real parsing and fake-desktop safety checks."""
 
 import copy
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -8,6 +9,43 @@ from pathlib import Path
 import pytest
 
 from eigsim import hfss_boundary_pilot as hp
+
+
+def test_python2_non_utf8_bytes_match_lossless_latin1_unicode(monkeypatch):
+    # Simulate the Python2 byte-string type while exercising the actual encoder.
+    raw = {b"embedded": [b"binary\xf8\x00\xff", {b"\xfe": (b"\x80", 3)}]}
+    expected = {"embedded": ["binary\u00f8\x00\u00ff", {"\u00fe": ["\u0080", 3]}]}
+    expected_digest = hp.digest(expected)
+    monkeypatch.setattr(hp, "_PY2_BYTE_STRING", bytes)
+    assert hp.digest(raw) == expected_digest
+    mutated = copy.deepcopy(raw)
+    mutated[b"embedded"][0] = b"binary\xf9\x00\xff"
+    assert hp.digest(mutated) != expected_digest
+
+
+def test_python3_unicode_digest_and_bytes_rejection_unchanged():
+    value = {"embedded": ["binary\u00f8\x00\u00ff", ("\u0080", 3)]}
+    legacy = hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf8")
+    ).hexdigest()
+    assert hp.digest(value) == legacy
+    with pytest.raises(TypeError):
+        hp.digest({"embedded": b"\xf8"})
+
+
+def test_native_non_utf8_embedded_dependency_is_retained(tmp_path):
+    source = tmp_path / "embedded.aedt"
+    raw = project_text().replace("dependency.dat", "dependency\u00f8.dat")
+    source.write_bytes(raw.encode("latin1"))
+    signature = hp.clone_signature(source)
+    expected = hp.canonical(
+        hp.one(hp.read_tree(source), "AllReferencedFilesForProject")
+    )
+    assert "\u00f8" in expected["lines"][0]
+    assert signature["AllReferencedFilesForProject"] == hp.digest(expected)
+    source.write_bytes(raw.replace("\u00f8", "\u00f9").encode("latin1"))
+    with pytest.raises(ValueError):
+        hp.compare(signature, hp.clone_signature(source))
 
 
 def block(name, text="", children=()):

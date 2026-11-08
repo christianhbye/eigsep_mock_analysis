@@ -33,3 +33,19 @@ on the original output path, with resolved containment checks. Actual-render
 refusal tests cover dangling links and an injected concurrent creator. Project
 preflight now also refuses dangling target links before realpath resolution.
 38 focused tests pass; full suite still waits C54 slot. No vendor operation.
+
+2026-11-08 10:40 UTC update: PR45 returned to DRAFT after the first actual
+vendor attempt (`c56-native-clone-20261108T102901Z.service`) failed before
+OpenProject on IronPython JSON decoding of native byte0xf8. No target, source5
+all unchanged, no remaining engine children. Exact runtime449.450s and sampled
+RSS peak1399492608B; no memory/time cap violation. Old0e configured401-case
+run passed391/10skip but did not catch vendor serialization compatibility.
+
+Current amendment normalizes Python2 byte strings as lossless Latin1 Unicode
+only. Existing CPython3 strings/digests and all original pins remain unchanged.
+41 focused guard cases pass; standalone actual IronPython/CPython3 parity and
+complete new-head configured run remain required. All original failed-run
+metadata/controller/log bytes are preserved in workspace scratch
+`native-clone-failure-20261108T102901Z`, manifest
+`acca79b137a74381f83d57e9fcf3db5cba52b2410fdf9d56fd26c842a0ee35df`.
+No new native clone, domain/setup, cleanup, solve or export is authorized.

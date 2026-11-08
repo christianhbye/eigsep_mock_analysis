@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import sys
 
 SCHEMA = "eigsep.hfss-boundary-prepare.v1"
 DESIGN = "1_0_Exp_Taper_BowTie_Balun8_5 CharlieMod9"
@@ -43,9 +44,32 @@ def sha256(path):
     return digest.hexdigest()
 
 
+_PY2_BYTE_STRING = str if sys.version_info[0] == 2 else ()
+
+
+def _latin1_json_strings(value):
+    """Preserve native Latin1 bytes as Unicode before Python2 JSON encoding.
+
+    IronPython can return byte strings from the Latin1 text reader. Its JSON
+    encoder otherwise interprets them as UTF8. Python3 strings are unchanged;
+    arbitrary Python3 bytes remain invalid JSON input.
+    """
+    if isinstance(value, _PY2_BYTE_STRING):
+        return value.decode("latin1")
+    if isinstance(value, dict):
+        return dict(
+            (_latin1_json_strings(k), _latin1_json_strings(v)) for k, v in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return [_latin1_json_strings(v) for v in value]
+    return value
+
+
 def digest(value):
     return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf8")
+        json.dumps(
+            _latin1_json_strings(value), sort_keys=True, separators=(",", ":")
+        ).encode("utf8")
     ).hexdigest()
 
 

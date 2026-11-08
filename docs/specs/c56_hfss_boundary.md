@@ -110,3 +110,22 @@ integral only after exact scalar/cardinality validation; never sum them as data.
 Keep raw scalar/field normalization disagreements visible. Set accuracy criteria
 before scoring. Neither a successful clone nor this pair adopts a beam or loss
 prior. Existing artifacts, PR44, PR99 and PR101 remain unchanged.
+
+### 2026-11-08 native serialization counterexample
+
+The first actual clone-only unit ended in `FAILED` before `OpenProject`:
+IronPython's JSON encoder treated a native embedded-file byte `0xf8` as UTF8.
+No clone was created; the project, solution index and three field coefficients
+retained their exact hashes. The RPCSS endpoint warning in the engine log does
+not establish the cause of this Python exception.
+
+Canonical serialization now recursively decodes only Python2 byte strings as
+Latin1, matching the native text reader. Python3 Unicode and its existing
+signature `09255b08...fe29` must remain exact; Python3 arbitrary bytes remain
+invalid JSON. This preserves embedded data rather than dropping or replacing
+non-ASCII values. Regressions check nested non-UTF8 bytes, mutation sensitivity,
+native embedded dependencies and unchanged Python3 digests. The standalone
+`check_serialization.py` additionally compares the actual source pin in CPython3
+and installed IronPython without importing Desktop or invoking a license API.
+This amendment requires complete configured tests and a new clone-only gate;
+the failed native attempt does not authorize a retry or any solve.
