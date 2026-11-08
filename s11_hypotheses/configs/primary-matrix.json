@@ -1,0 +1,26 @@
+{
+  "code_root": "/home/christian/Documents/research/papers/eigsep_analysis/code-060-s11-hypothesis-tests",
+  "mock_root": "/home/christian/Documents/research/papers/eigsep_analysis/mock-c54-s11-hypothesis-tests",
+  "manifest": "/home/christian/Documents/research/papers/eigsep_analysis/code-060-s11-hypothesis-tests/docs/specs/2026-11-07-c54-input-manifest.json",
+  "run_dir": "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/collection",
+  "resource_gate": "/home/christian/Documents/research/papers/eigsep_analysis/products/_orchestration/c54-s11-hypothesis-tests/author/ROOT_RESOURCE_GATE_REQUIRED.json",
+  "path_map": {},
+  "terrain_configurations": [
+    {
+      "radius_m": 600.0,
+      "stride": 4,
+      "bin_deg": 1.0
+    }
+  ],
+  "geometry_root": "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/geometry",
+  "design_lock": "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/raw/design.lock.json",
+  "raw_science_root": "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/raw",
+  "r0_source_root": "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/r0",
+  "execution_shards": 4,
+  "shard_roots": [
+    "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/primary-0",
+    "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/primary-1",
+    "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/primary-2",
+    "/home/christian/Documents/research/papers/eigsep_analysis/products/_branches/nb-060-s11-hypothesis-tests/060_s11_hypothesis_tests/full-UNLAUNCHED/primary-3"
+  ]
+}

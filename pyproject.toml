@@ -9,7 +9,8 @@ members = ["eigsim", "rotis", "pointing_sim"]
 # models_21cm is a standalone project, not a member: it depends on classy,
 # which compiles CLASS from source and has no place in the workspace lock
 # or in CI. Run it with `uv run --project models_21cm ...`.
-exclude = ["models_21cm"]
+# C54 uses the separate analysis0.10.2 runtime; workspace stays on0.9.2.
+exclude = ["models_21cm", "s11_hypotheses"]
 
 [tool.uv.sources]
 eigsim = { workspace = true }
