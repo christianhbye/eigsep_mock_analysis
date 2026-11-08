@@ -1,0 +1,20 @@
+name: fine night operator tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["fine_night_d5/**", ".github/workflows/fine-night-test.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["fine_night_d5/**", ".github/workflows/fine-night-test.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+      - run: uv sync --project fine_night_d5 --extra dev --frozen
+      - run: uv run --project fine_night_d5 pytest fine_night_d5/tests -v
+      - run: uv run --project fine_night_d5 ruff check fine_night_d5
+      - run: uv run --project fine_night_d5 ruff format --check fine_night_d5

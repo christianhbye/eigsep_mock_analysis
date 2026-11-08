@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eigsep-fine-night-d5"
+version = "0.1.0"
+description = "Opt-in matched beam and native-time operators for D5 notebook 063"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2", "scipy>=1.15"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
