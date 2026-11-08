@@ -1,0 +1,239 @@
+{
+  "declared_distribution_commit": "58bf56e8af77a5a07fd0669ec6ba38900549e50c",
+  "all_installed_python_matches_commit": "d01b51db275c6100e649a7e0837d4b93d566f487",
+  "installed_python_file_count": 18,
+  "non_python_payload_from_git_verified": false,
+  "runtime_reinstalled_or_rekeyed": false,
+  "comparison": {
+    "58bf56e8af77a5a07fd0669ec6ba38900549e50c": {
+      "repository": "/home/christian/.cache/uv/git-v0/db/2ce16df69cbb68e6",
+      "installed_files": 18,
+      "matches": 12,
+      "files": {
+        "__init__.py": {
+          "status": "DIFFERENT",
+          "installed_sha256": "43579f6f166755325c327855511522ebf6eb67eadcd9f211f53c1198ca62da69",
+          "git_sha256": "455dcbf66141a075466a4f071a1d21b19c072a3b149f6099e3cedaae3d43ad25",
+          "path": "src/croissant/__init__.py"
+        },
+        "alm.py": {
+          "status": "MATCH",
+          "installed_sha256": "780a98d527cf38261c69e2cf1b3c52e9458620bf15515dd65be6bd7b64f8b44b",
+          "git_sha256": "780a98d527cf38261c69e2cf1b3c52e9458620bf15515dd65be6bd7b64f8b44b",
+          "path": "src/croissant/alm.py"
+        },
+        "beam.py": {
+          "status": "DIFFERENT",
+          "installed_sha256": "61a0d7dc63ec028c0486d3096ad45e4c842e2ee51b37fecd6c6dca6c0576118f",
+          "git_sha256": "d9b55f38208401f60b030ece0738e0e6ad4a572e0fc8fc530e96f810639cd204",
+          "path": "src/croissant/beam.py"
+        },
+        "constants.py": {
+          "status": "MATCH",
+          "installed_sha256": "79b70a505a7ac5b353c888edb62aa808aba1e2599f751f8a5e82a96a8eb6af16",
+          "git_sha256": "79b70a505a7ac5b353c888edb62aa808aba1e2599f751f8a5e82a96a8eb6af16",
+          "path": "src/croissant/constants.py"
+        },
+        "dense.py": {
+          "status": "MATCH",
+          "installed_sha256": "3e1edba51a6bdb9856868b1fa3be5eb56baf16282cc8d76a75732464f3fb9fd7",
+          "git_sha256": "3e1edba51a6bdb9856868b1fa3be5eb56baf16282cc8d76a75732464f3fb9fd7",
+          "path": "src/croissant/dense.py"
+        },
+        "engine_select.py": {
+          "status": "MATCH",
+          "installed_sha256": "bb836b83ca8762776c77882f482af64f8eba7a2b1e3afc17aab3079cc39a31d2",
+          "git_sha256": "bb836b83ca8762776c77882f482af64f8eba7a2b1e3afc17aab3079cc39a31d2",
+          "path": "src/croissant/engine_select.py"
+        },
+        "footprints.py": {
+          "status": "MATCH",
+          "installed_sha256": "14e8c948ea2d9064047fccd331cac5eaedae089eede363ce285c1c1a0c12e5fb",
+          "git_sha256": "14e8c948ea2d9064047fccd331cac5eaedae089eede363ce285c1c1a0c12e5fb",
+          "path": "src/croissant/footprints.py"
+        },
+        "horizon.py": {
+          "status": "MISSING/AMBIGUOUS",
+          "paths": []
+        },
+        "jax/__init__.py": {
+          "status": "MATCH",
+          "installed_sha256": "6602fec67ed94a30bb27b5d6a1f299b551d02c9411a62c06c4dcdf64fe4f3f5d",
+          "git_sha256": "6602fec67ed94a30bb27b5d6a1f299b551d02c9411a62c06c4dcdf64fe4f3f5d",
+          "path": "src/croissant/jax/__init__.py"
+        },
+        "kernel.py": {
+          "status": "MATCH",
+          "installed_sha256": "fdd97e4cc9972df4df72dc7c2a440410a32e0f1393e4d354e79f36057ed44c0b",
+          "git_sha256": "fdd97e4cc9972df4df72dc7c2a440410a32e0f1393e4d354e79f36057ed44c0b",
+          "path": "src/croissant/kernel.py"
+        },
+        "multipair.py": {
+          "status": "MATCH",
+          "installed_sha256": "13c04b732d38d63fbc471132bf8bc0f7a0cbcb61c12d470e727db001e734be13",
+          "git_sha256": "13c04b732d38d63fbc471132bf8bc0f7a0cbcb61c12d470e727db001e734be13",
+          "path": "src/croissant/multipair.py"
+        },
+        "polarization.py": {
+          "status": "DIFFERENT",
+          "installed_sha256": "92b45769c9e22095b8d62b5796df9d86841582312ea1c9cef6838cb1a757c223",
+          "git_sha256": "58302e1ae5365caea0147247f93fd45f3b7b61f6d49758d2545332134e50efc5",
+          "path": "src/croissant/polarization.py"
+        },
+        "rotations.py": {
+          "status": "DIFFERENT",
+          "installed_sha256": "a3652906a63346bef449ecdc8f3376b1c5a88fc1c9f6591337620379f0abf362",
+          "git_sha256": "df0887e367b9ffb5bfbe6278bdf34172731fb24fe7e43e48d977e2a9512d980a",
+          "path": "src/croissant/rotations.py"
+        },
+        "simulator.py": {
+          "status": "DIFFERENT",
+          "installed_sha256": "1fb70c4cf99ff7860cd2300585a74d89afd851f0ca78ef67ff9f87dc52df8b8f",
+          "git_sha256": "8875429f6a4892fcdebdb52bcee589b619ba02347f70c3e1823f58388ba569f1",
+          "path": "src/croissant/simulator.py"
+        },
+        "sky.py": {
+          "status": "MATCH",
+          "installed_sha256": "5248cda1b484a4d790c4f41c3e9a0548d7f34d4d95bbcc45b3866e1ed55d6a76",
+          "git_sha256": "5248cda1b484a4d790c4f41c3e9a0548d7f34d4d95bbcc45b3866e1ed55d6a76",
+          "path": "src/croissant/sky.py"
+        },
+        "sphere.py": {
+          "status": "MATCH",
+          "installed_sha256": "e38896d5e4a53ada700842b2220c2072be4c7778023f43b639a6d3797bd3efaa",
+          "git_sha256": "e38896d5e4a53ada700842b2220c2072be4c7778023f43b639a6d3797bd3efaa",
+          "path": "src/croissant/sphere.py"
+        },
+        "spice_utils.py": {
+          "status": "MATCH",
+          "installed_sha256": "313582bbc9f594209c7484b7c2692f476b41b989904a2bb0e6219e81db60bcc9",
+          "git_sha256": "313582bbc9f594209c7484b7c2692f476b41b989904a2bb0e6219e81db60bcc9",
+          "path": "src/croissant/spice_utils.py"
+        },
+        "utils.py": {
+          "status": "MATCH",
+          "installed_sha256": "a12578d01cb6bf2770a0768a4e26fffc2018feb04e053010d3f343806d6e7940",
+          "git_sha256": "a12578d01cb6bf2770a0768a4e26fffc2018feb04e053010d3f343806d6e7940",
+          "path": "src/croissant/utils.py"
+        }
+      },
+      "git_python_files_not_installed": []
+    },
+    "d01b51db275c6100e649a7e0837d4b93d566f487": {
+      "repository": "/home/christian/.cache/uv/git-v0/db/2ce16df69cbb68e6",
+      "installed_files": 18,
+      "matches": 18,
+      "files": {
+        "__init__.py": {
+          "status": "MATCH",
+          "installed_sha256": "43579f6f166755325c327855511522ebf6eb67eadcd9f211f53c1198ca62da69",
+          "git_sha256": "43579f6f166755325c327855511522ebf6eb67eadcd9f211f53c1198ca62da69",
+          "path": "src/croissant/__init__.py"
+        },
+        "alm.py": {
+          "status": "MATCH",
+          "installed_sha256": "780a98d527cf38261c69e2cf1b3c52e9458620bf15515dd65be6bd7b64f8b44b",
+          "git_sha256": "780a98d527cf38261c69e2cf1b3c52e9458620bf15515dd65be6bd7b64f8b44b",
+          "path": "src/croissant/alm.py"
+        },
+        "beam.py": {
+          "status": "MATCH",
+          "installed_sha256": "61a0d7dc63ec028c0486d3096ad45e4c842e2ee51b37fecd6c6dca6c0576118f",
+          "git_sha256": "61a0d7dc63ec028c0486d3096ad45e4c842e2ee51b37fecd6c6dca6c0576118f",
+          "path": "src/croissant/beam.py"
+        },
+        "constants.py": {
+          "status": "MATCH",
+          "installed_sha256": "79b70a505a7ac5b353c888edb62aa808aba1e2599f751f8a5e82a96a8eb6af16",
+          "git_sha256": "79b70a505a7ac5b353c888edb62aa808aba1e2599f751f8a5e82a96a8eb6af16",
+          "path": "src/croissant/constants.py"
+        },
+        "dense.py": {
+          "status": "MATCH",
+          "installed_sha256": "3e1edba51a6bdb9856868b1fa3be5eb56baf16282cc8d76a75732464f3fb9fd7",
+          "git_sha256": "3e1edba51a6bdb9856868b1fa3be5eb56baf16282cc8d76a75732464f3fb9fd7",
+          "path": "src/croissant/dense.py"
+        },
+        "engine_select.py": {
+          "status": "MATCH",
+          "installed_sha256": "bb836b83ca8762776c77882f482af64f8eba7a2b1e3afc17aab3079cc39a31d2",
+          "git_sha256": "bb836b83ca8762776c77882f482af64f8eba7a2b1e3afc17aab3079cc39a31d2",
+          "path": "src/croissant/engine_select.py"
+        },
+        "footprints.py": {
+          "status": "MATCH",
+          "installed_sha256": "14e8c948ea2d9064047fccd331cac5eaedae089eede363ce285c1c1a0c12e5fb",
+          "git_sha256": "14e8c948ea2d9064047fccd331cac5eaedae089eede363ce285c1c1a0c12e5fb",
+          "path": "src/croissant/footprints.py"
+        },
+        "horizon.py": {
+          "status": "MATCH",
+          "installed_sha256": "129df3f82af670a422b94178775b40d7c877677af75d11ccb386c0dd0319e05e",
+          "git_sha256": "129df3f82af670a422b94178775b40d7c877677af75d11ccb386c0dd0319e05e",
+          "path": "src/croissant/horizon.py"
+        },
+        "jax/__init__.py": {
+          "status": "MATCH",
+          "installed_sha256": "6602fec67ed94a30bb27b5d6a1f299b551d02c9411a62c06c4dcdf64fe4f3f5d",
+          "git_sha256": "6602fec67ed94a30bb27b5d6a1f299b551d02c9411a62c06c4dcdf64fe4f3f5d",
+          "path": "src/croissant/jax/__init__.py"
+        },
+        "kernel.py": {
+          "status": "MATCH",
+          "installed_sha256": "fdd97e4cc9972df4df72dc7c2a440410a32e0f1393e4d354e79f36057ed44c0b",
+          "git_sha256": "fdd97e4cc9972df4df72dc7c2a440410a32e0f1393e4d354e79f36057ed44c0b",
+          "path": "src/croissant/kernel.py"
+        },
+        "multipair.py": {
+          "status": "MATCH",
+          "installed_sha256": "13c04b732d38d63fbc471132bf8bc0f7a0cbcb61c12d470e727db001e734be13",
+          "git_sha256": "13c04b732d38d63fbc471132bf8bc0f7a0cbcb61c12d470e727db001e734be13",
+          "path": "src/croissant/multipair.py"
+        },
+        "polarization.py": {
+          "status": "MATCH",
+          "installed_sha256": "92b45769c9e22095b8d62b5796df9d86841582312ea1c9cef6838cb1a757c223",
+          "git_sha256": "92b45769c9e22095b8d62b5796df9d86841582312ea1c9cef6838cb1a757c223",
+          "path": "src/croissant/polarization.py"
+        },
+        "rotations.py": {
+          "status": "MATCH",
+          "installed_sha256": "a3652906a63346bef449ecdc8f3376b1c5a88fc1c9f6591337620379f0abf362",
+          "git_sha256": "a3652906a63346bef449ecdc8f3376b1c5a88fc1c9f6591337620379f0abf362",
+          "path": "src/croissant/rotations.py"
+        },
+        "simulator.py": {
+          "status": "MATCH",
+          "installed_sha256": "1fb70c4cf99ff7860cd2300585a74d89afd851f0ca78ef67ff9f87dc52df8b8f",
+          "git_sha256": "1fb70c4cf99ff7860cd2300585a74d89afd851f0ca78ef67ff9f87dc52df8b8f",
+          "path": "src/croissant/simulator.py"
+        },
+        "sky.py": {
+          "status": "MATCH",
+          "installed_sha256": "5248cda1b484a4d790c4f41c3e9a0548d7f34d4d95bbcc45b3866e1ed55d6a76",
+          "git_sha256": "5248cda1b484a4d790c4f41c3e9a0548d7f34d4d95bbcc45b3866e1ed55d6a76",
+          "path": "src/croissant/sky.py"
+        },
+        "sphere.py": {
+          "status": "MATCH",
+          "installed_sha256": "e38896d5e4a53ada700842b2220c2072be4c7778023f43b639a6d3797bd3efaa",
+          "git_sha256": "e38896d5e4a53ada700842b2220c2072be4c7778023f43b639a6d3797bd3efaa",
+          "path": "src/croissant/sphere.py"
+        },
+        "spice_utils.py": {
+          "status": "MATCH",
+          "installed_sha256": "313582bbc9f594209c7484b7c2692f476b41b989904a2bb0e6219e81db60bcc9",
+          "git_sha256": "313582bbc9f594209c7484b7c2692f476b41b989904a2bb0e6219e81db60bcc9",
+          "path": "src/croissant/spice_utils.py"
+        },
+        "utils.py": {
+          "status": "MATCH",
+          "installed_sha256": "a12578d01cb6bf2770a0768a4e26fffc2018feb04e053010d3f343806d6e7940",
+          "git_sha256": "a12578d01cb6bf2770a0768a4e26fffc2018feb04e053010d3f343806d6e7940",
+          "path": "src/croissant/utils.py"
+        }
+      },
+      "git_python_files_not_installed": []
+    }
+  }
+}

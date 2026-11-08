@@ -15,10 +15,13 @@ pygdsm1.7.0. The frozen source/module/binary evidence is authoritative.
 Croissant's distribution metadata declares Git58bf56e8af77a5a07fd0669ec6ba38900549e50c;
 the executed simulator SHA is
 1fb70c4cf99ff7860cd2300585a74d89afd851f0ca78ef67ff9f87dc52df8b8f.
-An earlier d01b51 handoff label is not established for the entire installed
-distribution; preserve that distinction rather than changing a runtime to
-match a prose label. The existing runtime's exact-byte checks remain the
-contract for these diagnostic products.
+A read-only comparison with existing cached Git objects verifies all18
+installed Python files exactly match d01b51db275c6100e649a7e0837d4b93d566f487;
+only12/18 match the declared58bf metadata. No Git Python files are missing.
+The per-file proof is `063_croissant_python_identity.json`. This establishes
+the Python source identity; non-Python payload identity is not inferred from
+that Git label. No runtime was installed, changed or rekeyed. Preserve both
+identities and the original exact-byte runtime evidence for these products.
 
 Use an independently owned copy of the verified host-compatible CPU runtime,
 then install this source component with `--no-deps` in that copy. Never sync
