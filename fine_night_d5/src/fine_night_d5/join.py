@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 
 from .assets import atomic_npz, checked_file, sha256, write_json
+from .model_frequency import PAYLOAD_FIELDS, from_config, verify_payload
 from .streaming import reduce_columns
 
 IDENTITY = ("native_index", "fine_bin_id", "source_file", "row", "input", "time_best")
@@ -54,6 +55,16 @@ def context(config, record, runtime):
         raise ValueError("actual runtime evidence differs from model inputs")
     if not PHYSICS_SOURCES.issubset(record["source_sha256"]):
         raise ValueError("chunk lacks actual physical producer snapshots")
+    frequency_plan = from_config(config)
+    if record.get("model_frequency_operator") != frequency_plan.identity():
+        raise ValueError("chunk model-frequency identity differs")
+    if frequency_plan.control and "model_frequency.py" not in record["source_sha256"]:
+        raise ValueError("control lacks model-frequency producer snapshot")
+    physical_sources = PHYSICS_SOURCES | (
+        {"model_frequency.py"}
+        if "model_frequency.py" in record["source_sha256"]
+        else set()
+    )
     return {
         "configuration": {
             k: v
@@ -61,7 +72,7 @@ def context(config, record, runtime):
             if k not in {"channels", "_verified_manifest_sha256", "runtime_evidence"}
         },
         "physical_source_sha256": {
-            k: record["source_sha256"][k] for k in sorted(PHYSICS_SOURCES)
+            k: record["source_sha256"][k] for k in sorted(physical_sources)
         },
         "actual_model_producer_commit": record["source_commit"],
         "actual_model_runtime_versions": record["runtime"],
@@ -107,6 +118,8 @@ def join_arrays(pieces, expected_channels):
         raise ValueError("duplicate native identity")
     seen, arrays = [], []
     for data, identity in pieces:
+        if PAYLOAD_FIELDS & set(data):
+            raise ValueError("full18 frequency-mapped control cannot be chunk-joined")
         if identity != reference:
             raise ValueError("model chunk physical context/runtime/beam differs")
         for key in IDENTITY:
@@ -189,6 +202,7 @@ def read_piece(pin):
         arrays = {k: z[k] for k in z.files}
     if not np.array_equal(arrays["channels"], np.asarray(config["channels"])):
         raise ValueError("chunk payload channel IDs differ from its producer inputs")
+    verify_payload(config, record, arrays)
     proof = {
         "done": pin["done"],
         "inputs": pin["inputs"],
