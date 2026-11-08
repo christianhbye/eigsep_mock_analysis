@@ -30,7 +30,7 @@ def main(desktop, config_path, guard_path, pin_path, script_path):
         pin,
     )
     result_path = os.path.join(config["private_prefix"], "CLONE_RESULT.json")
-    guard.require(not os.path.exists(result_path), "Result already exists")
+    guard.require(not os.path.lexists(result_path), "Result already exists")
     try:
         result = guard.clone_design(desktop, config, pin, script_path, guard_path)
     except Exception:

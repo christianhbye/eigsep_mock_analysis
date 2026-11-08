@@ -350,3 +350,21 @@ def test_render_is_code_only_handles_quoted_paths_and_refuses_overwrite(case):
         render(config, guard, pin_path, output)
     with pytest.raises(ValueError, match="private prefix"):
         render(config, guard, pin_path, prefix.parent / "escaped.py")
+
+
+def test_result_cannot_overwrite_existing_or_follow_dangling_symlink(tmp_path):
+    result = tmp_path / "result.json"
+    hp.write_result(
+        str(result), {"phase": "FAILED", "detail": "\N{GREEK SMALL LETTER ETA}"}
+    )
+    assert json.loads(result.read_text())["detail"] == "\N{GREEK SMALL LETTER ETA}"
+    original = result.read_bytes()
+    with pytest.raises(OSError):
+        hp.write_result(str(result), {"phase": "overwrite"})
+    assert result.read_bytes() == original
+    dangling = tmp_path / "symlink.json"
+    destination = tmp_path / "absent.json"
+    dangling.symlink_to(destination)
+    with pytest.raises(OSError):
+        hp.write_result(str(dangling), {"phase": "overwrite"})
+    assert not destination.exists()

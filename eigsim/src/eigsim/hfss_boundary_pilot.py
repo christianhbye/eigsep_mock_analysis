@@ -329,3 +329,11 @@ def clone_signature(path, design=DESIGN):
         canonical(one(root, "AllReferencedFilesForProject"))
     )
     return result
+
+
+def write_result(path, value):
+    """Create one result without following an existing or dangling symlink."""
+    payload = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("ascii")
+    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(descriptor, "wb") as stream:
+        stream.write(payload)

@@ -6,8 +6,8 @@ executed or authorized. Parent owns trackers, IDs and launch/resource gates.
 
 Implemented stdlib/IronPython-compatible guard and native block parser,
 frozen source/field ledger, clone-only vendor template and render-only planner,
-read-only source audit, spec and 30 focused rejection/API tests (30 passed,
-2.25s). Actual frozen source ccd57d… matches packaged signature09255b08…;
+read-only source audit, spec and 31 focused rejection/API tests (31 passed,
+2.27s). Actual frozen source ccd57d… matches packaged signature09255b08…;
 source proof is docs/specs/c56_source_audit.json. All changed files pass ruff.
 Vendor operation stops at CLONE_VALIDATED; no cleanup/domain/setup/solve/export.
 
