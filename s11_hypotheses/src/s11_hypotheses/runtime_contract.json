@@ -1,0 +1,15 @@
+{
+  "schema": "c54-standalone-runtime-v1",
+  "analysis_repository": "https://github.com/christianhbye/eigsep_analysis_code",
+  "analysis_commit": "64f601cdcc67e12791ff71078813fd3d737a37d8",
+  "analysis_lock_sha256": "74bebe6da6a112ca91fe0268937e0c9f8f3eb4d6998205671d44fd41aff13f0b",
+  "analysis_distribution": "eigsep_analysis",
+  "analysis_version": "0.0.1",
+  "python_minor": "3.12",
+  "expected_versions": {"jax": "0.10.2", "jaxlib": "0.10.2"},
+  "workspace_lock_sha256": "8ca1138dbbe87b9d80e5a060bd19e81bac43073d30bc64a01bde6b1e275c7038",
+  "workspace_jax_version": "0.9.2",
+  "original_science_code": "2ef1984f670769b5d229fd621dfacc8c79aead7b",
+  "original_science_mock": "b9d2a89e2ff232eacef3d45e9eb57361c6d28db8",
+  "scope": "new delivery/test contract only; original producer/source keys remain unchanged"
+}
