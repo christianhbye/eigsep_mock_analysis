@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eigsep-s11-hypothesis-tools"
+version = "0.0.2"
+requires-python = ">=3.12"
+description = "Private C54 existing-kernel exports and upstream controls"
+dependencies = [
+    "numpy",
+    "h5py",
+    "pandas",
+    "scipy",
+    "eigsep_analysis @ git+https://github.com/christianhbye/eigsep_analysis_code.git@64f601cdcc67e12791ff71078813fd3d737a37d8",
+]
+
+[project.scripts]
+c54-s11-tools = "s11_hypotheses.run:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+s11_hypotheses = ["runtime_contract.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

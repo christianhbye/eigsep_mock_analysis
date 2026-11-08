@@ -1,0 +1,46 @@
+name: S11 standalone tests (prepared private runtime required)
+
+# Manual only while the private-runtime provisioning/access contract is
+# unavailable. No companion checkout, credentials or uploads are assumed.
+on:
+  workflow_dispatch:
+    inputs:
+      prepared_analysis_root:
+        description: Explicit owner-prepared immutable analysis checkout
+        required: true
+        type: string
+      prepared_python:
+        description: Explicit owner-prepared native Python with this src checkout installed
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  standalone-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify prepared runtime or refuse without claiming a test pass
+        env:
+          S11_ANALYSIS_ROOT: ${{ inputs.prepared_analysis_root }}
+          S11_PYTHON: ${{ inputs.prepared_python }}
+        run: |
+          if [ -z "$S11_ANALYSIS_ROOT" ] || [ -z "$S11_PYTHON" ] || [ ! -x "$S11_PYTHON" ] || [ ! -e "$S11_ANALYSIS_ROOT/.git" ]; then
+            echo 'Standalone scientific tests unavailable: no explicitly prepared private runtime. Nothing was fetched and no tests passed. Use the recorded LOCAL equivalent; provisioning/access is a separate owner decision.' >&2
+            exit 2
+          fi
+          mkdir -p .s11-ci
+          "$S11_PYTHON" -B s11_hypotheses/scripts/verify_runtime.py --analysis-root "$S11_ANALYSIS_ROOT" --output .s11-ci/runtime.json
+      - name: Run the exact configured LOCAL-equivalent standalone suite
+        env:
+          S11_ANALYSIS_ROOT: ${{ inputs.prepared_analysis_root }}
+          S11_PYTHON: ${{ inputs.prepared_python }}
+          PYTHONDONTWRITEBYTECODE: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          MPLBACKEND: Agg
+        run: '"$S11_PYTHON" -B s11_hypotheses/scripts/test_contract.py --analysis-root "$S11_ANALYSIS_ROOT" --output .s11-ci/full-suite'
