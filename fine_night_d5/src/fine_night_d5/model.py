@@ -20,7 +20,8 @@ from pathlib import Path
 import numpy as np
 
 from . import assets
-from .streaming import reduce_columns, simulate_native
+from .model_frequency import from_config
+from .streaming import simulate_native
 from .time_operator import join_pointing
 
 
@@ -28,6 +29,7 @@ def run(config, out):
     """Load immutable inputs and checkpoint actual physical model columns."""
     if config["schema"] != 1 or config["label"] != "diagnostic":
         raise ValueError("explicit diagnostic native-model schema required")
+    frequency_plan = from_config(config)
     required_versions = {
         "numpy",
         "scipy",
@@ -100,7 +102,7 @@ def run(config, out):
         )
     joined, rotations = join_pointing(native, point)
     np.testing.assert_array_equal(point["native_index"][joined], rows)
-    frequency = channels * 250 / 1024
+    frequency = frequency_plan.evaluation_frequencies
     bm, beam_identity, beam_qc = assets.scalar_beam(config["beam"], frequency)
     assets.atomic_npz(out / "beam_interpolation_qc.npz", **beam_qc)
     nominal_path = assets.checked_file(config["nominal034"])
@@ -148,7 +150,9 @@ def run(config, out):
         out / "native-checkpoints",
         chunk_rows=int(config["chunk_rows"]),
     )
-    means, counts = reduce_columns(columns, accepted, mapping, n_bins)
+    columns, means, counts = frequency_plan.expand_and_reduce(
+        columns, accepted, mapping, n_bins
+    )
     np.testing.assert_array_equal(counts, expected_count)
     # Sky excludes the CMB; restore the SAME034 analytic unocculted CMB.
     provenance = json.loads(assets.checked_file(config["provenance034"]).read_text())
@@ -158,7 +162,8 @@ def run(config, out):
     assets.atomic_npz(
         out / "columns.npz",
         channels=channels,
-        frequencies_mhz=frequency,
+        frequencies_mhz=frequency_plan.data_frequencies,
+        **frequency_plan.payload(),
         native_index=rows,
         fine_bin_id=mapping,
         accepted=accepted,
@@ -172,6 +177,11 @@ def run(config, out):
         bin_count=counts,
     )
     return {
+        **(
+            {"model_frequency_operator": frequency_plan.identity()}
+            if frequency_plan.control
+            else {}
+        ),
         "model_qc": qc,
         "beam": beam_identity,
         "iers": iers,
