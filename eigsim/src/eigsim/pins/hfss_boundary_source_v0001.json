@@ -1,0 +1,55 @@
+{
+  "boundary_followup": "MOD129: fresh50MHz ordinary RBC400/1500; legacy33freq400 stays separate",
+  "design": "1_0_Exp_Taper_BowTie_Balun8_5 CharlieMod9",
+  "installed_api": "AEDT 2024R1 HFSSScriptingGuide: CopyDesign6-17, SaveAs6-67",
+  "label": "diagnostic source pin; clone-only phase; no physical efficiency adoption",
+  "physical_signature_sha256": "09255b08e9b815e700f32f7e44baf3204ecce08007164738c28305f25b41fe29",
+  "protected_inputs": {
+    "/data/cbye/eigsep_hfss/20261106_bowtie_1mhz/project/BowTie_Strip3_Opt8_Balun.aedt": "ccd57db3c2f75307a15b522efa6f52cc03e8bb611a6e6dceaa2608dc57b011a2",
+    "/data/cbye/eigsep_hfss/20261106_bowtie_1mhz/project/BowTie_Strip3_Opt8_Balun.aedtresults/1_0_Exp_Taper_BowTie_Balun8_5 CharlieMod9.asol": "861600f6dd6fb3cb72e1027b84d4ed62d26d9ad4ac5eabce910ae00ff3f8fd3b",
+    "/data/cbye/eigsep_hfss/20261106_bowtie_1mhz/project/BowTie_Strip3_Opt8_Balun.aedtresults/1_0_Exp_Taper_BowTie_Balun8_5 CharlieMod9.results/DV6930_S8203_V0_F8215/fields.evtrs_0": "74df107f6a8aec89b2481f0af2c5dcb9b0dc99f69cd80fc6fc64e9cc5453e977",
+    "/data/cbye/eigsep_hfss/20261106_bowtie_1mhz/project/BowTie_Strip3_Opt8_Balun.aedtresults/1_0_Exp_Taper_BowTie_Balun8_5 CharlieMod9.results/DV6930_S8203_V0_F8235/fields.evtrs_0": "3dbed09f26ff3833109c169377506be90cb5f755d52f269701c3bdde343b6b75",
+    "/data/cbye/eigsep_hfss/20261106_bowtie_1mhz/project/BowTie_Strip3_Opt8_Balun.aedtresults/1_0_Exp_Taper_BowTie_Balun8_5 CharlieMod9.results/DV6930_S8203_V0_F8243/fields.evtrs_0": "fd4d7dada8138d527cc5249c9dbba6ee4215be17e87ffa6166ab04299593bb31"
+  },
+  "schema": "eigsep.hfss-boundary-source.v1",
+  "signature": {
+    "AllReferencedFilesForProject": "eb3691feb44ec0a96c1e31cdea0dbb8ca9a44f46874c3540156ed0e3b5777464",
+    "CoordinateSystems": "a0250bb744a7807b46ac9df0031e3b7a8273fb36bf9df6b1fa3fb3cd4b387576",
+    "Definitions": "40a62745b7980aaeb46331c455e6f462e46d9379b484cc52c8f9f7460f137ab0",
+    "DesignDatasets": "4137e32f5c36947d672cc03fa3046bb709076f2f56ecde06215fe1b20be614ee",
+    "DrivenOptions": "e52f94d0d5969199ec07c9464c1e0d7f3cf0f56c802221d648447f917f6c18af",
+    "MeshSetup": "82b012f0dbdd037e8a3f510de1cf81299d5a9b3f06134e098432cac64d9bc6c7",
+    "OperandParts": "cc39b180f55d49eb66a682979aa08f69080c59f8975558732eaa88856805b660",
+    "ProjectDatasets": "38ba19268e0361a3f4e7cd9a7f04afa57c8a426681c900b600e1c008bca01508",
+    "Properties": "9797e96bd8fc62be95d9ae56822e4abd23d00dffdbcd556de864ae55cae4aa1b",
+    "RadField": "140b4e4f64c305de29004d17d9d7266b80666d6924e36c28c110d5154e89a9f0",
+    "Solutions": "3922682c18b5bec1d7ef54d2878defb744d67f0199ab86ae2ebba7c60b8c07ef",
+    "assigned_topology": "79e76c761737131c6a5430d4755067234b769812a31ca7706a1d0f7c7a09cd20",
+    "boundary_3": "3e64746fc011c10a0a94455e81d79cb54a61e200df7739080fe748d7ec2a88d6",
+    "boundary_PerfE1": "d2595c01910fe76989e1af6dd9b0da83eb808310c16b1f403f4d0ea10fa4f78d",
+    "boundary_PerfE2": "e40191f528ef01b25392e1d906f1ee3478464466190476c28eab44fa4a31a4e3",
+    "clone_AnalysisSetup": "96f2cc47c1488cee55890ff9e10e5158cc5b89a3ee7f5181f8793beafe01959f",
+    "clone_BoundarySetup": "bf4e01ddeb67c7c3c442b34ff3e1743ae5396429df97b79f854726868f00b6da",
+    "clone_ModelSetup": "5e12d2f77c6ff68e5eb2998af74ff5db8e6c33c4056bc253be21031ac9fc960b",
+    "clone_Optimetrics": "c6275f43f864f09845c3817a86e69ef2dac0db200d759cf65ea2400599ed5baa",
+    "design_header": "148b932f214d56cf0031b63e7249c6b84432a57681d0b09b8f5e8f4b4f31898e",
+    "objects": {
+      "Box1": "f3f4a1797620ecb53b51aeb149f86ac375cfea3d1a092a00acee6031fe87e4c3",
+      "Box4": "0508077b38da42f17ae5251aeae112dc34fdcc3fd8d6c4f2a8404b15e9f0dbfe",
+      "EquationCurve1": "c238e6fed1b16a1395c9261a01cad9aa042a8422f36515fb9ebc9a7e934cfe99",
+      "EquationCurve1_2": "ff2a0f38b3068dc6d3ce87c5fe58be4e28d05e4ce62f095ae5572c2a78cbb879",
+      "Polyline9": "e482ec69314c81ff5e3a9edf49449b80a00c56d73c9fc411f3f3605784af668a",
+      "Polyline9_1": "adc71e216583f1012d987bfc3c745db793506b2f000b79cf3d928f3262449c9f",
+      "Port3": "8b4d5c0a8fb7abb8408e482e7a749ea6e46e2adc4c207c4f009671949f66e613",
+      "Rectangle1": "7f29c9875632b7729b6279187c864535bba1395563411537232fa8d575510c7d",
+      "Rectangle3": "983457ee1100e56fc9df8e6d816c2e2e9d0e120f00d298fa5041fddcb3e73831"
+    },
+    "project_variable_lines": "caa02c689bda95882790287dd4dc13217261503707b7c1df9563217906224c31",
+    "project_variables": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "units": [
+      "Units='mm'"
+    ]
+  },
+  "source_path": "/data/cbye/eigsep_hfss/20261106_bowtie_1mhz/project/BowTie_Strip3_Opt8_Balun.aedt",
+  "source_sha256": "ccd57db3c2f75307a15b522efa6f52cc03e8bb611a6e6dceaa2608dc57b011a2"
+}

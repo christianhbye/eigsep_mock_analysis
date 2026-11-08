@@ -1,0 +1,8 @@
+{
+  "limits": "No AEDT operation; remote stored-field identities not checked here",
+  "phase": "SOURCE_SIGNATURE_VERIFIED",
+  "signature_sha256": "09255b08e9b815e700f32f7e44baf3204ecce08007164738c28305f25b41fe29",
+  "source": "../products/_orchestration/hfss-1mhz-intake-20261107/audit/source/final.aedt",
+  "source_pin_sha256": "6b39861956c294ca880edd229a4a0f2d780afd68d1d5dbfea6cd10a4123b1ddd",
+  "source_sha256": "ccd57db3c2f75307a15b522efa6f52cc03e8bb611a6e6dceaa2608dc57b011a2"
+}
