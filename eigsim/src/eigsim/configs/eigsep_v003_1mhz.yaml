@@ -1,6 +1,6 @@
 # Opt-in diagnostic candidate, native 1 MHz HFSS source; no spline.
-# Fails closed until the separately generated power artifact hash is reviewed
-# and pinned in pins/eigsep_bowtie_v003_1mhz.json. No default adoption.
+# Requires the exact generated diagnostic artifact hash in
+# pins/eigsep_bowtie_v003_1mhz.json. No default/scientific adoption.
 world: earth
 location:
   lon: -113.4033

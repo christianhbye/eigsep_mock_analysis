@@ -1,6 +1,7 @@
 # Explicit dense-HFSS authority and opt-in v003 power candidate
 
-**Status: diagnostic source preparation; generation, review and adoption pending.**
+**Status: full 201-frequency diagnostic candidate generated and pinned; full-suite and
+scientific adoption review remain pending.**
 CHB asked that the established 1 MHz MWSS beam be pinned in both analysis and
 mock_analysis. Analysis PR 99 supplies the common complex-field authority;
 this change copies its exact manifest and prepares a separately versioned
@@ -59,11 +60,14 @@ artifact checksum/schema/recipe metadata and exact config-frequency agreement.
 Explicit-file users should call `hfss_pin.load_pinned_power(path, manifest)`;
 legacy `load_beam(path=...)` retains its generic, unpinned semantics.
 
-The packaged power pin intentionally has null SHA/bytes until actual generation
-and review. The new opt-in config therefore fails with an explicit pending-pin
-error; it never substitutes v002 or an unpinned file. A three-frequency probe
-has a different output filename and cannot silently replace the 201-frequency
-product. Review must pin the actual full derivative hash before using this config.
+The packaged power pin now records the generated full201 artifact:
+SHA256 `1ab98e6707f686336d49302fc260357521f11dee97826aeaf559df4ef055f68b`,
+54,002,762 bytes. The binary is gitignored model data, staged only in this
+private opt-in checkout; the exact same producer pin is in the analysis
+contract. Missing/changed files or pending/null pins fail explicitly and never
+substitute v002. The three-frequency probe has a different filename and cannot
+replace this 201-frequency product. This is a diagnostic pin, not a default
+or scientific adoption.
 All v002 / spline `_1mhz` names and defaults remain unchanged.
 
 ## Validation and resource gate
@@ -89,10 +93,27 @@ uv run --no-sync python eigsim/scripts/make_bowtie_v003.py \
   --output-dir /explicit/private/fresh-probe --probe
 ```
 
-After a measured full-run gate, omit `--probe` with a separate fresh directory.
-Compare the actual derivative against the same recipe/source and inspect
-patterns, normalization, harmonic loss and effective-beam differences. Record
-the full derivative SHA in the reviewed packaged pin, stage the binary as
-gitignored model data, and run the configured eigsim suite. Keep the PR draft
-until those checks and the real manifest are verified. Defaults and downstream
-analysis/fit adoption require separate explicit review under the existing gates.
+The root-approved full201 run used exact source e6e367c on Limbo, unit
+`limbo-c055-mock-full-20261108T005303Z`, 1 CPU / nice0 / 4 GiB / 1200 s,
+256 MiB product cap, frozen JAX/JAXLIB0.9.2, explicit x64 and one math thread.
+It finished in 192.19 s outer wall / 183.90 s generator wall, peak RSS
+1,234,608 KiB. Independent checks load the exact pin, verify all201 native
+frequencies/finite float64 arrays, recompute every normalization integral,
+and compare the50/150/250 slices bit-exactly with the earlier separate probe.
+Max normalization error is3.494e-12, dropped harmonic fraction1.763e-12;
+minimum power4.608e-5. The saved drop array matches the producer report;
+this is not an independent HFSS convergence test.
+
+`055_effective_operator_contract.json` records the actual generation/runtime
+identity and intentional operator variants. The common raw authority is exact;
+the existing055 complex-symmetrized/cell-area-normalized diagnostic differs
+from raw-power/native-MWSS v003 before truncation by relative RMS2.21e-5,
+9.92e-5 and3.88e-4 at50/150/250 MHz. Neither is silently substituted for the
+other. Matching a consumer comparison requires an explicit matched variant.
+Run-specific QC stays outside the generator's producer-pin template.
+
+The full configured eigsim/horizon test suite must run at the final source
+head and its outcome be recorded in the PR; the PR stays draft until that
+gate is handled. Hosted CI is not used while runner minutes are exhausted.
+Defaults and downstream analysis/fit adoption require separate explicit
+review under the existing gates.
