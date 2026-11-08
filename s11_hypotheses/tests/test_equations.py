@@ -425,10 +425,11 @@ def test_fingerprint_algorithm_source_mutation_invalidates_identity(
 ):
     mock = tmp_path / "mock"
     code = tmp_path / "code"
-    (mock / "s11_hypotheses").mkdir(parents=True)
+    (mock / "s11_hypotheses/src/s11_hypotheses").mkdir(parents=True)
     (mock / "pyproject.toml").write_text("# test package\n")
     (mock / "s11_hypotheses/pyproject.toml").write_text("# adapter\n")
-    (mock / "s11_hypotheses/__init__.py").write_text("")
+    (mock / "s11_hypotheses/src/s11_hypotheses/__init__.py").write_text("")
+    (mock / "s11_hypotheses/src/s11_hypotheses/runtime_contract.json").write_text("{}")
 
     def manifest(root, entrypoints):
         for name in entrypoints:
@@ -446,3 +447,7 @@ def test_fingerprint_algorithm_source_mutation_invalidates_identity(
     (code / algorithm).write_text("# hashing algorithm changed\n")
     second = checkpoint.source_identity(mock, code)
     assert checkpoint.fingerprint(first) != checkpoint.fingerprint(second)
+    policy = mock / "s11_hypotheses/src/s11_hypotheses/runtime_contract.json"
+    policy.write_text('{"analysis_commit": "different-source"}')
+    third = checkpoint.source_identity(mock, code)
+    assert checkpoint.fingerprint(second) != checkpoint.fingerprint(third)

@@ -17,6 +17,7 @@ from pathlib import Path
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ["GIT_OPTIONAL_LOCKS"] = "0"
 
 import h5py
 import numpy as np
@@ -32,7 +33,7 @@ from eigsep_analysis.beammap import beam as beam_io
 from scipy.interpolate import interp1d
 
 from . import checkpoint as ck
-from . import feature, leakage, sharding, terrain
+from . import feature, leakage, runtime, sharding, terrain
 from .config import DEFAULTS
 
 
@@ -55,6 +56,7 @@ def required_sources(store):
         "/s11_data_deployment5/",
         "mist1_canyon_obs_",
         "20241024_BE1_FE1/",
+        "/042_s11_noise_floor/summary.json",
         "/013_s11_calibration/calibrated/",
         "/013_s11_calibration/D_epoch_osl.csv",
         "/c43_followup/native_standards.h5",
@@ -411,6 +413,7 @@ def main(argv=None):
     parser.add_argument("--shard-index", type=int, default=0)
     args = parser.parse_args(argv)
     config = load_config(args.config)
+    runtime.verify_environment(config["code_root"])
     if (
         args.members is not None
         and args.members != config["choices"]["probe"]["members"]

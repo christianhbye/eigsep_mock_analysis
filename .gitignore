@@ -9,6 +9,13 @@ build/
 
 # Virtual environments
 .venv/
+.venv-s11/
+.venv-s11-*/
+.venv-workspace/
+.venv-s11-*.json
+.venv-workspace-*.json
+.s11-ci/
+.runtime-s11/
 
 # Jupyter
 .ipynb_checkpoints/

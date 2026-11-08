@@ -1,116 +1,137 @@
-# C54 S11 producer
+# C54 S11 generator: separate runtime and diagnostic scope
 
-This package runs the three diagnostic S11 tests; it does not turn raw
-repeatability into absolute VNA noise. MOD124/125 were recorded by the root
-orchestrator at workspace8c4626b. The reviewed execution design and input
-manifest are in code060 `docs/specs/2026-11-07-c54-*`; dispositions are in
-`docs/reviews/2026-11-07-c54-physics-dispositions.md`.
+This is the simulation/upstream-injection side of the three completed S11
+tests. The observed-data fits and executed060 reader live in the private
+analysis repository: [complete code PR102](https://github.com/christianhbye/eigsep_analysis_code/pull/102),
+executed output64f601c, and [M009 PR11](https://github.com/christianhbye/eigsep_analysis_manuscript/pull/11).
+Results remain diagnostic: no unconditional D5 narrow-feature absence,
+numerically converged terrain amplitude, or general VNA-noise floor is
+identified. The actual source/positive-control captures remain disjoint.
 
-The implemented stages are raw/existing-plane feature prediction with
-translated controls and source-only uncertainty; original shared-OSL chain
-perturbation; explicit-range coherentPO/diffuse4b expected-power/covariance
-and historicalR0; single-scale/tau0 positive-power training with signed/epoch
-holdouts and an actual600m/AC5 power audit; and empirical causal skirt
-prediction with measured masks, influence, upstream delayed-line recovery
-and phase-limited conditional terrain comparison. No negative-delay scale
-is fitted. R0 angular comparison uses omega_ns/omega64 with unchanged raw
-historical export. Fine and native grids are separate and independently
-evaluated. Diffuse refinement compares expected power/covariance, not
-unrelated complex speckle. Wider range/angular configurations remain an
-explicit closure ladder; a600m run cannot claim all-terrain closure.
+The original physical/synthetic producer is mockb9d2a89 with analysis2ef1984.
+Its source, environment, models and checkpoint keys remain unchanged.
+The original instructions are preserved in `docs/B9_PRODUCER_HISTORY.md`.
+This delivery uses an installed src layout and a new source schema; it
+never renames/rekeys an old scientific product as newly generated science.
+All feature/leakage/terrain function ASTs and frozen choices are checked
+against a source-only original-b9 manifest. No physical kernel is duplicated.
 
-Use a task-local environment with code060's frozen dependencies and this
-adapter installed editable, without dependencies or global modifications:
+## Actual dependency and install contract
 
-```sh
-# In the assigned code060 worktree:
-uv sync --offline --frozen --extra dev
-# Install the adapter into that interpreter (use an absolute adapter path).
-uv pip install --offline --no-deps --python .venv/bin/python -e ../mock-c54-s11-hypothesis-tests/s11_hypotheses
-```
+This standalone project requires NumPy, h5py, pandas, SciPy and the private
+`eigsep_analysis` companion at exact64f601cdcc67e12791ff71078813fd3d737a37d8
+(distribution version0.0.1). Its immutable source policy is shipped in
+`src/s11_hypotheses/runtime_contract.json`.
 
-The mock runtime was independently created from the same frozen code060 lock
-using UV_PROJECT_ENVIRONMENT; no existing environment was edited. This
-adapter does not require installing eigsim/rotis or altering their lock.
-Local versions: Python3.12.12, NumPy2.3.5, SciPy1.18.1, h5py3.16.0,
-hera_filters `ed4deb46ae0e16488a2f0633eaa792eb731e7fc9`. Ruff0.16.10 is
-lint-only. On Limbo use the approved no-AVX dependency/runtime procedure;
-record its differences from this local setup before the probe.
+The companion's frozen runtime uses JAX/jaxlib0.10.2; the ordinary mock
+workspace is locked to0.9.2. This package is explicitly excluded from that
+workspace. Its supported bootstrap installs the companion's frozen lock
+into a NEW environment owned by this worktree, then installs this src package
+without resolving another dependency graph. The private companion contains
+editable checkout sources: installing it as an arbitrary registry package
+or pretending a bare `pip install` is portable would hide real prerequisites.
 
-From the mock worktree, first inspect the entire dry-run JSON:
-
-```sh
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
- .venv/bin/python -m s11_hypotheses.run probe \
- --config s11_hypotheses/configs/local-probe.json --dry-run
-```
-
-It prints every required original path, relocated path, size/hash, missing
-input, physical unit, full grid count and phase-product cost per visible
-cell. Local example paths are intentionally UNLAUNCHED. Root creates a new
-private-Limbo config with explicit path_map prefixes, never a silent input
-fallback. Stage the exact listed primary files:40D5 raw captures,28MISTIC raw
-captures,013 calibrated planes/donor table, C43 native-standard snapshot,
-DEMv0004/horizonv0005/height/pointing/mount files, existing sixR0 trace units,
-original HFSS beam, paperS11 magnitude and switch paths. Preserve the frozen
-manifest bytes; `path_map` changes locations only. MISTIC raw records and
-all original data/workspaces remain read-only. No new1MHz beam is required;
-an amended beam needs its own checked intake and lock before use.
-
-Root's resource gate is a JSON file with `allow`, `source_fingerprint`,
-`manifest_sha256` and `configuration_fingerprint` exactly matching the
-command's dry-run result. Probe scope is one night/member, slant0–600m,
-stride4/bin1deg, full native50–250MHz and fine10kHz, plus raw-ant/control,
-receiver, shared OSL and one source-only MISTIC raw short. Provisional
-reservation2CPU/4GB/1200s/1GB is not measured feasibility. Run detached with
-nice0 after the fresh aggregateCPU/RAM/I/O check. Save each completed cells,
-native, fine and raw-control subunit; no agent waits alive during the job.
-A timeout retains completed units; an incomplete unit refuses silent reuse.
-
-After the measured gate permits subsequent work:
+First prepare registered, owned snapshots of the clean companion checkout
+and every local source dependency, with the lock's relative directory layout.
+Both their source directories and writable Git metadata must be inside the
+owned prefix; symlinks back to protected sources are refused. The analysis
+lock must have SHA256
+`74bebe6da6a112ca91fe0268937e0c9f8f3eb4d6998205671d44fd41aff13f0b`.
+Then, from this mock worktree:
 
 ```sh
-.venv/bin/python -m s11_hypotheses.run controls --config RUN.json
-.venv/bin/python -m s11_hypotheses.run export --config RUN.json --resume
-.venv/bin/python -m s11_hypotheses.run score --config RUN.json --resume
-.venv/bin/python -m s11_hypotheses.run report --config RUN.json
+python3 s11_hypotheses/scripts/bootstrap_runtime.py \
+  --analysis-root .runtime-s11/research/papers/eigsep_analysis/code \
+  --owned-source-root .runtime-s11/research \
+  --retained-healjax-from /OWN/PREPARED/ENV \
+  --environment .venv-s11-new
 ```
 
-`controls` reproduces historical042 separately, uses first10 canyon captures
-for source estimation, last10 for the new positive-control score, tunes
-blinded control intervals, then writes `design.lock.json`. D5 target values
-never select baseline support/penalty. The lock is required before final
-score/export. Injections are upstream of fitting; the fixed linear
-operator's homogeneous scale/phase family is tested against explicit
-refits and recorded, including zero-support UNOBSERVED cases and source
-leave-one-out uncertainty. A sensitivity exclusion still requires real
-withheld baseline adequacy and recoverability. No synthetic pass alone
-validates a DUT model.
+The bootstrap is offline by default, refuses an existing environment, and
+uses `UV_PROJECT_ENVIRONMENT` to protect the companion's own environment.
+It records exact install commands. Ruff0.16.10 is an additional pinned
+lint-only tool; scientific dependencies come from the companion lock.
+Missing cached packages or editable checkouts are installation failures,
+not permission to use different dependencies or fake core modules.
 
-All units record source-only transitive fingerprints, dependency identities,
-parameters, exact coordinates/masks/settings, upstream/result hashes,
-RNG/physical draws and wall/CPU/RSS/I/O measures. Resume skips only verified
-exact matches. `RUN_RECORD_<command>.json` retains host/interpreter/commits,
-invocation, run config and gate. No notebook-output commit enters source
-cache keys. Existing041 units/runs are consumed read-only and never modified.
+Companion source builds use only the validated owned snapshots. The
+non-editable healjax distribution is retained from an explicitly supplied
+prepared environment: actual installed files and original metadata/RECORD
+are copied byte for byte and hash recorded, without inferring a Git revision.
+The sync excludes healjax so it cannot silently rebuild a different snapshot.
+Git source checks disable optional index refresh writes.
+The actual initial bootstrap journal showed cached installation of184
+companion packages; only this owned new adapter was built. A read-only
+post-run audit found all protected tracked files clean and all protected
+egg-info mtimes predating bootstrap; no pre-run full-filesystem snapshot
+was taken, so that is the recorded evidence scope. A later read-only
+`--check --no-build` attempt refused cached editable analysis, so no-build
+installation is not offered as a working setup path. The registered owned
+snapshots now remove the protected-source build ambiguity.
 
-Code060 provides the observed fitting/report modules, wrapper
-`scripts/060_s11_hypothesis_tests.py`, and completion-gated notebook builder
-`scripts/060_build_notebook.py`. Do not build/commit060 as completed before
-`units/science/DONE.json`; execute in060's own kernel, retain outputs, inspect
-all printed-size figures, then rewrite/build/render/audit M009. Science
-results and a readable memo remain the task deliverables after this
-run-ready machinery phase.
+Runtime verification checks the actual import binding, immutable companion
+commit, clean tracked files, exact lock and installed versions. The actual
+executable-payload identities remain the producer's transitive fingerprint
+(including its supported noAVX conda convention, without fabricated RECORDs).
+The src files, implementation of fingerprinting, package metadata and runtime
+policy are included in the new source key. Changing the policy changes that
+key; old scientific checkpoints cannot silently resume under this layout.
 
-CI coverage remains a final-delivery item: this standalone adapter has no
-own workflow yet and imports the pinned private analysis-code kernels.
-Ordinary mock workspace workflows do not cover its standalone suite.
-Before PR conformance, root must wire a dedicated workflow that installs
-an authorized matching private analysis-code checkout and this adapter,
-then runs the configured standalone suite with exact pins; cross-repo
-checkout credentials/contract must be resolved explicitly. Do not duplicate
-kernels or add fake core mocks to avoid that dependency. Until wired, the
-required private-Limbo fallback runs the same standalone suite and records
-its tested code/mock commits, commands, dependency identities and counts;
-that evidence is not a GitHub CI pass. This narrow prelaunch runtime fix
-does not change scientific models, scores or that pending coverage item.
+## Tests and CI coverage
+
+The configured standalone suite requires this installed src package and the
+real companion. It includes original equation/operator/sharding tests plus
+installed-layout/CLI, dirty-tracked-companion, source-policy mutation,
+original-mathematics and actual-required-input tests. The known historical042
+summary input is now explicitly listed by producer staging preflight.
+
+After committing source and receiving the resource gate, the complete command is:
+
+```sh
+.venv-s11/bin/python -B s11_hypotheses/scripts/test_contract.py \
+  --analysis-root .runtime-s11/research/papers/eigsep_analysis/code \
+  --output /OWN/RUN/standalone
+```
+
+It runs every configured `s11_hypotheses/tests` case and records source,
+runtime, inventory, argv, JUnit counts/hashes, wall/CPU/RSS and DONE/FAILED.
+The existing configured mock suites must be run separately in their own
+`.venv-workspace` from the unchanged mock `uv.lock` (SHA256
+`8ca1138dbbe87b9d80e5a060bd19e81bac43073d30bc64a01bde6b1e275c7038`).
+Their default testpaths cover eigsim, rotis, pointing_sim and horizon_position_d5;
+they do not cover this standalone package. Neither suite substitutes for the other.
+Full configured LOCAL runs remain pending the orchestrator's resource gate;
+focused checks are reported separately, never as a full passing run.
+
+The dedicated manual workflow fails closed unless an explicitly prepared
+private runtime is available. It invokes the same standalone command and
+does not fetch a companion/shared repository, assume credentials, upload
+artifacts, or provision a runner. No hosted run has been dispatched. CI
+private-runtime provisioning/access is a concrete optional owner follow-up;
+LOCAL configured coverage is the present completion criterion.
+
+Automatic approval review rejected the earlier proposed hosted cross-repository
+fetch/artifact-upload patch because private/shared access, an unconfigured
+credential and egress were not specifically authorized. That patch, clone
+helper and upload action were not applied. The safer manual workflow adds
+none of those actions. Missing CI access is not a passing test result.
+
+## Scientific limits and future producers
+
+The original600m model gives a corrected alias-power/adjacent-epoch-difference
+proxy ratio0.0500791. The proxy is not VNA thermal noise. Coherent folded power
+changes44.18% under the final1m→0.5m native facet refinement; expected diffuse
+folded power changes8.14%. A broader DEM is required beyond the1343.634m
+full-disc limit, and coherent within-cell quadrature/spatial-alias treatment
+needs a separate test. More Monte Carlo members cannot remove that deterministic
+nonconvergence. Raw|E|²/clamped old beam, conditional network phase/plane,
+shared-donor/chain covariance and one-member fine-grid limits stay explicit.
+
+Both donor-excluded calibrated antenna heldouts fail their narrow native-frequency
+criterion (3/12 and1/12 blocks); the latest raw antenna pass is conditional.
+The twelve predeclared two-MHz blocks contain96 native samples in14–120MHz,
+not continuous or full1–250MHz coverage. Original records and the corrected
+observation consumer are retained by060; no simulation/export is rerun for
+this packaging task. Any future producer needs a fresh full-input/source
+dry-run and explicit time/RAM/product gate. Historical configs are not
+authorization to launch or reuse original keys.

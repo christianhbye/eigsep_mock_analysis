@@ -31,7 +31,10 @@ def source_identity(mock_root, code_root):
     """
     root = Path(mock_root)
     sources = {}
-    for path in sorted((root / "s11_hypotheses").rglob("*.py")):
+    package = root / "s11_hypotheses/src/s11_hypotheses"
+    if not package.is_dir():
+        raise ValueError("installed src-layout package is required")
+    for path in sorted(package.rglob("*.py")):
         if "/tests/" in str(path):
             continue
         for node in ast.walk(ast.parse(path.read_text())):
@@ -45,7 +48,11 @@ def source_identity(mock_root, code_root):
                 ):
                     raise ValueError(f"unaudited dynamic import: {path}")
         sources[str(path.relative_to(root))] = intake.digest(path)
-    for name in ["pyproject.toml", "s11_hypotheses/pyproject.toml"]:
+    for name in [
+        "pyproject.toml",
+        "s11_hypotheses/pyproject.toml",
+        "s11_hypotheses/src/s11_hypotheses/runtime_contract.json",
+    ]:
         sources[name] = intake.digest(root / name)
     code = contract.code_manifest(
         code_root,
@@ -60,7 +67,7 @@ def source_identity(mock_root, code_root):
         ],
     )
     return dict(
-        schema="c54-source-v1",
+        schema="c54-source-v2",
         mock_sources=sources,
         code=code,
         runtime={
