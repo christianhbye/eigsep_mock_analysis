@@ -72,7 +72,7 @@ def prepare(config, out):
     )
 
 
-def compare(reference, values, means, counts, ctx, channels):
+def compare(reference, values, means, counts, ctx, channels, role, beam, raw_pin):
     path = assets.checked_file(reference)
     done = json.loads(path.read_text())
     source = path.parent / "columns.npz"
@@ -96,6 +96,24 @@ def compare(reference, values, means, counts, ctx, channels):
         raise ValueError("ordinary reference failed its existing operator closure")
     if model["channels"] != channels or model["frequency_operator"] != "native":
         raise ValueError("ordinary reference frequency semantics differ")
+    if role == "full_native_hfss_control":
+        if model["beam"] != raw_pin:
+            raise ValueError("ordinary full-HFSS beam identity changed")
+    else:
+        if model["beam"]["role"] != role:
+            raise ValueError("ordinary field beam role changed")
+        beam_path = assets.checked_file(model["beam"])
+        with np.load(beam_path, allow_pickle=False) as z:
+            frequencies = z["freqs"] / 1e6
+            wanted = np.asarray(channels) * 250 / 1024
+            idx = np.searchsorted(frequencies, wanted)
+            if np.any(idx >= len(frequencies)) or not np.array_equal(
+                frequencies[idx], wanted
+            ):
+                raise ValueError("ordinary field beam frequencies changed")
+            if str(z["role"]) != role:
+                raise ValueError("ordinary exported field role changed")
+            np.testing.assert_allclose(z["bm"][idx], beam, rtol=1e-12, atol=1e-12)
     with np.load(source, allow_pickle=False) as z:
         for key in ["source_file", "row", "input", "time_best"]:
             np.testing.assert_array_equal(z[key], ctx["cells"][key])
@@ -104,12 +122,19 @@ def compare(reference, values, means, counts, ctx, channels):
         np.testing.assert_array_equal(z["bin_count"], counts)
         a = values[..., 0] + ctx["cmb"] * (1 - values[..., 1])
         ba = means[..., 0] + ctx["cmb"] * (1 - means[..., 1])
+        ref_values = np.stack([z["native_S"], z["native_fg"]], axis=-1)
+        ref_means, ref_counts = reduce_columns(
+            ref_values, z["accepted"], ctx["mapping"], ctx["n_bins"]
+        )
+        np.testing.assert_array_equal(ref_counts, counts)
         maxima = {}
         for name, new, old, tol in [
             ("native_S", values[..., 0], z["native_S"], 1e-9),
             ("native_A", a, z["native_A"], 1e-9),
             ("native_fg", values[..., 1], z["native_fg"], 1e-12),
             ("bin_A", ba, z["bin_A"], 1e-9),
+            ("bin_S", means[..., 0], ref_means[..., 0], 1e-9),
+            ("bin_fg", means[..., 1], ref_means[..., 1], 1e-12),
         ]:
             np.testing.assert_allclose(new, old, rtol=0, atol=tol, equal_nan=True)
             maxima[name] = float(np.nanmax(abs(new - old)))
@@ -189,7 +214,15 @@ def run(config, out):
             )
             key = str(chunk) + "_" + role
             maxima = compare(
-                config["references"][key], values, means, counts, ctx, channels
+                config["references"][key],
+                values,
+                means,
+                counts,
+                ctx,
+                channels,
+                role,
+                bm,
+                config["raw_beam"],
             )
             assets.atomic_npz(
                 target / "columns.npz",
