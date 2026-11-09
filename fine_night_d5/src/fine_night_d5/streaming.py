@@ -122,11 +122,6 @@ def simulate_native(
         raise ValueError("native drive and time row counts differ")
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
-    import jax.numpy as jnp
-    from croissant.rotations import rotmat_to_eulerZYZ
-    from croissant.simulator import convolve
-    from eigsim.rotations import drive_rotation_matrix
-
     sim = importlib.import_module("eigsim.simulate")
     start = time.monotonic()
     setup = sim._setup(
@@ -141,6 +136,71 @@ def simulate_native(
         {**site, "Tgnd": 0.0},
         fuse_orientation=True,
     )
+    return simulate_setup(
+        setup,
+        f,
+        times,
+        elevation,
+        azimuth,
+        rotations,
+        misalignment,
+        out,
+        chunk_rows=chunk_rows,
+        closure=closure,
+        prepared_output=True,
+        started=start,
+    )
+
+
+def simulate_setup(
+    setup,
+    frequencies,
+    times,
+    elevation,
+    azimuth,
+    rotations,
+    misalignment,
+    out,
+    chunk_rows=128,
+    closure=True,
+    prepared_output=False,
+    started=None,
+):
+    """Existing native convolution/checkpoints with an explicit fixed setup.
+
+    Callers reusing a frame must independently validate actual beam/sky
+    replacement and normalization; this helper performs no such inference.
+    Actual physical frequency labels remain in every checkpoint.
+    """
+    if not isinstance(chunk_rows, int) or chunk_rows <= 0:
+        raise ValueError("positive integer convolution chunk required")
+    times, f = np.asarray(times), np.asarray(frequencies)
+    if (
+        times.ndim != 1
+        or f.ndim != 1
+        or not len(f)
+        or not np.isfinite(times).all()
+        or not np.isfinite(f).all()
+        or np.shape(setup.phases)[0] != len(times)
+        or np.shape(setup.alm)[0] != len(f)
+        or np.shape(setup.sky_alm)[0] != len(f)
+        or np.shape(setup.beam_norm) != (len(f),)
+    ):
+        raise ValueError("shared setup native time/frequency axes differ")
+    groups = orientation_groups(elevation, azimuth, rotations, misalignment)
+    out = Path(out)
+    if prepared_output:
+        if not out.is_dir() or any(out.iterdir()):
+            raise ValueError("prepared output must be a fresh empty directory")
+    else:
+        out.mkdir(parents=True, exist_ok=False)
+    import jax.numpy as jnp
+    from croissant.rotations import rotmat_to_eulerZYZ
+    from croissant.simulator import convolve
+    from eigsim.rotations import drive_rotation_matrix
+
+    sim = importlib.import_module("eigsim.simulate")
+    start = time.monotonic() if started is None else started
     values = np.full((len(times), len(f), 2), np.nan)
     completed, first_closure = [], None
     for group, (el, az, rows) in enumerate(groups):
