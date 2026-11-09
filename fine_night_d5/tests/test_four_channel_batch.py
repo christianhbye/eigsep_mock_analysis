@@ -76,3 +76,37 @@ def test_interrupted_target_is_preserved_without_becoming_completed(tmp_path):
     saved = list(tmp_path.glob("role.incomplete-*"))
     assert len(saved) == 1
     assert json.loads((saved[0] / "PROGRESS.json").read_text())["partial"]
+
+
+def test_disjoint_role_schedules_cover_the_full_secondary_band_once():
+    native = np.arange(264, 984) * 250 / 1024
+    centres = native.reshape(-1, 4).mean(1)
+    roles = ["raster_hybrid", "represented_hfss_control", "strong"] + [
+        f"delete{i}" for i in range(13)
+    ]
+    complete = tasks(native, centres, roles, ["secondary_native"])
+    selections = [roles[1:6], roles[6:11], roles[11:16]]
+    partitions = [
+        tasks(native, centres, roles, ["secondary_native"], subset)
+        for subset in selections
+    ]
+
+    def identity(task):
+        return task["role"], tuple(task["evaluation_index"])
+
+    keys = [identity(t) for part in partitions for t in part]
+    assert len(keys) == len(set(keys)) == len(complete) == 3600
+    original = {identity(t): t for t in complete}
+    assert all(task == original[identity(task)] for part in partitions for task in part)
+    for part, subset in zip(partitions, selections):
+        for role in subset:
+            selected = [t for t in part if t["role"] == role]
+            assert len(selected) == 240
+            np.testing.assert_array_equal(
+                np.concatenate([t["frequencies_mhz"] for t in selected]), native
+            )
+    for bad in [[], ["strong", "strong"], ["raster_hybrid"], ["absent"], "strong"]:
+        with pytest.raises(ValueError, match="secondary roles"):
+            tasks(native, centres, roles, ["secondary_native"], bad)
+    with pytest.raises(ValueError, match="secondary roles"):
+        tasks(native, centres, roles, ["primary_native"], ["strong"])

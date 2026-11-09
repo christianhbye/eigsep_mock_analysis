@@ -21,7 +21,7 @@ from .shared_frame import SharedFrame
 from .streaming import simulate_setup
 
 
-def tasks(native, centres, roles, phases):
+def tasks(native, centres, roles, phases, secondary_roles=None):
     """Freeze the exact three-frequency schedule before any model call."""
     specs = {
         "primary_native": (
@@ -46,6 +46,17 @@ def tasks(native, centres, roles, phases):
         or any(p not in specs for p in phases)
     ):
         raise ValueError("explicit unique model phases required")
+    if secondary_roles is not None:
+        available = specs["secondary_native"][2]
+        if (
+            "secondary_native" not in phases
+            or not isinstance(secondary_roles, list)
+            or not secondary_roles
+            or len(set(secondary_roles)) != len(secondary_roles)
+            or any(role not in available for role in secondary_roles)
+        ):
+            raise ValueError("explicit unique available secondary roles required")
+        specs["secondary_native"] = ("native", native, secondary_roles)
     result = []
     for phase in phases:
         mode, frequencies, selected = specs[phase]
@@ -158,6 +169,7 @@ def run(config, out):
         conformance_inputs=config["conformance_inputs"],
         roles=fields.roles,
         phases=config["phases"],
+        secondary_roles=config.get("secondary_roles"),
     )
     context_bytes = json.dumps(context, sort_keys=True, allow_nan=False).encode()
     context_sha = hashlib.sha256(context_bytes).hexdigest()
@@ -167,7 +179,13 @@ def run(config, out):
     assets.write_json(context_path, context)
     native = cells["chans"] * 250 / 1024
     centres = cells["chans"].reshape(-1, 4).mean(1) * 250 / 1024
-    schedule = tasks(native, centres, fields.roles, config["phases"])
+    schedule = tasks(
+        native,
+        centres,
+        fields.roles,
+        config["phases"],
+        config.get("secondary_roles"),
+    )
     limit = config["max_new_evaluations"]
     if not isinstance(limit, int) or limit <= 0:
         raise ValueError("positive bounded evaluation count required")
@@ -303,6 +321,10 @@ def run(config, out):
                 dict(
                     status="COMPLETE model phase",
                     label="diagnostic",
+                    selected_roles=list(
+                        dict.fromkeys(r["role"] for r in phase_records)
+                    ),
+                    scope="all configured frequencies for exactly selected_roles",
                     context_sha256=context_sha,
                     records=phase_records,
                     native_stage=config["model"]["native_stage"],
