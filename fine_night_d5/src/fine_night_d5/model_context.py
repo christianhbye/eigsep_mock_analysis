@@ -109,6 +109,7 @@ def load(config):
         runtime_modules=config["runtime_modules"],
     )
     return dict(
+        configuration=config,
         cells=cells,
         mapping=mapping,
         n_bins=nb,
