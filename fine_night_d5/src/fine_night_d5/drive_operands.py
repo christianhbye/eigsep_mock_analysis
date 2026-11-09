@@ -54,6 +54,10 @@ def implementation():
         risbo_jax_sha256=assets.sha256(risbo_jax.__file__),
         jax=jax.__version__,
         jaxlib=jaxlib.__version__,
+        jaxlib_so={
+            str(p): assets.sha256(p)
+            for p in sorted(Path(jaxlib.__file__).parent.rglob("*.so"))
+        },
         jax_enable_x64=bool(jax.config.jax_enable_x64),
     )
 
