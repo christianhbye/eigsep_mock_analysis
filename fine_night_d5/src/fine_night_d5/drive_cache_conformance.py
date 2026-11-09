@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from . import assets
-from .drive_operands import DriveOperands, build, drive_eulers
+from .drive_operands import DriveOperands, build, drive_eulers, numpy_orientation
 from .field_operands import FieldOperands
 from .model_context import load
 from .shared_conformance import CHUNKS, compare
@@ -26,7 +26,7 @@ SECONDARY_ROLES = [
 
 
 def original_closure(setup, point, eulers, values):
-    """First128 native rows against the ORIGINAL orientation callable."""
+    """Up to128 rows of the first drive group against ORIGINAL callable."""
     import jax.numpy as jnp
     from croissant.simulator import convolve
 
@@ -133,6 +133,9 @@ def run(config, out):
     start = time.monotonic()
     if set(config["secondary_references"]) != set(SECONDARY_ROLES):
         raise ValueError("exact five predeclared secondary references required")
+    backend = config.get("rotation_backend", "cached-jax")
+    if backend not in ["cached-jax", "numpy-full"]:
+        raise ValueError("explicit available full-mode rotation backend required")
     out.mkdir(parents=True, exist_ok=False)
     ctx = load(config["model"])
     ctx["field_operands"] = config["field_operands"]
@@ -166,10 +169,29 @@ def run(config, out):
     if len(eulers) != 43 or len(times) != 37697:
         raise ValueError("complete frozen43orientations/37697rows required")
     table_start = time.monotonic()
-    pin = build(eulers, ctx["identity"], out / "drive_tables")
+    if "drive_operands" in config:
+        prior = json.loads(
+            assets.checked_file(config["drive_qualification"]).read_text()
+        )
+        if (
+            not prior["passed"]
+            or len(prior["cases"]) != 10
+            or prior["drive_operands"] != config["drive_operands"]
+            or prior["frame_signature"] != frame.signature
+        ):
+            raise ValueError("completed full-D operand qualification required")
+        pin = config["drive_operands"]
+    else:
+        pin = build(eulers, ctx["identity"], out / "drive_tables")
     operands = DriveOperands(pin, eulers, ctx["identity"])
     table_seconds = time.monotonic() - table_start
-    orient = operands.orientation(frame.template.beam_norm, frame.template.sim.lmax + 1)
+    orient = (
+        numpy_orientation(
+            operands, eulers, frame.template.beam_norm, frame.template.sim.lmax + 1
+        )
+        if backend == "numpy-full"
+        else operands.orientation(frame.template.beam_norm, frame.template.sim.lmax + 1)
+    )
     records = []
     for chunk, channels in enumerate(chunks):
         f = np.array(channels) * 250 / 1024
@@ -286,6 +308,8 @@ def run(config, out):
             drive_operands=pin,
             drive_table_seconds=table_seconds,
             orientation_count=len(eulers),
+            rotation_backend=backend,
+            consumer_identity=getattr(orient, "consumer_identity", None),
         ),
     )
 

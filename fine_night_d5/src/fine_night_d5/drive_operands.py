@@ -205,3 +205,171 @@ class DriveOperands:
             )
 
         return orient
+
+
+def rotate_numpy(alm, dl, alpha, gamma):
+    """Original full valid-mode equation using centred per-ell matrix products."""
+    alm, dl, alpha, gamma = map(np.asarray, (alm, dl, alpha, gamma))
+    L = alm.shape[-2]
+    if (
+        alm.ndim < 2
+        or alm.shape[-1] != 2 * L - 1
+        or alm.dtype != np.dtype("complex128")
+        or dl.shape != (L, 2 * L - 1, 2 * L - 1)
+        or dl.dtype != np.dtype("float64")
+        or alpha.shape != (2 * L - 1,)
+        or gamma.shape != alpha.shape
+        or alpha.dtype != np.dtype("complex128")
+        or gamma.dtype != alpha.dtype
+        or not np.isfinite(alm).all()
+    ):
+        raise ValueError(
+            "complete complex128 ALM/full float64 D/complex128 phases required"
+        )
+    result = np.zeros_like(alm)
+    center = L - 1
+    for ell in range(L):
+        sl = slice(center - ell, center + ell + 1)
+        result[..., ell, sl] = alpha[sl] * np.einsum(
+            "mn,n,...n->...m",
+            dl[ell, sl, sl],
+            gamma[sl],
+            alm[..., ell, sl],
+            optimize=True,
+        )
+    return result
+
+
+def numpy_runtime():
+    """Actual imported NumPy/BLAS/native libraries and thread settings."""
+    import ctypes
+    import os
+
+    # Resolve the already loaded implementation, not only its build metadata.
+    np.ones((2, 2)) @ np.ones((2, 2))
+    loaded = {
+        Path(line.split()[-1]).resolve()
+        for line in Path("/proc/self/maps").read_text().splitlines()
+        if "/" in line and "openblas" in line.split()[-1].lower()
+    }
+    if not loaded:
+        raise ValueError("actual loaded OpenBLAS implementation required")
+    pools = {}
+    for path in sorted(loaded):
+        library = ctypes.CDLL(str(path), mode=os.RTLD_NOLOAD)
+        for symbol in [
+            "openblas_get_num_threads",
+            "openblas_get_num_threads64_",
+            "scipy_openblas_get_num_threads",
+            "scipy_openblas_get_num_threads64_",
+        ]:
+            query = getattr(library, symbol, None)
+            if query is not None:
+                query.restype = ctypes.c_int
+                query.argtypes = []
+                count = int(query())
+                if count != 1:
+                    raise ValueError("actual OpenBLAS pool must contain one thread")
+                pools[str(path)] = dict(
+                    sha256=assets.sha256(path),
+                    query_symbol=symbol,
+                    actual_threads=count,
+                )
+                break
+        else:
+            raise ValueError(
+                "actual loaded BLAS thread count unavailable: " + str(path)
+            )
+    root = Path(np.__file__).parent
+    libraries = sorted(
+        [*root.rglob("*.so"), *(root.parent / "numpy.libs").glob("*.so*")]
+    )
+    return dict(
+        version=np.__version__,
+        module=str(root),
+        module_sha256=assets.sha256(np.__file__),
+        native_libraries={str(p): assets.sha256(p) for p in libraries if p.is_file()},
+        configuration=np.__config__.CONFIG,
+        actual_loaded_blas=pools,
+        threads={
+            k: os.environ.get(k)
+            for k in [
+                "OPENBLAS_NUM_THREADS",
+                "OMP_NUM_THREADS",
+                "MKL_NUM_THREADS",
+                "NUMEXPR_NUM_THREADS",
+            ]
+        },
+    )
+
+
+def numpy_orientation(operands, eulers, beam_norm, sim_L):
+    """All L129 modes; only original rotation matrix products move to NumPy."""
+    import croissant as cro
+    import jax
+    import jax.numpy as jnp
+    import s2fft
+
+    runtime = numpy_runtime()
+    if any(value != "1" for value in runtime["threads"].values()):
+        raise ValueError("recorded single-thread NumPy/BLAS required")
+    emms = jnp.arange(-128, 129)
+    phases = {}
+    for e in eulers:
+        key = angle_key(e)
+        operands.table(e)
+        rotation = jnp.asarray(e, dtype=jnp.float64)
+        phases[key] = (
+            np.asarray(jnp.exp(-1j * emms * rotation[0])),
+            np.asarray(jnp.exp(-1j * emms * rotation[2])),
+        )
+
+    @jax.jit
+    def post_rotate(rotated, sim, horizon, quad_weights):
+        flat = rotated.reshape((-1, 129, 257))
+        inverse = partial(
+            s2fft.inverse,
+            L=129,
+            spin=0,
+            nside=None,
+            sampling="mwss",
+            method="jax",
+            reality=True,
+        )
+        maps = jnp.real(jax.vmap(inverse)(flat))
+        pixel = maps.reshape(rotated.shape[:-2] + maps.shape[1:])
+        masked = pixel * horizon[None]
+        above = jnp.einsum("ft...,t->f", masked, quad_weights)
+        fg = 1.0 - above / beam_norm
+        forward = partial(
+            s2fft.forward,
+            L=129,
+            spin=0,
+            nside=None,
+            sampling="mwss",
+            method="jax",
+            reality=True,
+        )
+        alm_topo = jax.vmap(forward)(masked)
+        alm_trunc = cro.utils.reduce_lmax(alm_topo, sim_L - 1)
+        return sim.topo_to_sim(alm_trunc), fg
+
+    def orient(beam_alm, euler, sim, horizon, quad_weights):
+        if np.shape(beam_alm)[-2:] != (129, 257):
+            raise ValueError("full L129 beam required")
+        table = operands.table(euler)
+        key = angle_key(np.asarray(euler))
+        if key not in phases:
+            raise ValueError("unexpected exact Euler phase coverage")
+        alpha, gamma = phases[key]
+        rotated = rotate_numpy(np.asarray(beam_alm), table, alpha, gamma)
+        return post_rotate(rotated, sim, horizon, quad_weights)
+
+    orient.consumer_identity = dict(
+        backend="numpy-full-L129",
+        runtime=runtime,
+        phases={
+            key: [array_identity(a) for a in value] for key, value in phases.items()
+        },
+    )
+    return orient
