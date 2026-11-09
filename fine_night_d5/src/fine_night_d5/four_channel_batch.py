@@ -16,8 +16,9 @@ import numpy as np
 
 from . import assets
 from .field_operands import FieldOperands
+from .model_acceleration import QualifiedAcceleration, original_closure
 from .model_context import load
-from .shared_frame import SharedFrame
+from .shared_frame import SharedFrame, array_identity
 from .streaming import simulate_setup
 
 
@@ -156,6 +157,13 @@ def run(config, out):
     ctx = load(config["model"])
     fields = FieldOperands(config["field_operands"])
     cells, point = ctx["cells"], ctx["pointing"]
+    acceleration = None
+    if config.get("acceleration") is not None:
+        if config["phases"] != ["secondary_native"]:
+            raise ValueError("accelerated consumer is explicit secondary-only scope")
+        acceleration = QualifiedAcceleration(
+            config["acceleration"], config, ctx, actual_source
+        )
     np.testing.assert_array_equal(cells["chans"], np.arange(264, 984))
     times = cells["time_best"]
     context = dict(
@@ -171,6 +179,8 @@ def run(config, out):
         phases=config["phases"],
         secondary_roles=config.get("secondary_roles"),
     )
+    if acceleration is not None:
+        context["acceleration"] = config["acceleration"]
     context_bytes = json.dumps(context, sort_keys=True, allow_nan=False).encode()
     context_sha = hashlib.sha256(context_bytes).hexdigest()
     context_path = out / "BATCH_CONTEXT.json"
@@ -249,6 +259,7 @@ def run(config, out):
         )
         if frame.signature != conformance["frame_signature"]:
             raise ValueError("actual simulation frame differs from qualified frame")
+        orient = acceleration.orientation(frame) if acceleration is not None else None
         common = dict(
             times=times,
             horizon=ctx["horizon"],
@@ -259,7 +270,18 @@ def run(config, out):
             f = np.array(task["frequencies_mhz"])
             sky = sky_at(f)
             t = time.monotonic()
-            frame.sky_alm(sky, f, **common)
+            sky_reused = False
+            if acceleration is not None and np.array_equal(
+                f, frame.current_sky_frequencies
+            ):
+                if array_identity(sky.data) != frame.current_sky_data_identity:
+                    raise ValueError(
+                        "unexpected sky-map change at current frequencies: "
+                        + repr(f.tolist())
+                    )
+                sky_reused = True
+            else:
+                frame.sky_alm(sky, f, **common)
             sky_s = time.monotonic() - t
             target = target_for(task)
             preserve_incomplete(target)
@@ -270,6 +292,9 @@ def run(config, out):
             else:
                 bm, norm = fields.beam(task["role"], f)
             setup, rescale = frame.replace(bm, f, sky, **common)
+            original_setup = setup
+            if orient is not None:
+                setup = setup._replace(orient=orient)
             prepare_s = time.monotonic() - t
             values, qc = simulate_setup(
                 setup,
@@ -281,7 +306,13 @@ def run(config, out):
                 point["misalignment"],
                 target,
                 save_chunks=False,
+                closure=acceleration is None,
             )
+            if acceleration is not None:
+                check = original_closure(original_setup, point, values, ctx["cmb"])
+                qc["first_unchanged_operator_max_abs_K"] = check["max_abs_S_K"]
+                qc["original_operator_check"] = check
+                qc["sky_alm_reused_current_operand"] = sky_reused
             assets.atomic_npz(
                 target / "columns.npz",
                 frequencies_mhz=f,
