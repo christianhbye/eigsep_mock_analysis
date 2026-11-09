@@ -52,7 +52,7 @@ def grid(L, lmax):
     return angular, directions, weights
 
 
-def run(prepared, fit, frequencies, out, prior=False):
+def run(prepared, fit, frequencies, out, fit_record_sha256, prior=False):
     started = time.monotonic()
     out.mkdir(parents=True, exist_ok=False)
     source = json.loads((prepared / "RUN_DONE.json").read_text())
@@ -62,6 +62,12 @@ def run(prepared, fit, frequencies, out, prior=False):
     with np.load(prepared / "representation.npz", allow_pickle=False) as z:
         lmax = int(z["lmax"])
         c0 = z["c0"]
+    record_path = fit / "RUN_RECORD.json"
+    if sha256(record_path) != fit_record_sha256:
+        raise ValueError("fitted record identity changed")
+    parent_record = json.loads(record_path.read_text())
+    if parent_record["prepared_done_sha256"] != sha256(prepared / "RUN_DONE.json"):
+        raise ValueError("fit was produced from a different native preparation")
     fit_record = json.loads((fit / "RUN_DONE.json").read_text())
     if not prior and not fit_record["fit_converged"]:
         raise ValueError("unconverged field cannot be exported")
@@ -109,6 +115,7 @@ def run(prepared, fit, frequencies, out, prior=False):
         normalization="unit MWSS spherical mean transverse power",
         frequency_scope="explicit requested coordinates inside fitted native band",
         parent_fit_done_sha256=sha256(fit / "RUN_DONE.json"),
+        fit_record_sha256=fit_record_sha256,
         parent_prepared_done_sha256=sha256(prepared / "RUN_DONE.json"),
         role="represented_hfss_control" if prior else "raster_hybrid",
     )
@@ -118,6 +125,7 @@ def run(prepared, fit, frequencies, out, prior=False):
             label="diagnostic; shape-only; not antenna efficiency",
             beam_sha256=sha256(out / "beam.npz"),
             fit_done_sha256=sha256(fit / "RUN_DONE.json"),
+            fit_record_sha256=fit_record_sha256,
             prior_control=prior,
             prepared_done_sha256=sha256(prepared / "RUN_DONE.json"),
             exporter_sha256=sha256(__file__),
@@ -143,6 +151,14 @@ if __name__ == "__main__":
     p.add_argument("--fit", type=Path, required=True)
     p.add_argument("--frequencies", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--fit-record-sha256", required=True)
     p.add_argument("--prior", action="store_true")
     a = p.parse_args()
-    run(a.prepared, a.fit, json.loads(a.frequencies.read_text()), a.out, a.prior)
+    run(
+        a.prepared,
+        a.fit,
+        json.loads(a.frequencies.read_text()),
+        a.out,
+        a.fit_record_sha256,
+        a.prior,
+    )
