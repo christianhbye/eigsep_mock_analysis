@@ -165,6 +165,7 @@ def simulate_setup(
     closure=True,
     prepared_output=False,
     started=None,
+    save_chunks=True,
 ):
     """Existing native convolution/checkpoints with an explicit fixed setup.
 
@@ -235,23 +236,38 @@ def simulate_setup(
             value = np.stack([s, ground], axis=-1)
             values[k] = value
             path = out / f"orientation_{group:04}_chunk_{offset:06}.npz"
-            atomic_npz(
-                path,
-                native_position=k,
-                times_unix=times[k],
-                frequencies_mhz=f,
-                columns=value,
-                elevation_deg=el,
-                azimuth_deg=az,
-            )
-            completed.append({"file": path.name, "rows": len(k), "orientation": group})
+            if save_chunks:
+                atomic_npz(
+                    path,
+                    native_position=k,
+                    times_unix=times[k],
+                    frequencies_mhz=f,
+                    columns=value,
+                    elevation_deg=el,
+                    azimuth_deg=az,
+                )
+                completed.append(
+                    {"file": path.name, "rows": len(k), "orientation": group}
+                )
+                write_json(
+                    out / "PROGRESS.json",
+                    {
+                        "completed": completed,
+                        "orientations_total": len(groups),
+                        "elapsed_s": time.monotonic() - start,
+                        "first_unchanged_operator_max_abs_K": first_closure,
+                    },
+                )
+        if not save_chunks:
+            completed.append({"rows": len(rows), "orientation": group})
             write_json(
                 out / "PROGRESS.json",
                 {
-                    "completed": completed,
+                    "completed_orientations": completed,
                     "orientations_total": len(groups),
                     "elapsed_s": time.monotonic() - start,
                     "first_unchanged_operator_max_abs_K": first_closure,
+                    "orientation_chunk_files_saved": False,
                 },
             )
     if not np.isfinite(values).all():
