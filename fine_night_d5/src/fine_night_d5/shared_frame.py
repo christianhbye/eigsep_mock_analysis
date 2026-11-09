@@ -132,9 +132,7 @@ class SharedFrame:
         ):
             raise ValueError("fixed simulation context changed")
 
-    def replace(
-        self, beam, frequencies, sky, sky_alm, *, times, horizon, site, context
-    ):
+    def replace(self, beam, frequencies, sky, *, times, horizon, site, context):
         """Replace physical operands; retain the validated frame function."""
         self._check_context(times, horizon, site, context)
         self._validate_axes(beam, frequencies, sky)
