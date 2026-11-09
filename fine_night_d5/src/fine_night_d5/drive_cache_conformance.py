@@ -14,6 +14,8 @@ from .field_operands import FieldOperands
 from .model_context import load
 from .shared_conformance import CHUNKS, compare
 from .shared_frame import SharedFrame
+from .sht_operands import SHTOperands
+from .sht_operands import build as build_sht
 from .streaming import orientation_groups, reduce_columns, simulate_setup
 
 SECONDARY_ROLES = [
@@ -133,6 +135,11 @@ def run(config, out):
     start = time.monotonic()
     if set(config["secondary_references"]) != set(SECONDARY_ROLES):
         raise ValueError("exact five predeclared secondary references required")
+    backend = config.get("transform_backend", "original")
+    if backend not in ["original", "guarded-precomputed"]:
+        raise ValueError(
+            "explicit available full-resolution transform backend required"
+        )
     out.mkdir(parents=True, exist_ok=False)
     ctx = load(config["model"])
     ctx["field_operands"] = config["field_operands"]
@@ -166,10 +173,32 @@ def run(config, out):
     if len(eulers) != 43 or len(times) != 37697:
         raise ValueError("complete frozen43orientations/37697rows required")
     table_start = time.monotonic()
-    pin = build(eulers, ctx["identity"], out / "drive_tables")
+    if backend == "guarded-precomputed":
+        prior = json.loads(
+            assets.checked_file(config["drive_qualification"]).read_text()
+        )
+        if (
+            not prior["passed"]
+            or len(prior["cases"]) != 10
+            or prior["drive_operands"] != config["drive_operands"]
+            or prior["frame_signature"] != frame.signature
+        ):
+            raise ValueError("completed full-D operand qualification required")
+        pin = config["drive_operands"]
+    else:
+        pin = build(eulers, ctx["identity"], out / "drive_tables")
     operands = DriveOperands(pin, eulers, ctx["identity"])
     table_seconds = time.monotonic() - table_start
     orient = operands.orientation(frame.template.beam_norm, frame.template.sim.lmax + 1)
+    sht_pin = None
+    if backend == "guarded-precomputed":
+        sht_pin = build_sht(
+            config["sht_raw_diagnostic"], ctx["identity"], out / "sht_tables"
+        )
+        sht = SHTOperands(sht_pin, ctx["identity"])
+        orient = sht.orientation(
+            operands, frame.template.beam_norm, frame.template.sim.lmax + 1
+        )
     records = []
     for chunk, channels in enumerate(chunks):
         f = np.array(channels) * 250 / 1024
@@ -286,6 +315,8 @@ def run(config, out):
             drive_operands=pin,
             drive_table_seconds=table_seconds,
             orientation_count=len(eulers),
+            transform_backend=backend,
+            transform_operands=sht_pin,
         ),
     )
 
